@@ -171,6 +171,7 @@ export default async function handler(req, res) {
   try {
     // 1. Generate description
   const generated = await generateDescription(productInfo);
+    console.log('Generated:', JSON.stringify(generated));
 const description = generated.description || '';
 const seoTitle = generated.seoTitle || productInfo.title;
 const urlHandle = generated.urlHandle || '';
@@ -245,7 +246,8 @@ const metaDescription = generated.metaDescription || '';
     const shopifyProduct = {
       title: seoTitle,
 handle: urlHandle || undefined,
-      body_html: description.replace(/\n/g, '<br>'),
+      body_html: `<p>${description.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>')}</p>`,
+      metafields: metaDescription ? [{ key: 'description_tag', value: metaDescription, type: 'single_line_text_field', namespace: 'global' }] : [],
       vendor: 'Yamira London',
       product_type: productInfo.type || 'Dress',
       tags,
