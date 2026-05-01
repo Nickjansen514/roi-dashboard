@@ -531,7 +531,216 @@ function saveGads() {
   updateConnStatus();
   navigate('producten');
 }
+// ── Product Lister ───────────────────────────────────────
+function renderProductLister() {
+  document.getElementById('content').innerHTML = `
+    <div style="max-width:800px;">
+      <div class="settings-card">
+        <h2>Product Lister</h2>
+        <p class="desc">Plak een productlink en wij genereren automatisch de beschrijving, tags en foto's voor Yamira London.</p>
+        <div class="field" style="margin-bottom:14px;">
+          <label>Product URL</label>
+          <input id="pl-url" type="text" placeholder="https://www.example.com/products/dress" style="padding:10px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:13px;font-family:var(--font);outline:none;width:100%;">
+        </div>
+        <button class="btn btn-primary" onclick="scrapeProduct()">
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="8" r="6"/><path d="M8 4v4l3 3"/></svg>
+          Product ophalen
+        </button>
+      </div>
 
+      <div id="pl-result" style="display:none;">
+        <div class="settings-card">
+          <h2 id="pl-title">Productinfo</h2>
+          <div class="field-grid" style="margin-bottom:16px;">
+            <div class="field">
+              <label>Productnaam</label>
+              <input id="pl-name" type="text" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;">
+            </div>
+            <div class="field">
+              <label>Type product</label>
+              <input id="pl-type" type="text" placeholder="Dress, Maxi Dress, Top..." style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;">
+            </div>
+            <div class="field">
+              <label>Originele prijs</label>
+              <input id="pl-price" type="number" step="0.01" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;">
+            </div>
+            <div class="field">
+              <label>Valuta</label>
+              <select id="pl-currency" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;">
+                <option value="EUR">EUR (€)</option>
+                <option value="GBP">GBP (£)</option>
+                <option value="USD">USD ($)</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Prijs in GBP (automatisch)</label>
+              <input id="pl-gbp" type="text" readonly style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;opacity:0.7;">
+            </div>
+            <div class="field">
+              <label>Seizoen</label>
+              <select id="pl-season" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;">
+                <option value="ALL YEAR">ALL YEAR</option>
+                <option value="SUMMER">SUMMER</option>
+                <option value="WINTER">WINTER</option>
+              </select>
+            </div>
+          </div>
+          <div class="field" style="margin-bottom:14px;">
+            <label>Kleuren (komma gescheiden)</label>
+            <input id="pl-colors" type="text" placeholder="black, white, red..." style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;">
+          </div>
+          <div class="field" style="margin-bottom:14px;">
+            <label>Maten (komma gescheiden)</label>
+            <input id="pl-sizes" type="text" placeholder="XS, S, M, L, XL, XXL" value="XS, S, M, L, XL, XXL" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;">
+          </div>
+          <div class="field" style="margin-bottom:14px;">
+            <label>Extra tags (optioneel)</label>
+            <input id="pl-tags" type="text" placeholder="midi dress, occasion wear..." style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;">
+          </div>
+          <div class="field" style="margin-bottom:14px;">
+            <label>Referentie model URL (kie.ai — voor consistente foto's)</label>
+            <input id="pl-model-url" type="text" placeholder="https://... (optioneel)" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;">
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+            <input type="checkbox" id="pl-photos" style="width:16px;height:16px;">
+            <label for="pl-photos" style="font-size:13px;cursor:pointer;">Foto's genereren via kie.ai</label>
+          </div>
+          <div id="pl-images-preview" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;"></div>
+          <div style="display:flex;gap:10px;">
+            <button class="btn btn-primary" id="pl-submit-btn" onclick="submitProduct()">
+              Product aanmaken in Shopify
+            </button>
+            <button class="btn" onclick="navigate('producten')">Annuleren</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="pl-status" style="display:none;" class="banner banner-info">
+        <div><h3 id="pl-status-title">Bezig...</h3><p id="pl-status-msg"></p></div>
+      </div>
+      <div id="pl-success" style="display:none;" class="banner banner-info">
+        <div><h3>✓ Product aangemaakt!</h3><p id="pl-success-msg"></p></div>
+      </div>
+    </div>`;
+
+  // Auto-calculate GBP price
+  document.getElementById('pl-price').addEventListener('input', updateGbpPrice);
+  document.getElementById('pl-currency').addEventListener('change', updateGbpPrice);
+}
+
+function updateGbpPrice() {
+  const price = parseFloat(document.getElementById('pl-price').value) || 0;
+  const currency = document.getElementById('pl-currency').value;
+  const gbp = convertToGbp(price, currency);
+  document.getElementById('pl-gbp').value = '£' + gbp.toFixed(2);
+}
+
+function convertToGbp(price, currency) {
+  const rates = { EUR: 0.86, USD: 0.79, GBP: 1 };
+  const gbp = price * (rates[currency] || 0.86);
+  const base = Math.floor(gbp);
+  const remainder = base % 10;
+  let rounded;
+  if (remainder < 5) rounded = Math.floor(base / 10) * 10 + 4.95;
+  else rounded = Math.floor(base / 10) * 10 + 9.95;
+  return rounded;
+}
+
+async function scrapeProduct() {
+  const url = document.getElementById('pl-url').value.trim();
+  if (!url) return alert('Vul een URL in');
+
+  setPlStatus(true, 'Product ophalen...', 'Even geduld, we halen de productinfo op.');
+
+  try {
+    const r = await fetch('/api/scrape', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url })
+    });
+    const data = await r.json();
+    if (data.error) throw new Error(data.error);
+
+    setPlStatus(false);
+    document.getElementById('pl-result').style.display = 'block';
+    document.getElementById('pl-name').value = data.title || '';
+    document.getElementById('pl-price').value = data.price || '';
+    if (data.price) updateGbpPrice();
+
+    // Show images preview
+    if (data.images?.length > 0) {
+      const preview = document.getElementById('pl-images-preview');
+      preview.innerHTML = data.images.slice(0, 6).map(img =>
+        `<img src="${img}" style="width:80px;height:80px;object-fit:cover;border-radius:6px;border:1px solid var(--border);" onerror="this.style.display='none'">`
+      ).join('');
+    }
+
+  } catch(err) {
+    setPlStatus(false);
+    alert('Fout: ' + err.message);
+  }
+}
+
+async function submitProduct() {
+  const btn = document.getElementById('pl-submit-btn');
+  btn.disabled = true;
+  btn.textContent = 'Bezig...';
+
+  const generatePhotos = document.getElementById('pl-photos').checked;
+  setPlStatus(true, generatePhotos ? 'Foto\'s genereren...' : 'Product aanmaken...', 
+    generatePhotos ? 'Dit kan 1-2 minuten duren.' : 'Even geduld...');
+
+  try {
+    const productInfo = {
+      title: document.getElementById('pl-name').value,
+      type: document.getElementById('pl-type').value || 'Dress',
+      originalPrice: parseFloat(document.getElementById('pl-price').value),
+      currency: document.getElementById('pl-currency').value,
+      season: document.getElementById('pl-season').value,
+      colors: document.getElementById('pl-colors').value.split(',').map(s => s.trim()).filter(Boolean),
+      sizes: document.getElementById('pl-sizes').value.split(',').map(s => s.trim()).filter(Boolean),
+      extraTags: document.getElementById('pl-tags').value.split(',').map(s => s.trim()).filter(Boolean),
+      originalImages: [...document.querySelectorAll('#pl-images-preview img')].map(img => img.src)
+    };
+
+    const r = await fetch('/api/generate-product', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        productInfo,
+        referenceModelUrl: document.getElementById('pl-model-url').value.trim() || null,
+        generatePhotos,
+        shopifyToken,
+        shopifyStore
+      })
+    });
+
+    const data = await r.json();
+    if (data.error) throw new Error(data.error);
+
+    setPlStatus(false);
+    document.getElementById('pl-success').style.display = 'block';
+    document.getElementById('pl-success-msg').textContent =
+      `"${data.product?.title}" is aangemaakt als concept in Shopify! Prijs: £${data.price} | Tags: ${data.tags}`;
+
+  } catch(err) {
+    setPlStatus(false);
+    alert('Fout: ' + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Product aanmaken in Shopify';
+  }
+}
+
+function setPlStatus(show, title = '', msg = '') {
+  const el = document.getElementById('pl-status');
+  if (!el) return;
+  el.style.display = show ? 'block' : 'none';
+  if (show) {
+    document.getElementById('pl-status-title').textContent = title;
+    document.getElementById('pl-status-msg').textContent = msg;
+  }
+}
 // ── Init ──────────────────────────────────────────────────────
 checkUrlToken();
 updateConnStatus();
