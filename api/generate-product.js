@@ -2,10 +2,12 @@ const KIE_API_KEY = process.env.KIE_API_KEY;
 const SHOPIFY_TOKEN = process.env.SHOPIFY_TOKEN;
 const SHOPIFY_STORE = process.env.SHOPIFY_STORE;
 
-// Vast Yamira London model — altijd gebruiken voor productfoto's
+// Vast Yamira London model
 const DEFAULT_MODEL_URL = 'https://cdn.shopify.com/s/files/1/0994/5202/7219/files/10cc9f8a1cbbadd4ca5fd1f3cee5a16f_1777666053_adp3xdip.png?v=1777666156';
+const MODEL = 'a confident professional fashion model, early 30s, light medium skin tone, long dark brown wavy hair, slim build, UK size 10, standing upright, British fashion aesthetic';
+const CROP = 'mid-thigh up';
+const STYLING = 'minimal delicate jewellery, nude heels';
 
-// Price conversion: convert to GBP and round to x4.95 or x9.95
 function convertPrice(originalPrice, currency = 'EUR') {
   const rates = { EUR: 0.86, USD: 0.79, GBP: 1 };
   const gbp = originalPrice * (rates[currency] || 0.86);
@@ -17,7 +19,6 @@ function convertPrice(originalPrice, currency = 'EUR') {
   return rounded;
 }
 
-// Size mapping
 const sizeMap = {
   'XS': 'XS (UK6)', 'S': 'S (UK8)', 'M': 'M (UK10)',
   'L': 'L (UK12)', 'XL': 'XL (UK14)', 'XXL': 'XXL (UK16)',
@@ -26,15 +27,15 @@ const sizeMap = {
   '40': 'L (UK12)', '42': 'XL (UK14)', '44': 'XXL (UK16)'
 };
 
-// Color translation to English UK
 const colorMap = {
   'noir': 'black', 'blanc': 'white', 'rouge': 'red', 'bleu': 'blue',
   'vert': 'green', 'rose': 'pink', 'beige': 'beige', 'crème': 'cream',
   'gris': 'grey', 'marron': 'brown', 'orange': 'orange', 'violet': 'purple',
   'jaune': 'yellow', 'marine': 'navy', 'bordeaux': 'burgundy',
+  'rouge foncé': 'dark red', 'khaki': 'khaki', 'lila': 'lilac',
   'zwart': 'black', 'wit': 'white', 'blauw': 'blue', 'groen': 'green',
   'roze': 'pink', 'grijs': 'grey', 'bruin': 'brown', 'geel': 'yellow',
-  'rood': 'red', 'paars': 'purple', 'lila': 'lilac',
+  'rood': 'red', 'paars': 'purple',
   'negro': 'black', 'blanco': 'white', 'rojo': 'red', 'azul': 'blue',
   'verde': 'green', 'rosa': 'pink', 'amarillo': 'yellow'
 };
@@ -49,7 +50,31 @@ function mapSize(size) {
   return sizeMap[upper] || size;
 }
 
-// Generate product description using Claude
+// Geeft de juiste kleurbenaming voor in de foto prompt (voorkomt kleurverschuiving)
+function colorPromptDescription(color) {
+  const descriptions = {
+    'black': 'deep black, NOT dark navy or charcoal',
+    'white': 'clean white, NOT off-white or cream',
+    'red': 'bright red, NOT burgundy or dark red',
+    'dark red': 'deep dark red, NOT bright red or orange-red',
+    'pink': 'soft pink, NOT hot pink or magenta',
+    'blue': 'medium blue, NOT navy or light blue',
+    'navy': 'deep navy blue, NOT black or medium blue',
+    'green': 'green, NOT olive or khaki',
+    'khaki': 'warm khaki olive, NOT bright green or brown',
+    'orange': 'warm orange, NOT red-orange or yellow',
+    'yellow': 'warm yellow, NOT lime or gold',
+    'lilac': 'soft lilac purple, NOT pink or dark purple',
+    'purple': 'purple, NOT lilac or dark navy',
+    'grey': 'medium grey, NOT silver or charcoal',
+    'beige': 'warm beige, NOT white or cream',
+    'cream': 'soft cream, NOT white or beige',
+    'brown': 'warm brown, NOT dark or orange',
+    'burgundy': 'deep burgundy wine red, NOT bright red or dark brown',
+  };
+  return descriptions[color.toLowerCase()] || color;
+}
+
 async function generateDescription(productInfo) {
   console.log('[generateDescription] Starting for:', productInfo.title);
 
@@ -90,25 +115,20 @@ Original description: ${productInfo.originalDescription || 'none'}`
     })
   });
 
-  console.log('[generateDescription] Claude API status:', response.status);
-
   if (!response.ok) {
     const errText = await response.text();
-    console.error('[generateDescription] Claude API error:', errText);
     throw new Error('Claude API error: ' + response.status + ' ' + errText);
   }
 
   const data = await response.json();
   const text = data.content?.[0]?.text || '{}';
-  console.log('[generateDescription] Text from Claude:', text);
+  console.log('[generateDescription] Claude text:', text.substring(0, 200));
 
   try {
     const clean = text.replace(/```json\s*/gi, '').replace(/```\s*/gi, '').trim();
-    const parsed = JSON.parse(clean);
-    console.log('[generateDescription] Parsed result:', JSON.stringify(parsed));
-    return parsed;
+    return JSON.parse(clean);
   } catch (e) {
-    console.error('[generateDescription] JSON parse failed:', e.message);
+    console.error('[generateDescription] Parse failed:', e.message);
     return {
       seoTitle: productInfo.title,
       description: text,
@@ -118,19 +138,47 @@ Original description: ${productInfo.originalDescription || 'none'}`
   }
 }
 
-// Submit image task to kie.ai
-async function submitKieTask(prompt) {
-  console.log('[Kie.ai] Submitting task, prompt:', prompt.substring(0, 80) + '...');
+// Bouw 8 foto prompts voor één kleur
+function buildPhotoPrompts(seoTitle, color) {
+  const colorDesc = colorPromptDescription(color);
+  const GARMENT = `${seoTitle} in ${colorDesc}`;
 
-  const body = {
-    model: 'ideogram/v3-text-to-image',
-    input: {
-      prompt: prompt,
-      rendering_speed: 'BALANCED',
-      style: 'REALISTIC',
-      image_size: 'portrait_hd'
-    }
-  };
+  // Detail: pak het meest opvallende kledingstuk detail uit de titel
+  const detailKeywords = ['neckline', 'sleeve', 'collar', 'hem', 'waist', 'button', 'zip', 'ruffle', 'bow', 'tie', 'slit', 'pleat', 'gather', 'ruche'];
+  let detail = 'neckline and sleeve detail';
+  for (const kw of detailKeywords) {
+    if (seoTitle.toLowerCase().includes(kw)) { detail = kw + ' detail'; break; }
+  }
+
+  return [
+    // Shot 1 — Front View
+    `Professional e-commerce fashion photo. The model is ${MODEL}, neutral confident expression. She is wearing ${GARMENT}, styled with ${STYLING}. The photo is cropped from ${CROP} — the garment fills the frame and is the clear focus, NOT a full-body shot. Clean light gray studio background, soft even studio lighting, no harsh shadows. High-end fashion e-commerce photography style. Photorealistic. No text, no watermark.`,
+
+    // Shot 2 — Back View
+    `Professional e-commerce fashion photo. The model is ${MODEL}, turned with her back fully to the camera, looking slightly over her left shoulder with a relaxed expression. She is wearing ${GARMENT} — back details, seams, and construction clearly visible. Styled with ${STYLING}. Photo cropped from ${CROP} — tight on the garment, NOT a full-body shot. Clean light gray studio background, soft even studio lighting. High-end fashion e-commerce photography style. Photorealistic. No text, no watermark.`,
+
+    // Shot 3 — Three-Quarter / Side View
+    `Professional e-commerce fashion photo. The model is ${MODEL}, posed at a 45-degree angle to the camera, looking toward the camera with a relaxed expression. She is wearing ${GARMENT}, styled with ${STYLING}. Photo cropped from ${CROP} — tight on the garment, NOT a full-body shot. Clean light gray studio background, soft even studio lighting. High-end fashion e-commerce photography style. Photorealistic. No text, no watermark.`,
+
+    // Shot 4 — Fabric / Texture Close-Up
+    `Extreme macro close-up photo of the fabric of a ${GARMENT}. The fabric color is ${colorDesc}. Shows the weave, texture, and material quality in sharp detail, slight natural fold in the fabric for depth. Soft diffused natural lighting, neutral background. Fabric texture fills the entire frame. 3:4 aspect ratio. Photorealistic product photography. No model, no text, no watermark.`,
+
+    // Shot 5 — Detail Close-Up
+    `Close-up product photo of the ${detail} on a ${GARMENT}. The fabric color is ${colorDesc}. Sharp focus on the detail with slight background blur showing the surrounding fabric. Soft studio lighting. Shows craftsmanship and construction quality clearly. 3:4 aspect ratio. Photorealistic fashion detail photography. No model, no text, no watermark.`,
+
+    // Shot 6 — Lifestyle Shot
+    `Lifestyle fashion photography. The model is ${MODEL}, in a natural candid pose outdoors in an urban setting — city sidewalk, warm golden hour sunlight, blurred background with soft bokeh. She is wearing ${GARMENT} styled with ${STYLING} and a small handbag. Natural expression, slight smile. Full body visible from head to toe. Editorial fashion photography style. Photorealistic. No text, no watermark.`,
+
+    // Shot 7 — Full-Length Styling Shot
+    `Full-body studio fashion photo. The model is ${MODEL}, standing in a relaxed pose, full body visible from head to toe. She is wearing ${GARMENT} styled as a complete outfit with ${STYLING} and complementary footwear. Clean light gray studio background, soft even studio lighting. Fashion lookbook photography style. Photorealistic. No text, no watermark.`,
+
+    // Shot 8 — Flat Lay
+    `Flat lay product photo of ${GARMENT} laid neatly and symmetrically on a clean white marble surface. Fully spread out, wrinkle-free, all design details visible. Shot from directly above (bird's eye view). Soft natural window light from the left. One or two minimal complementary accessories placed beside the garment for context. Clean editorial e-commerce style. 3:4 aspect ratio. Photorealistic. No model, no text, no watermark.`
+  ];
+}
+
+async function submitKieTask(prompt) {
+  console.log('[Kie.ai] Submitting:', prompt.substring(0, 80) + '...');
 
   const r = await fetch('https://api.kie.ai/api/v1/jobs/createTask', {
     method: 'POST',
@@ -138,79 +186,60 @@ async function submitKieTask(prompt) {
       'Authorization': 'Bearer ' + KIE_API_KEY,
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify(body)
+    body: JSON.stringify({
+      model: 'ideogram/v3-text-to-image',
+      input: {
+        prompt,
+        rendering_speed: 'BALANCED',
+        style: 'REALISTIC',
+        image_size: 'portrait_hd'
+      }
+    })
   });
 
   const responseText = await r.text();
-  console.log('[Kie.ai] Submit status:', r.status, '| Body:', responseText);
+  console.log('[Kie.ai] Submit status:', r.status, '| Body:', responseText.substring(0, 200));
 
   if (!r.ok) throw new Error('Kie.ai submit fout: ' + r.status + ' ' + responseText);
 
   let data;
-  try {
-    data = JSON.parse(responseText);
-  } catch (e) {
-    throw new Error('Kie.ai invalid JSON: ' + responseText);
-  }
+  try { data = JSON.parse(responseText); } catch(e) { throw new Error('Kie.ai invalid JSON: ' + responseText); }
 
-  // taskId zit in data.data.taskId of data.data.task_id
   const taskId = data?.data?.taskId || data?.data?.task_id || data?.taskId;
-  if (!taskId) {
-    console.error('[Kie.ai] No taskId in response:', JSON.stringify(data));
-    throw new Error('Geen taskId van kie.ai. Response: ' + JSON.stringify(data));
-  }
+  if (!taskId) throw new Error('Geen taskId van kie.ai: ' + JSON.stringify(data));
 
-  console.log('[Kie.ai] Task submitted, ID:', taskId);
+  console.log('[Kie.ai] Task ID:', taskId);
   return taskId;
 }
 
-// Poll kie.ai for result
 async function pollKieTask(taskId) {
-  const maxAttempts = 40;
-  const delayMs = 5000;
-
-  for (let i = 0; i < maxAttempts; i++) {
-    await new Promise(resolve => setTimeout(resolve, delayMs));
-
+  for (let i = 0; i < 40; i++) {
+    await new Promise(r => setTimeout(r, 5000));
     const poll = await fetch(`https://api.kie.ai/api/v1/jobs/result/${taskId}`, {
       headers: { 'Authorization': 'Bearer ' + KIE_API_KEY }
     });
-
     const pollText = await poll.text();
-    console.log(`[Kie.ai] Poll ${i + 1}, status: ${poll.status}, body: ${pollText.substring(0, 300)}`);
+    console.log(`[Kie.ai] Poll ${i + 1} for ${taskId}:`, pollText.substring(0, 150));
 
     let result;
-    try {
-      result = JSON.parse(pollText);
-    } catch (e) {
-      console.error('[Kie.ai] Poll JSON parse error:', pollText);
-      continue;
-    }
+    try { result = JSON.parse(pollText); } catch(e) { continue; }
 
     const status = result?.data?.status || result?.status;
     const output = result?.data?.output || result?.data?.images || result?.output;
 
-    if (status === 'completed' || status === 'succeed' || status === 'succeeded' || status === 'SUCCESS') {
+    if (['completed','succeed','succeeded','SUCCESS'].includes(status)) {
       const imgUrl = Array.isArray(output) ? output[0] : (typeof output === 'string' ? output : null);
-      console.log('[Kie.ai] Task completed! Image URL:', imgUrl);
       return imgUrl || null;
     }
-
-    if (status === 'failed' || status === 'error' || status === 'FAILED') {
-      throw new Error('Kie.ai generatie mislukt voor task: ' + taskId);
+    if (['failed','error','FAILED'].includes(status)) {
+      throw new Error('Kie.ai task mislukt: ' + taskId);
     }
-
-    console.log('[Kie.ai] Status:', status, '— nog wachten...');
   }
-
-  throw new Error('Kie.ai timeout na ' + maxAttempts + ' pogingen');
+  throw new Error('Kie.ai timeout: ' + taskId);
 }
 
-// Create product in Shopify
 async function createShopifyProduct(productData) {
   const store = SHOPIFY_STORE?.replace(/^https?:\/\//, '').replace(/\/$/, '');
-  console.log('[Shopify] Creating product in store:', store);
-
   const r = await fetch(`https://${store}/admin/api/2024-01/products.json`, {
     method: 'POST',
     headers: {
@@ -219,13 +248,10 @@ async function createShopifyProduct(productData) {
     },
     body: JSON.stringify({ product: productData })
   });
-
   if (!r.ok) {
     const errText = await r.text();
-    console.error('[Shopify] Error:', r.status, errText);
     throw new Error('Shopify fout: ' + r.status + ' ' + errText);
   }
-
   return r.json();
 }
 
@@ -235,13 +261,13 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  const { productInfo, referenceModelUrl, generatePhotos } = req.body || {};
+  const { productInfo, generatePhotos } = req.body || {};
   if (!productInfo) return res.status(400).json({ error: 'Product info missing' });
 
   console.log('[handler] Product:', productInfo.title, '| generatePhotos:', generatePhotos);
 
   try {
-    // 1. Generate description via Claude
+    // 1. Genereer beschrijving via Claude
     const generated = await generateDescription(productInfo);
     const description = generated.description || '';
     const seoTitle = generated.seoTitle || productInfo.title;
@@ -249,23 +275,22 @@ export default async function handler(req, res) {
     const metaDescription = generated.metaDescription || '';
 
     console.log('[handler] seoTitle:', seoTitle);
-    console.log('[handler] description length:', description.length);
 
-    // 2. Build tags
+    // 2. Tags
+    const colors = (productInfo.colors || []).map(translateColor);
     const tags = [
       productInfo.type,
       productInfo.season,
       'Yamira London',
-      ...(productInfo.colors || []).map(c => translateColor(c)),
+      ...colors,
       ...(productInfo.extraTags || [])
     ].filter(Boolean).join(', ');
 
-    // 3. Convert price
+    // 3. Prijs
     const price = convertPrice(productInfo.originalPrice, productInfo.currency || 'EUR');
 
-    // 4. Build variants
+    // 4. Varianten — alle kleuren × alle maten
     const variants = [];
-    const colors = (productInfo.colors || []).map(translateColor);
     const sizes = (productInfo.sizes || ['XS', 'S', 'M', 'L', 'XL', 'XXL']).map(mapSize);
 
     if (colors.length > 0 && sizes.length > 0) {
@@ -280,21 +305,13 @@ export default async function handler(req, res) {
       }
     }
 
-    // 5. Generate photos via kie.ai
+    // 5. Foto's genereren — 8 shots voor de eerste kleur
     let generatedImages = [];
     if (generatePhotos) {
-      const GARMENT = `${seoTitle}, ${colors[0] || ''} color`;
-      const STYLING = `minimal jewellery, nude heels`;
-      const COLOR = colors[0] || 'neutral';
+      const primaryColor = colors[0] || 'the garment colour';
+      const prompts = buildPhotoPrompts(seoTitle, primaryColor);
 
-      const prompts = [
-        `Professional e-commerce fashion photo. A confident slim fashion model with long dark brown wavy hair, light medium skin tone, early 30s, is wearing ${GARMENT}, styled with ${STYLING}. Cropped from mid-thigh up, garment fills the frame. Clean light gray studio background, soft studio lighting. High-end fashion e-commerce photography. Photorealistic. No text, no watermark.`,
-        `Professional e-commerce fashion photo. A confident slim fashion model with long dark brown wavy hair, light medium skin tone, early 30s, back turned to camera, looking slightly over left shoulder. She is wearing ${GARMENT}, back details clearly visible. Styled with ${STYLING}. Cropped from mid-thigh up. Clean light gray studio background. Photorealistic. No text, no watermark.`,
-        `Extreme macro close-up photo of the fabric of ${GARMENT}. The fabric color is ${COLOR}. Shows weave and texture in sharp detail, slight natural fold. Soft diffused natural lighting, neutral background. Photorealistic. No model, no text, no watermark.`,
-        `Lifestyle fashion photography. A confident slim fashion model with long dark brown wavy hair, light medium skin tone, early 30s, natural candid pose outdoors, city sidewalk, warm golden hour sunlight, blurred background. She is wearing ${GARMENT} styled with ${STYLING} and a small handbag. Natural expression, slight smile. Full body visible. Photorealistic. No text, no watermark.`
-      ];
-
-      console.log('[handler] Starting image generation for', prompts.length, 'photos');
+      console.log('[handler] Generating', prompts.length, 'photos for colour:', primaryColor);
 
       // Submit alle taken
       const taskIds = [];
@@ -302,8 +319,8 @@ export default async function handler(req, res) {
         try {
           const taskId = await submitKieTask(prompts[i]);
           taskIds.push({ taskId, index: i });
-        } catch (e) {
-          console.error(`[handler] Failed to submit task ${i}:`, e.message);
+        } catch(e) {
+          console.error(`[handler] Submit task ${i} failed:`, e.message);
         }
       }
 
@@ -313,17 +330,17 @@ export default async function handler(req, res) {
           const imgUrl = await pollKieTask(taskId);
           if (imgUrl) {
             generatedImages.push({ src: imgUrl, position: index + 1 });
-            console.log(`[handler] Image ${index + 1} done:`, imgUrl);
+            console.log(`[handler] Photo ${index + 1} done:`, imgUrl);
           }
-        } catch (e) {
-          console.error(`[handler] Image ${index + 1} poll failed:`, e.message);
+        } catch(e) {
+          console.error(`[handler] Photo ${index + 1} poll failed:`, e.message);
         }
       }
 
-      console.log('[handler] Total images generated:', generatedImages.length);
+      console.log('[handler] Total photos generated:', generatedImages.length);
     }
 
-    // 6. Build Shopify product
+    // 6. Shopify product payload
     const shopifyProduct = {
       title: seoTitle,
       handle: urlHandle || undefined,
@@ -335,24 +352,27 @@ export default async function handler(req, res) {
       status: 'draft',
       variants,
       options: variants[0]?.option2 ? [{ name: 'Colour' }, { name: 'Size' }] : [{ name: 'Size' }],
-      images: generatedImages.length > 0 ? generatedImages : (productInfo.originalImages || []).map(src => ({ src }))
+      images: generatedImages.length > 0
+        ? generatedImages
+        : (productInfo.originalImages || []).map(src => ({ src }))
     };
 
-    // 7. Create in Shopify
+    // 7. Aanmaken in Shopify
     const result = await createShopifyProduct(shopifyProduct);
 
     return res.status(200).json({
       success: true,
       product: result.product,
-      description,
       seoTitle,
+      description,
       metaDescription,
       price,
       tags,
+      colorsUsed: colors,
       imagesGenerated: generatedImages.length
     });
 
-  } catch (err) {
+  } catch(err) {
     console.error('[handler] Fatal error:', err.message);
     return res.status(500).json({ error: err.message });
   }
