@@ -99,8 +99,6 @@ Original description: ${productInfo.originalDescription || 'none'}`
   }
 
   const data = await response.json();
-  console.log('[generateDescription] Raw Claude response:', JSON.stringify(data));
-
   const text = data.content?.[0]?.text || '{}';
   console.log('[generateDescription] Text from Claude:', text);
 
@@ -110,7 +108,7 @@ Original description: ${productInfo.originalDescription || 'none'}`
     console.log('[generateDescription] Parsed result:', JSON.stringify(parsed));
     return parsed;
   } catch (e) {
-    console.error('[generateDescription] JSON parse failed:', e.message, '| Raw text:', text);
+    console.error('[generateDescription] JSON parse failed:', e.message);
     return {
       seoTitle: productInfo.title,
       description: text,
@@ -120,21 +118,21 @@ Original description: ${productInfo.originalDescription || 'none'}`
   }
 }
 
-// Generate image via kie.ai - submit task
-async function submitKieTask(prompt, referenceImageUrl = null) {
-  const body = {
-    prompt,
-    aspect_ratio: '3:4',
-    model: 'ideogram-v3'
-  };
-
-  if (referenceImageUrl) {
-    body.image_url = referenceImageUrl;
-  }
-
+// Submit image task to kie.ai
+async function submitKieTask(prompt) {
   console.log('[Kie.ai] Submitting task, prompt:', prompt.substring(0, 80) + '...');
 
-  const r = await fetch('https://api.kie.ai/v1/images/generations', {
+  const body = {
+    model: 'ideogram/v3-text-to-image',
+    input: {
+      prompt: prompt,
+      rendering_speed: 'BALANCED',
+      style: 'REALISTIC',
+      image_size: 'portrait_hd'
+    }
+  };
+
+  const r = await fetch('https://api.kie.ai/api/v1/jobs/createTask', {
     method: 'POST',
     headers: {
       'Authorization': 'Bearer ' + KIE_API_KEY,
@@ -144,7 +142,7 @@ async function submitKieTask(prompt, referenceImageUrl = null) {
   });
 
   const responseText = await r.text();
-  console.log('[Kie.ai] Submit response status:', r.status, '| Body:', responseText);
+  console.log('[Kie.ai] Submit status:', r.status, '| Body:', responseText);
 
   if (!r.ok) throw new Error('Kie.ai submit fout: ' + r.status + ' ' + responseText);
 
@@ -152,13 +150,14 @@ async function submitKieTask(prompt, referenceImageUrl = null) {
   try {
     data = JSON.parse(responseText);
   } catch (e) {
-    throw new Error('Kie.ai invalid JSON response: ' + responseText);
+    throw new Error('Kie.ai invalid JSON: ' + responseText);
   }
 
-  const taskId = data?.data?.task_id || data?.task_id || data?.id;
+  // taskId zit in data.data.taskId of data.data.task_id
+  const taskId = data?.data?.taskId || data?.data?.task_id || data?.taskId;
   if (!taskId) {
-    console.error('[Kie.ai] No task_id in response:', JSON.stringify(data));
-    throw new Error('Geen task ID van kie.ai. Response: ' + JSON.stringify(data));
+    console.error('[Kie.ai] No taskId in response:', JSON.stringify(data));
+    throw new Error('Geen taskId van kie.ai. Response: ' + JSON.stringify(data));
   }
 
   console.log('[Kie.ai] Task submitted, ID:', taskId);
@@ -168,17 +167,17 @@ async function submitKieTask(prompt, referenceImageUrl = null) {
 // Poll kie.ai for result
 async function pollKieTask(taskId) {
   const maxAttempts = 40;
-  const delayMs = 4000;
+  const delayMs = 5000;
 
   for (let i = 0; i < maxAttempts; i++) {
     await new Promise(resolve => setTimeout(resolve, delayMs));
 
-    const poll = await fetch(`https://api.kie.ai/v1/images/generations/${taskId}`, {
+    const poll = await fetch(`https://api.kie.ai/api/v1/jobs/result/${taskId}`, {
       headers: { 'Authorization': 'Bearer ' + KIE_API_KEY }
     });
 
     const pollText = await poll.text();
-    console.log(`[Kie.ai] Poll attempt ${i + 1}, status: ${poll.status}, body: ${pollText.substring(0, 200)}`);
+    console.log(`[Kie.ai] Poll ${i + 1}, status: ${poll.status}, body: ${pollText.substring(0, 300)}`);
 
     let result;
     try {
@@ -189,22 +188,22 @@ async function pollKieTask(taskId) {
     }
 
     const status = result?.data?.status || result?.status;
-    const output = result?.data?.output || result?.output || result?.data?.images || result?.images;
+    const output = result?.data?.output || result?.data?.images || result?.output;
 
-    if (status === 'completed' || status === 'succeed' || status === 'succeeded') {
-      const imgUrl = Array.isArray(output) ? output[0] : output;
+    if (status === 'completed' || status === 'succeed' || status === 'succeeded' || status === 'SUCCESS') {
+      const imgUrl = Array.isArray(output) ? output[0] : (typeof output === 'string' ? output : null);
       console.log('[Kie.ai] Task completed! Image URL:', imgUrl);
       return imgUrl || null;
     }
 
-    if (status === 'failed' || status === 'error') {
+    if (status === 'failed' || status === 'error' || status === 'FAILED') {
       throw new Error('Kie.ai generatie mislukt voor task: ' + taskId);
     }
 
-    console.log('[Kie.ai] Status:', status, 'still waiting...');
+    console.log('[Kie.ai] Status:', status, '— nog wachten...');
   }
 
-  throw new Error('Kie.ai timeout na ' + maxAttempts + ' pogingen voor task: ' + taskId);
+  throw new Error('Kie.ai timeout na ' + maxAttempts + ' pogingen');
 }
 
 // Create product in Shopify
@@ -239,14 +238,11 @@ export default async function handler(req, res) {
   const { productInfo, referenceModelUrl, generatePhotos } = req.body || {};
   if (!productInfo) return res.status(400).json({ error: 'Product info missing' });
 
-  console.log('[handler] Received request for product:', productInfo.title);
-  console.log('[handler] generatePhotos:', generatePhotos, '| referenceModelUrl:', referenceModelUrl);
+  console.log('[handler] Product:', productInfo.title, '| generatePhotos:', generatePhotos);
 
   try {
     // 1. Generate description via Claude
     const generated = await generateDescription(productInfo);
-    console.log('[handler] Generated content:', JSON.stringify(generated));
-
     const description = generated.description || '';
     const seoTitle = generated.seoTitle || productInfo.title;
     const urlHandle = generated.urlHandle || productInfo.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
@@ -254,7 +250,6 @@ export default async function handler(req, res) {
 
     console.log('[handler] seoTitle:', seoTitle);
     console.log('[handler] description length:', description.length);
-    console.log('[handler] metaDescription:', metaDescription);
 
     // 2. Build tags
     const tags = [
@@ -276,53 +271,39 @@ export default async function handler(req, res) {
     if (colors.length > 0 && sizes.length > 0) {
       for (const color of colors) {
         for (const size of sizes) {
-          variants.push({
-            option1: color,
-            option2: size,
-            price: price.toString(),
-            compare_at_price: null,
-            taxable: false
-          });
+          variants.push({ option1: color, option2: size, price: price.toString(), compare_at_price: null, taxable: false });
         }
       }
     } else {
       for (const size of sizes) {
-        variants.push({
-          option1: size,
-          price: price.toString(),
-          compare_at_price: null,
-          taxable: false
-        });
+        variants.push({ option1: size, price: price.toString(), compare_at_price: null, taxable: false });
       }
     }
 
-    // 5. Generate photos via kie.ai if requested
-    // Altijd het vaste Yamira London model gebruiken — optioneel override via dashboard
+    // 5. Generate photos via kie.ai
     let generatedImages = [];
     if (generatePhotos) {
-      const modelUrl = referenceModelUrl || DEFAULT_MODEL_URL;
-
       const GARMENT = `${seoTitle}, ${colors[0] || ''} color`;
       const STYLING = `minimal jewellery, nude heels`;
       const COLOR = colors[0] || 'neutral';
 
       const prompts = [
-        `Professional e-commerce fashion photo. The reference model is wearing ${GARMENT}, styled with ${STYLING}. Cropped from mid-thigh up, garment fills the frame. Clean light gray studio background, soft studio lighting. High-end fashion e-commerce photography. Photorealistic. No text, no watermark.`,
-        `Professional e-commerce fashion photo. The reference model is turned with her back to the camera, looking slightly over her left shoulder. She is wearing ${GARMENT}, back details clearly visible. Styled with ${STYLING}. Cropped from mid-thigh up. Clean light gray studio background. Photorealistic. No text, no watermark.`,
-        `Extreme macro close-up photo of the fabric of ${GARMENT}. The fabric color is ${COLOR}. Shows weave and texture in sharp detail, slight natural fold. Soft diffused natural lighting, neutral background. 3:4 aspect ratio. Photorealistic. No model, no text, no watermark.`,
-        `Lifestyle fashion photography. The reference model in a natural candid pose outdoors, city sidewalk, warm golden hour sunlight, blurred background. She is wearing ${GARMENT} styled with ${STYLING} and a small handbag. Natural expression, slight smile. Full body visible. Photorealistic. No text, no watermark.`
+        `Professional e-commerce fashion photo. A confident slim fashion model with long dark brown wavy hair, light medium skin tone, early 30s, is wearing ${GARMENT}, styled with ${STYLING}. Cropped from mid-thigh up, garment fills the frame. Clean light gray studio background, soft studio lighting. High-end fashion e-commerce photography. Photorealistic. No text, no watermark.`,
+        `Professional e-commerce fashion photo. A confident slim fashion model with long dark brown wavy hair, light medium skin tone, early 30s, back turned to camera, looking slightly over left shoulder. She is wearing ${GARMENT}, back details clearly visible. Styled with ${STYLING}. Cropped from mid-thigh up. Clean light gray studio background. Photorealistic. No text, no watermark.`,
+        `Extreme macro close-up photo of the fabric of ${GARMENT}. The fabric color is ${COLOR}. Shows weave and texture in sharp detail, slight natural fold. Soft diffused natural lighting, neutral background. Photorealistic. No model, no text, no watermark.`,
+        `Lifestyle fashion photography. A confident slim fashion model with long dark brown wavy hair, light medium skin tone, early 30s, natural candid pose outdoors, city sidewalk, warm golden hour sunlight, blurred background. She is wearing ${GARMENT} styled with ${STYLING} and a small handbag. Natural expression, slight smile. Full body visible. Photorealistic. No text, no watermark.`
       ];
 
-      console.log('[handler] Starting image generation for', prompts.length, 'photos using model:', modelUrl);
+      console.log('[handler] Starting image generation for', prompts.length, 'photos');
 
       // Submit alle taken
       const taskIds = [];
       for (let i = 0; i < prompts.length; i++) {
         try {
-          const taskId = await submitKieTask(prompts[i], modelUrl);
+          const taskId = await submitKieTask(prompts[i]);
           taskIds.push({ taskId, index: i });
         } catch (e) {
-          console.error(`[handler] Failed to submit image task ${i}:`, e.message);
+          console.error(`[handler] Failed to submit task ${i}:`, e.message);
         }
       }
 
@@ -342,39 +323,22 @@ export default async function handler(req, res) {
       console.log('[handler] Total images generated:', generatedImages.length);
     }
 
-    // 6. Build Shopify product payload
+    // 6. Build Shopify product
     const shopifyProduct = {
       title: seoTitle,
       handle: urlHandle || undefined,
-      body_html: description
-        ? `<p>${description.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>')}</p>`
-        : '',
-      metafields: metaDescription
-        ? [{
-            key: 'description_tag',
-            value: metaDescription,
-            type: 'single_line_text_field',
-            namespace: 'global'
-          }]
-        : [],
+      body_html: description ? `<p>${description.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>')}</p>` : '',
+      metafields: metaDescription ? [{ key: 'description_tag', value: metaDescription, type: 'single_line_text_field', namespace: 'global' }] : [],
       vendor: 'Yamira London',
       product_type: productInfo.type || 'Dress',
       tags,
       status: 'draft',
       variants,
-      options: variants[0]?.option2
-        ? [{ name: 'Colour' }, { name: 'Size' }]
-        : [{ name: 'Size' }],
-      images: generatedImages.length > 0
-        ? generatedImages
-        : (productInfo.originalImages || []).map(src => ({ src }))
+      options: variants[0]?.option2 ? [{ name: 'Colour' }, { name: 'Size' }] : [{ name: 'Size' }],
+      images: generatedImages.length > 0 ? generatedImages : (productInfo.originalImages || []).map(src => ({ src }))
     };
 
-    console.log('[handler] Shopify product payload title:', shopifyProduct.title);
-    console.log('[handler] body_html length:', shopifyProduct.body_html.length);
-    console.log('[handler] images count:', shopifyProduct.images.length);
-
-    // 7. Create product in Shopify
+    // 7. Create in Shopify
     const result = await createShopifyProduct(shopifyProduct);
 
     return res.status(200).json({
