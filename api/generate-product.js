@@ -33,7 +33,7 @@ const colorMap = {
   'roze': 'pink', 'grijs': 'grey', 'bruin': 'brown', 'geel': 'yellow',
   'rood': 'red', 'paars': 'purple', 'lila': 'lilac',
   'negro': 'black', 'blanco': 'white', 'rojo': 'red', 'azul': 'blue',
-  'verde': 'green', 'rosa': 'pink', 'gris': 'grey', 'amarillo': 'yellow'
+  'verde': 'green', 'rosa': 'pink', 'amarillo': 'yellow'
 };
 
 function translateColor(color) {
@@ -48,6 +48,8 @@ function mapSize(size) {
 
 // Generate product description using Claude
 async function generateDescription(productInfo) {
+  console.log('[generateDescription] Starting for:', productInfo.title);
+
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -56,7 +58,7 @@ async function generateDescription(productInfo) {
       'anthropic-version': '2023-06-01'
     },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-sonnet-4-6',
       max_tokens: 2000,
       system: `You are the dedicated product import and listing assistant for Yamira London, a UK-based women's fashion webshop. You create fully compliant Shopify-ready product listings. Follow these rules exactly:
 
@@ -70,48 +72,66 @@ META DESCRIPTION RULES: max 160 characters, SEO focused, unique, natural UK Engl
 
 URL HANDLE RULES: lowercase only, hyphens only, no special characters, descriptive, unique.
 
-OUTPUT FORMAT - Always output exactly this JSON:
-{
-  "seoTitle": "...",
-  "description": "...",
-  "metaDescription": "...",
-  "urlHandle": "..."
-}
-
-Output ONLY the JSON, no other text.`,
+OUTPUT FORMAT - Always output exactly this JSON with no other text, no markdown, no code blocks:
+{"seoTitle":"...","description":"...","metaDescription":"...","urlHandle":"..."}`,
       messages: [{
         role: 'user',
         content: `Create a Shopify product listing for this product:
 Name: ${productInfo.title}
 Type: ${productInfo.type}
-Colors: ${productInfo.colors?.join(', ')}
+Colors: ${(productInfo.colors || []).join(', ')}
 Material: ${productInfo.material || 'not specified'}
-Season: ${productInfo.season}
+Season: ${productInfo.season || 'not specified'}
 Original description: ${productInfo.originalDescription || 'none'}`
       }]
     })
   });
+
+  console.log('[generateDescription] Claude API status:', response.status);
+
+  if (!response.ok) {
+    const errText = await response.text();
+    console.error('[generateDescription] Claude API error:', errText);
+    throw new Error('Claude API error: ' + response.status + ' ' + errText);
+  }
+
   const data = await response.json();
+  console.log('[generateDescription] Raw Claude response:', JSON.stringify(data));
+
   const text = data.content?.[0]?.text || '{}';
+  console.log('[generateDescription] Text from Claude:', text);
+
   try {
-    const clean = text.replace(/```json|```/g, '').trim();
-    return JSON.parse(clean);
-  } catch(e) {
-    return { seoTitle: productInfo.title, description: text, metaDescription: '', urlHandle: '' };
+    // Strip any accidental markdown fences
+    const clean = text.replace(/```json\s*/gi, '').replace(/```\s*/gi, '').trim();
+    const parsed = JSON.parse(clean);
+    console.log('[generateDescription] Parsed result:', JSON.stringify(parsed));
+    return parsed;
+  } catch (e) {
+    console.error('[generateDescription] JSON parse failed:', e.message, '| Raw text:', text);
+    // Fallback: return what we can
+    return {
+      seoTitle: productInfo.title,
+      description: text,
+      metaDescription: '',
+      urlHandle: productInfo.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+    };
   }
 }
 
-// Generate image via kie.ai
-async function generateImage(prompt, referenceImageUrl = null) {
+// Generate image via kie.ai - submit task
+async function submitKieTask(prompt, referenceImageUrl = null) {
   const body = {
-    model: referenceImageUrl ? 'ideogram/character' : 'gpt-image-1',
     prompt,
-    aspect_ratio: '3:4'
+    aspect_ratio: '3:4',
+    model: 'ideogram-v3'
   };
 
   if (referenceImageUrl) {
-    body.character_reference = [referenceImageUrl];
+    body.image_url = referenceImageUrl;
   }
+
+  console.log('[Kie.ai] Submitting task, prompt:', prompt.substring(0, 80) + '...');
 
   const r = await fetch('https://api.kie.ai/v1/images/generations', {
     method: 'POST',
@@ -122,31 +142,83 @@ async function generateImage(prompt, referenceImageUrl = null) {
     body: JSON.stringify(body)
   });
 
-  if (!r.ok) throw new Error('Kie.ai fout: ' + r.status);
-  const data = await r.json();
-  const taskId = data.data?.task_id || data.task_id;
-  if (!taskId) throw new Error('Geen task ID van kie.ai');
+  const responseText = await r.text();
+  console.log('[Kie.ai] Submit response status:', r.status, '| Body:', responseText);
 
-  // Poll for result
-  for (let i = 0; i < 30; i++) {
-    await new Promise(resolve => setTimeout(resolve, 3000));
+  if (!r.ok) throw new Error('Kie.ai submit fout: ' + r.status + ' ' + responseText);
+
+  let data;
+  try {
+    data = JSON.parse(responseText);
+  } catch (e) {
+    throw new Error('Kie.ai invalid JSON response: ' + responseText);
+  }
+
+  // Try multiple paths for task_id
+  const taskId = data?.data?.task_id || data?.task_id || data?.id;
+  if (!taskId) {
+    console.error('[Kie.ai] No task_id in response:', JSON.stringify(data));
+    throw new Error('Geen task ID van kie.ai. Response: ' + JSON.stringify(data));
+  }
+
+  console.log('[Kie.ai] Task submitted, ID:', taskId);
+  return taskId;
+}
+
+// Poll kie.ai for result
+async function pollKieTask(taskId) {
+  const maxAttempts = 40;
+  const delayMs = 4000;
+
+  for (let i = 0; i < maxAttempts; i++) {
+    await new Promise(resolve => setTimeout(resolve, delayMs));
+
     const poll = await fetch(`https://api.kie.ai/v1/images/generations/${taskId}`, {
       headers: { 'Authorization': 'Bearer ' + KIE_API_KEY }
     });
-    const result = await poll.json();
-    if (result.data?.status === 'completed' || result.status === 'completed') {
-      return result.data?.output?.[0] || result.output?.[0] || null;
+
+    const pollText = await poll.text();
+    console.log(`[Kie.ai] Poll attempt ${i + 1}, status: ${poll.status}, body: ${pollText.substring(0, 200)}`);
+
+    let result;
+    try {
+      result = JSON.parse(pollText);
+    } catch (e) {
+      console.error('[Kie.ai] Poll JSON parse error:', pollText);
+      continue;
     }
-    if (result.data?.status === 'failed' || result.status === 'failed') {
-      throw new Error('Kie.ai generatie mislukt');
+
+    // Handle various response structures
+    const status = result?.data?.status || result?.status;
+    const output = result?.data?.output || result?.output || result?.data?.images || result?.images;
+
+    if (status === 'completed' || status === 'succeed' || status === 'succeeded') {
+      const imgUrl = Array.isArray(output) ? output[0] : output;
+      console.log('[Kie.ai] Task completed! Image URL:', imgUrl);
+      return imgUrl || null;
     }
+
+    if (status === 'failed' || status === 'error') {
+      throw new Error('Kie.ai generatie mislukt voor task: ' + taskId);
+    }
+
+    console.log('[Kie.ai] Status:', status, '— still waiting...');
   }
-  throw new Error('Kie.ai timeout');
+
+  throw new Error('Kie.ai timeout na ' + maxAttempts + ' pogingen voor task: ' + taskId);
+}
+
+// Full generate image flow
+async function generateImage(prompt, referenceImageUrl = null) {
+  const taskId = await submitKieTask(prompt, referenceImageUrl);
+  return await pollKieTask(taskId);
 }
 
 // Create product in Shopify
-async function createShopifyProduct(productData, images) {
+async function createShopifyProduct(productData) {
   const store = SHOPIFY_STORE?.replace(/^https?:\/\//, '').replace(/\/$/, '');
+  console.log('[Shopify] Creating product in store:', store);
+
   const r = await fetch(`https://${store}/admin/api/2024-01/products.json`, {
     method: 'POST',
     headers: {
@@ -155,7 +227,13 @@ async function createShopifyProduct(productData, images) {
     },
     body: JSON.stringify({ product: productData })
   });
-  if (!r.ok) throw new Error('Shopify fout: ' + r.status);
+
+  if (!r.ok) {
+    const errText = await r.text();
+    console.error('[Shopify] Error:', r.status, errText);
+    throw new Error('Shopify fout: ' + r.status + ' ' + errText);
+  }
+
   return r.json();
 }
 
@@ -168,21 +246,29 @@ export default async function handler(req, res) {
   const { productInfo, referenceModelUrl, generatePhotos } = req.body || {};
   if (!productInfo) return res.status(400).json({ error: 'Product info missing' });
 
+  console.log('[handler] Received request for product:', productInfo.title);
+  console.log('[handler] generatePhotos:', generatePhotos, '| referenceModelUrl:', referenceModelUrl);
+
   try {
-    // 1. Generate description
-  const generated = await generateDescription(productInfo);
-    console.log('Generated:', JSON.stringify(generated));
-const description = generated.description || '';
-const seoTitle = generated.seoTitle || productInfo.title;
-const urlHandle = generated.urlHandle || '';
-const metaDescription = generated.metaDescription || '';
+    // 1. Generate description via Claude
+    const generated = await generateDescription(productInfo);
+    console.log('[handler] Generated content:', JSON.stringify(generated));
+
+    const description = generated.description || '';
+    const seoTitle = generated.seoTitle || productInfo.title;
+    const urlHandle = generated.urlHandle || productInfo.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    const metaDescription = generated.metaDescription || '';
+
+    console.log('[handler] seoTitle:', seoTitle);
+    console.log('[handler] description length:', description.length);
+    console.log('[handler] metaDescription:', metaDescription);
 
     // 2. Build tags
     const tags = [
       productInfo.type,
       productInfo.season,
       'Yamira London',
-      ...( productInfo.colors || []).map(c => translateColor(c)),
+      ...(productInfo.colors || []).map(c => translateColor(c)),
       ...(productInfo.extraTags || [])
     ].filter(Boolean).join(', ');
 
@@ -217,11 +303,11 @@ const metaDescription = generated.metaDescription || '';
       }
     }
 
-    // 5. Generate photos if requested
+    // 5. Generate photos via kie.ai if requested
     let generatedImages = [];
-    if (generatePhotos && referenceModelUrl) {
+    if (generatePhotos) {
       const MODEL = `a confident naturally beautiful woman in her early 30s, medium olive skin tone, long dark brown wavy hair, average slim build, UK size 10-12, British fashion aesthetic`;
-      const GARMENT = `${productInfo.title}, ${colors[0] || ''} color`;
+      const GARMENT = `${seoTitle}, ${colors[0] || ''} color`;
       const STYLING = `minimal jewellery, nude heels`;
       const COLOR = colors[0] || 'neutral';
 
@@ -232,47 +318,83 @@ const metaDescription = generated.metaDescription || '';
         `Lifestyle fashion photography. The model is ${MODEL}, natural candid pose outdoors in an urban setting — city sidewalk, warm golden hour sunlight, blurred background. She is wearing ${GARMENT} styled with ${STYLING} and a small handbag. Natural expression, slight smile. Full body visible. Photorealistic. No text, no watermark.`
       ];
 
-      for (const prompt of prompts) {
+      console.log('[handler] Starting image generation for', prompts.length, 'photos');
+
+      // Submit all tasks in parallel, then poll
+      const taskIds = [];
+      for (let i = 0; i < prompts.length; i++) {
         try {
-          const imgUrl = await generateImage(prompt, referenceModelUrl);
-          if (imgUrl) generatedImages.push({ src: imgUrl });
-        } catch(e) {
-          console.error('Image gen fout:', e.message);
+          const taskId = await submitKieTask(prompts[i], referenceModelUrl || null);
+          taskIds.push({ taskId, index: i });
+        } catch (e) {
+          console.error(`[handler] Failed to submit image task ${i}:`, e.message);
         }
       }
+
+      // Poll all submitted tasks
+      for (const { taskId, index } of taskIds) {
+        try {
+          const imgUrl = await pollKieTask(taskId);
+          if (imgUrl) {
+            generatedImages.push({ src: imgUrl, position: index + 1 });
+            console.log(`[handler] Image ${index + 1} done:`, imgUrl);
+          }
+        } catch (e) {
+          console.error(`[handler] Image ${index + 1} poll failed:`, e.message);
+        }
+      }
+
+      console.log('[handler] Total images generated:', generatedImages.length);
     }
 
-    // 6. Build Shopify product
+    // 6. Build Shopify product payload
     const shopifyProduct = {
       title: seoTitle,
-handle: urlHandle || undefined,
-      body_html: `<p>${description.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>')}</p>`,
-      metafields: metaDescription ? [{ key: 'description_tag', value: metaDescription, type: 'single_line_text_field', namespace: 'global' }] : [],
+      handle: urlHandle || undefined,
+      body_html: description
+        ? `<p>${description.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>')}</p>`
+        : '',
+      metafields: metaDescription
+        ? [{
+            key: 'description_tag',
+            value: metaDescription,
+            type: 'single_line_text_field',
+            namespace: 'global'
+          }]
+        : [],
       vendor: 'Yamira London',
       product_type: productInfo.type || 'Dress',
       tags,
       status: 'draft',
       variants,
-      options: variants[0]?.option2 ? [
-        { name: 'Colour' },
-        { name: 'Size' }
-      ] : [{ name: 'Size' }],
-      images: generatedImages.length > 0 ? generatedImages : (productInfo.originalImages || []).map(src => ({ src }))
+      options: variants[0]?.option2
+        ? [{ name: 'Colour' }, { name: 'Size' }]
+        : [{ name: 'Size' }],
+      images: generatedImages.length > 0
+        ? generatedImages
+        : (productInfo.originalImages || []).map(src => ({ src }))
     };
 
-    // 7. Create in Shopify
+    console.log('[handler] Shopify product payload title:', shopifyProduct.title);
+    console.log('[handler] body_html length:', shopifyProduct.body_html.length);
+    console.log('[handler] images count:', shopifyProduct.images.length);
+
+    // 7. Create product in Shopify
     const result = await createShopifyProduct(shopifyProduct);
 
     return res.status(200).json({
       success: true,
       product: result.product,
       description,
+      seoTitle,
+      metaDescription,
       price,
       tags,
       imagesGenerated: generatedImages.length
     });
 
-  } catch(err) {
+  } catch (err) {
+    console.error('[handler] Fatal error:', err.message);
     return res.status(500).json({ error: err.message });
   }
 }
