@@ -2,6 +2,9 @@ const KIE_API_KEY = process.env.KIE_API_KEY;
 const SHOPIFY_TOKEN = process.env.SHOPIFY_TOKEN;
 const SHOPIFY_STORE = process.env.SHOPIFY_STORE;
 
+// Vast Yamira London model — altijd gebruiken voor productfoto's
+const DEFAULT_MODEL_URL = 'https://cdn.shopify.com/s/files/1/0994/5202/7219/files/10cc9f8a1cbbadd4ca5fd1f3cee5a16f_1777666053_adp3xdip.png?v=1777666156';
+
 // Price conversion: convert to GBP and round to x4.95 or x9.95
 function convertPrice(originalPrice, currency = 'EUR') {
   const rates = { EUR: 0.86, USD: 0.79, GBP: 1 };
@@ -102,14 +105,12 @@ Original description: ${productInfo.originalDescription || 'none'}`
   console.log('[generateDescription] Text from Claude:', text);
 
   try {
-    // Strip any accidental markdown fences
     const clean = text.replace(/```json\s*/gi, '').replace(/```\s*/gi, '').trim();
     const parsed = JSON.parse(clean);
     console.log('[generateDescription] Parsed result:', JSON.stringify(parsed));
     return parsed;
   } catch (e) {
     console.error('[generateDescription] JSON parse failed:', e.message, '| Raw text:', text);
-    // Fallback: return what we can
     return {
       seoTitle: productInfo.title,
       description: text,
@@ -154,7 +155,6 @@ async function submitKieTask(prompt, referenceImageUrl = null) {
     throw new Error('Kie.ai invalid JSON response: ' + responseText);
   }
 
-  // Try multiple paths for task_id
   const taskId = data?.data?.task_id || data?.task_id || data?.id;
   if (!taskId) {
     console.error('[Kie.ai] No task_id in response:', JSON.stringify(data));
@@ -188,7 +188,6 @@ async function pollKieTask(taskId) {
       continue;
     }
 
-    // Handle various response structures
     const status = result?.data?.status || result?.status;
     const output = result?.data?.output || result?.output || result?.data?.images || result?.images;
 
@@ -202,16 +201,10 @@ async function pollKieTask(taskId) {
       throw new Error('Kie.ai generatie mislukt voor task: ' + taskId);
     }
 
-    console.log('[Kie.ai] Status:', status, '— still waiting...');
+    console.log('[Kie.ai] Status:', status, 'still waiting...');
   }
 
   throw new Error('Kie.ai timeout na ' + maxAttempts + ' pogingen voor task: ' + taskId);
-}
-
-// Full generate image flow
-async function generateImage(prompt, referenceImageUrl = null) {
-  const taskId = await submitKieTask(prompt, referenceImageUrl);
-  return await pollKieTask(taskId);
 }
 
 // Create product in Shopify
@@ -304,34 +297,36 @@ export default async function handler(req, res) {
     }
 
     // 5. Generate photos via kie.ai if requested
+    // Altijd het vaste Yamira London model gebruiken — optioneel override via dashboard
     let generatedImages = [];
     if (generatePhotos) {
-      const MODEL = `a confident naturally beautiful woman in her early 30s, medium olive skin tone, long dark brown wavy hair, average slim build, UK size 10-12, British fashion aesthetic`;
+      const modelUrl = referenceModelUrl || DEFAULT_MODEL_URL;
+
       const GARMENT = `${seoTitle}, ${colors[0] || ''} color`;
       const STYLING = `minimal jewellery, nude heels`;
       const COLOR = colors[0] || 'neutral';
 
       const prompts = [
-        `Professional e-commerce fashion photo. The model is ${MODEL}, neutral confident expression. She is wearing ${GARMENT}, styled with ${STYLING}. The photo is cropped from mid-thigh up — the garment fills the frame. Clean light gray studio background, soft even studio lighting. High-end fashion e-commerce photography style. Photorealistic. No text, no watermark.`,
-        `Professional e-commerce fashion photo. The model is ${MODEL}, turned with her back fully to the camera, looking slightly over her left shoulder. She is wearing ${GARMENT} — back details clearly visible. Styled with ${STYLING}. Cropped from mid-thigh up. Clean light gray studio background. Photorealistic. No text, no watermark.`,
-        `Extreme macro close-up photo of the fabric of a ${GARMENT}. The fabric color is ${COLOR}. Shows weave and texture in sharp detail, slight natural fold. Soft diffused natural lighting, neutral background. 3:4 aspect ratio. Photorealistic. No model, no text, no watermark.`,
-        `Lifestyle fashion photography. The model is ${MODEL}, natural candid pose outdoors in an urban setting — city sidewalk, warm golden hour sunlight, blurred background. She is wearing ${GARMENT} styled with ${STYLING} and a small handbag. Natural expression, slight smile. Full body visible. Photorealistic. No text, no watermark.`
+        `Professional e-commerce fashion photo. The reference model is wearing ${GARMENT}, styled with ${STYLING}. Cropped from mid-thigh up, garment fills the frame. Clean light gray studio background, soft studio lighting. High-end fashion e-commerce photography. Photorealistic. No text, no watermark.`,
+        `Professional e-commerce fashion photo. The reference model is turned with her back to the camera, looking slightly over her left shoulder. She is wearing ${GARMENT}, back details clearly visible. Styled with ${STYLING}. Cropped from mid-thigh up. Clean light gray studio background. Photorealistic. No text, no watermark.`,
+        `Extreme macro close-up photo of the fabric of ${GARMENT}. The fabric color is ${COLOR}. Shows weave and texture in sharp detail, slight natural fold. Soft diffused natural lighting, neutral background. 3:4 aspect ratio. Photorealistic. No model, no text, no watermark.`,
+        `Lifestyle fashion photography. The reference model in a natural candid pose outdoors, city sidewalk, warm golden hour sunlight, blurred background. She is wearing ${GARMENT} styled with ${STYLING} and a small handbag. Natural expression, slight smile. Full body visible. Photorealistic. No text, no watermark.`
       ];
 
-      console.log('[handler] Starting image generation for', prompts.length, 'photos');
+      console.log('[handler] Starting image generation for', prompts.length, 'photos using model:', modelUrl);
 
-      // Submit all tasks in parallel, then poll
+      // Submit alle taken
       const taskIds = [];
       for (let i = 0; i < prompts.length; i++) {
         try {
-          const taskId = await submitKieTask(prompts[i], referenceModelUrl || null);
+          const taskId = await submitKieTask(prompts[i], modelUrl);
           taskIds.push({ taskId, index: i });
         } catch (e) {
           console.error(`[handler] Failed to submit image task ${i}:`, e.message);
         }
       }
 
-      // Poll all submitted tasks
+      // Poll alle taken
       for (const { taskId, index } of taskIds) {
         try {
           const imgUrl = await pollKieTask(taskId);
