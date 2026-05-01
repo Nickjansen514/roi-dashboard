@@ -57,31 +57,48 @@ async function generateDescription(productInfo) {
     },
     body: JSON.stringify({
       model: 'claude-sonnet-4-20250514',
-      max_tokens: 1000,
+      max_tokens: 2000,
+      system: `You are the dedicated product import and listing assistant for Yamira London, a UK-based women's fashion webshop. You create fully compliant Shopify-ready product listings. Follow these rules exactly:
+
+BRAND CONTEXT: Store name: Yamira London. Market: United Kingdom. Language: Natural UK English. Target audience: Women. Tone: clean, neutral, refined, factual, elegant, premium editorial style. Never write hype, never exaggerate, never make unsupported claims.
+
+SEO TITLE RULES: Always generate a title that is 100% original, highly SEO optimised for UK Google searches, natural UK English, descriptive, specific, keyword rich, ends with "for women". Never use: luxury, elegant, perfect, flattering, shaping, slimming, premium quality, comfort fit. Structure: Primary keyword + secondary keyword + descriptive detail + for women.
+
+PRODUCT DESCRIPTION RULES: Always write in this structure: Intro paragraph (2 sentences), 5 bullet points, Closing sentence (1 sentence). Use visible product features only. Never invent features. Never mention: comfort, support, posture, pain relief, healing, anti-slip, breathable, slimming, shaping, luxury, elegant (as claim).
+
+META DESCRIPTION RULES: max 160 characters, SEO focused, unique, natural UK English, end with "– Yamira London".
+
+URL HANDLE RULES: lowercase only, hyphens only, no special characters, descriptive, unique.
+
+OUTPUT FORMAT - Always output exactly this JSON:
+{
+  "seoTitle": "...",
+  "description": "...",
+  "metaDescription": "...",
+  "urlHandle": "..."
+}
+
+Output ONLY the JSON, no other text.`,
       messages: [{
         role: 'user',
-        content: `Write a professional English product description for a UK fashion e-commerce store (Yamira London) for this product:
-
+        content: `Create a Shopify product listing for this product:
 Name: ${productInfo.title}
 Type: ${productInfo.type}
-Colors available: ${productInfo.colors?.join(', ')}
+Colors: ${productInfo.colors?.join(', ')}
 Material: ${productInfo.material || 'not specified'}
 Season: ${productInfo.season}
-Original description: ${productInfo.originalDescription || 'none'}
-
-Requirements:
-- 2-3 short paragraphs
-- Highlight fit, style, and versatility
-- British English spelling
-- Aspirational but accessible tone
-- End with sizing info: "Available in sizes XS (UK6) to XXL (UK16)"
-- NO mention of price or sale
-- NO HTML tags, plain text only`
+Original description: ${productInfo.originalDescription || 'none'}`
       }]
     })
   });
   const data = await response.json();
-  return data.content?.[0]?.text || '';
+  const text = data.content?.[0]?.text || '{}';
+  try {
+    const clean = text.replace(/```json|```/g, '').trim();
+    return JSON.parse(clean);
+  } catch(e) {
+    return { seoTitle: productInfo.title, description: text, metaDescription: '', urlHandle: '' };
+  }
 }
 
 // Generate image via kie.ai
