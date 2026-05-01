@@ -257,7 +257,8 @@ function navigate(page) {
   destroyCharts();
   if (page === 'producten') renderProducten();
   else if (page === 'dashboard') renderDashboard();
-  else renderInstellingen();
+  else if (page === 'lister') renderProductLister();
+    else renderInstellingen();
 }
 
 function setPeriod(p, el) {
