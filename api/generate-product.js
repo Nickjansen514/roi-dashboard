@@ -170,7 +170,11 @@ export default async function handler(req, res) {
 
   try {
     // 1. Generate description
-    const description = await generateDescription(productInfo);
+  const generated = await generateDescription(productInfo);
+const description = generated.description || '';
+const seoTitle = generated.seoTitle || productInfo.title;
+const urlHandle = generated.urlHandle || '';
+const metaDescription = generated.metaDescription || '';
 
     // 2. Build tags
     const tags = [
@@ -239,7 +243,8 @@ export default async function handler(req, res) {
 
     // 6. Build Shopify product
     const shopifyProduct = {
-      title: productInfo.title,
+      title: seoTitle,
+handle: urlHandle || undefined,
       body_html: description.replace(/\n/g, '<br>'),
       vendor: 'Yamira London',
       product_type: productInfo.type || 'Dress',
