@@ -13,6 +13,7 @@ function colorPromptDescription(color) {
     'red': 'bright red, NOT burgundy or dark red',
     'dark red': 'deep dark red, NOT bright red or orange-red',
     'pink': 'soft pink, NOT hot pink or magenta',
+    'roze': 'soft pink, NOT hot pink or magenta',
     'blue': 'medium blue, NOT navy or light blue',
     'navy': 'deep navy blue, NOT black or medium blue',
     'green': 'green, NOT olive or khaki',
@@ -90,27 +91,34 @@ async function pollKieTask(taskId) {
   for (let i = 0; i < 40; i++) {
     await new Promise(function(r) { setTimeout(r, 5000); });
 
-    const poll = await fetch('https://api.kie.ai/api/v1/jobs/result/' + taskId, {
+    const poll = await fetch('https://api.kie.ai/api/v1/jobs/recordInfo?taskId=' + taskId, {
       headers: { 'Authorization': 'Bearer ' + KIE_API_KEY }
     });
     const pollText = await poll.text();
-    console.log('[Kie.ai] Poll ' + (i + 1) + ' for ' + taskId + ':', pollText.substring(0, 150));
+    console.log('[Kie.ai] Poll ' + (i + 1) + ' for ' + taskId + ':', pollText.substring(0, 200));
 
     let result;
     try { result = JSON.parse(pollText); } catch(e) { continue; }
 
-    const status = (result.data && result.data.status) || result.status;
-    const output = (result.data && (result.data.output || result.data.images)) || result.output;
+    const state = result && result.data && result.data.state;
 
-    if (['completed', 'succeed', 'succeeded', 'SUCCESS'].includes(status)) {
-      const imgUrl = Array.isArray(output) ? output[0] : (typeof output === 'string' ? output : null);
+    if (state === 'success') {
+      let imgUrl = null;
+      try {
+        const resultJson = JSON.parse(result.data.resultJson);
+        imgUrl = resultJson.resultUrls && resultJson.resultUrls[0];
+      } catch(e) {
+        console.error('[Kie.ai] resultJson parse error:', result.data && result.data.resultJson);
+      }
       console.log('[Kie.ai] Done! URL:', imgUrl);
       return imgUrl || null;
     }
-    if (['failed', 'error', 'FAILED'].includes(status)) {
-      throw new Error('Kie.ai task mislukt: ' + taskId);
+
+    if (state === 'fail') {
+      throw new Error('Kie.ai task mislukt: ' + taskId + ' | ' + (result.data && result.data.failMsg));
     }
-    console.log('[Kie.ai] Status:', status, '— wachten...');
+
+    console.log('[Kie.ai] State:', state || 'unknown', '— wachten...');
   }
   throw new Error('Kie.ai timeout: ' + taskId);
 }
@@ -126,12 +134,7 @@ async function addImagesToShopifyProduct(productId, imageUrls) {
           'X-Shopify-Access-Token': SHOPIFY_TOKEN,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          image: {
-            src: imageUrls[i],
-            position: i + 1
-          }
-        })
+        body: JSON.stringify({ image: { src: imageUrls[i], position: i + 1 } })
       });
       if (!r.ok) {
         const errText = await r.text();
@@ -154,8 +157,6 @@ export default async function handler(req, res) {
   const { adminUrl, color } = req.body || {};
   if (!adminUrl) return res.status(400).json({ error: 'Admin URL missing' });
 
-  // Haal product ID uit de admin URL
-  // bijv: https://admin.shopify.com/store/yamira-london/products/10569417523539
   const match = adminUrl.match(/\/products\/(\d+)/);
   if (!match) return res.status(400).json({ error: 'Geen geldig product ID gevonden in URL' });
   const productId = match[1];
@@ -163,7 +164,6 @@ export default async function handler(req, res) {
   console.log('[photo-generator] Product ID:', productId, '| Color:', color);
 
   try {
-    // 1. Haal productinfo op uit Shopify
     const store = SHOPIFY_STORE.replace(/^https?:\/\//, '').replace(/\/$/, '');
     const shopifyR = await fetch('https://' + store + '/admin/api/2024-01/products/' + productId + '.json', {
       headers: { 'X-Shopify-Access-Token': SHOPIFY_TOKEN }
@@ -180,10 +180,8 @@ export default async function handler(req, res) {
 
     console.log('[photo-generator] Product titel:', productTitle);
 
-    // Kleur bepalen
     let primaryColor = color || '';
     if (!primaryColor) {
-      // Probeer eerste optie (kleur) uit Shopify product
       const colorOption = product.options && product.options.find(function(o) {
         return o.name.toLowerCase().includes('colour') || o.name.toLowerCase().includes('color');
       });
@@ -196,11 +194,9 @@ export default async function handler(req, res) {
 
     console.log('[photo-generator] Kleur:', primaryColor);
 
-    // 2. Bouw prompts
     const prompts = buildPhotoPrompts(productTitle, primaryColor);
     console.log('[photo-generator] Generating', prompts.length, 'photos...');
 
-    // 3. Submit alle taken naar kie.ai
     const taskIds = [];
     for (let i = 0; i < prompts.length; i++) {
       try {
@@ -211,7 +207,6 @@ export default async function handler(req, res) {
       }
     }
 
-    // 4. Poll alle taken
     const generatedImageUrls = [];
     for (let j = 0; j < taskIds.length; j++) {
       const item = taskIds[j];
@@ -228,7 +223,6 @@ export default async function handler(req, res) {
 
     console.log('[photo-generator] Total photos generated:', generatedImageUrls.length);
 
-    // 5. Voeg foto's toe aan Shopify product
     if (generatedImageUrls.length > 0) {
       await addImagesToShopifyProduct(productId, generatedImageUrls);
     }
