@@ -278,7 +278,7 @@ function processData(shopifyResult, gadsRows) {
     (order.line_items || []).forEach(function(item) {
       var id = String(item.product_id);
       if (!map[id]) map[id] = { id: id, name: item.title, omzet: 0, refunds: 0, spend: 0, kliks: 0, impressions: 0, conversies: 0 };
-      var val = parseFloat(item.price) * item.quantity;
+      var val = parseFloat(item.price) * item.quantity - parseFloat(item.total_discount || 0);
       if (isRefund) map[id].refunds += val; else map[id].omzet += val;
     });
   });
