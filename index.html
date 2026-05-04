@@ -140,9 +140,10 @@
         Product Lister
       </div>
       <div class="nav-item" id="nav-fotogenerator" onclick="navigate('fotogenerator')">
-  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="1" width="14" height="11" rx="1"/><circle cx="8" cy="6" r="2.5"/><path d="M1 12l3-3 2 2 3-3 3 3"/></svg>
-  Foto Generator
-</div> onclick="navigate('instellingen')">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="2" width="14" height="11" rx="1"/><circle cx="8" cy="7" r="2.5"/><path d="M5 2l1-1h4l1 1"/></svg>
+        Foto Generator
+      </div>
+      <div class="nav-item" id="nav-instellingen" onclick="navigate('instellingen')">
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="2.5"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.1 3.1l1.4 1.4M11.5 11.5l1.4 1.4M11.5 4.5l-1.4 1.4M4.5 11.5l-1.4 1.4"/></svg>
         Instellingen
       </div>
@@ -234,7 +235,7 @@ function navigate(page) {
   if (page === 'producten') renderProducten();
   else if (page === 'dashboard') renderDashboard();
   else if (page === 'lister') renderProductLister();
-else if (page === 'fotogenerator') renderFotoGenerator();
+  else if (page === 'fotogenerator') renderFotoGenerator();
   else renderInstellingen();
 }
 
@@ -304,7 +305,6 @@ function processData(shopifyResult, gadsRows) {
   });
 }
 
-// ✅ FIX: Google Ads fouten blokkeren de Shopify sync niet meer
 async function syncAll() {
   if (!shopifyToken && !googleAdsToken) { navigate('instellingen'); return; }
   var btn = document.getElementById('sync-btn');
@@ -315,11 +315,7 @@ async function syncAll() {
     var gadsResult = [];
     if (shopifyToken) shopifyResult = await fetchShopifyOrders(period);
     if (googleAdsToken) {
-      try {
-        gadsResult = await fetchGoogleAds(period);
-      } catch(gadsErr) {
-        console.log('Google Ads overgeslagen:', gadsErr.message);
-      }
+      try { gadsResult = await fetchGoogleAds(period); } catch(e) { console.log('Google Ads overgeslagen:', e.message); }
     }
     productData = processData(shopifyResult, gadsResult);
     localStorage.setItem('roi-data-' + period, JSON.stringify(productData));
@@ -469,7 +465,7 @@ var SIZE_MAP = {
 };
 
 function renderProductLister() {
-  document.getElementById('content').innerHTML = '<div style="max-width:800px;"><div class="settings-card"><h2>Product Lister</h2><p class="desc">Plak een productlink en wij genereren automatisch de beschrijving, tags en foto\'s voor Yamira London.</p><div class="field" style="margin-bottom:14px;"><label>Product URL</label><input id="pl-url" type="text" placeholder="https://www.example.com/products/dress" style="padding:10px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:13px;font-family:var(--font);outline:none;width:100%;"></div><button class="btn btn-primary" onclick="scrapeProduct()"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="8" r="6"/><path d="M8 4v4l3 3"/></svg>Product ophalen</button></div><div id="pl-result" style="display:none;"><div class="settings-card"><h2>Productinfo</h2><div class="field-grid" style="margin-bottom:16px;"><div class="field"><label>Productnaam</label><input id="pl-name" type="text" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"></div><div class="field"><label>Type product</label><input id="pl-type" type="text" placeholder="Dress, Maxi Dress, Top..." style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"></div><div class="field"><label>Originele prijs</label><input id="pl-price" type="number" step="0.01" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"></div><div class="field"><label>Valuta</label><select id="pl-currency" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"><option value="EUR">EUR (&euro;)</option><option value="GBP">GBP (&pound;)</option><option value="USD">USD ($)</option></select></div><div class="field"><label>Prijs in GBP (automatisch)</label><input id="pl-gbp" type="text" readonly style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;opacity:0.7;"></div><div class="field"><label>Seizoen</label><select id="pl-season" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"><option value="ALL YEAR">ALL YEAR</option><option value="SUMMER">SUMMER</option><option value="WINTER">WINTER</option></select></div></div><div class="field" style="margin-bottom:14px;"><label>Kleuren (komma gescheiden)</label><input id="pl-colors" type="text" placeholder="black, white, red..." style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"></div><div class="field" style="margin-bottom:14px;"><label>Maten (komma gescheiden)</label><input id="pl-sizes" type="text" value="XS (UK6), S (UK8), M (UK10), L (UK12), XL (UK14), XXL (UK16)" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"></div><div class="field" style="margin-bottom:14px;"><label>Extra tags (optioneel)</label><input id="pl-tags" type="text" placeholder="midi dress, occasion wear..." style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"></div><div id="pl-images-preview" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;"></div><div style="display:flex;gap:10px;flex-wrap:wrap;"><button class="btn btn-primary" id="pl-submit-btn" onclick="submitProduct()">Product aanmaken in Shopify</button><button class="btn" id="pl-photos-btn" onclick="generatePhotosForProduct()" style="display:none;">&#128248; Foto\'s genereren</button><button class="btn" onclick="navigate(\'producten\')">Annuleren</button></div></div></div><div id="pl-status" style="display:none;" class="banner banner-info"><div><h3 id="pl-status-title">Bezig...</h3><p id="pl-status-msg"></p></div></div><div id="pl-success" style="display:none;" class="banner banner-info"><div><h3 id="pl-success-title">&#10003; Product aangemaakt!</h3><p id="pl-success-msg"></p></div></div></div>';
+  document.getElementById('content').innerHTML = '<div style="max-width:800px;"><div class="settings-card"><h2>Product Lister</h2><p class="desc">Plak een productlink en wij genereren automatisch de beschrijving, tags en foto\'s voor Yamira London.</p><div class="field" style="margin-bottom:14px;"><label>Product URL</label><input id="pl-url" type="text" placeholder="https://www.example.com/products/dress" style="padding:10px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:13px;font-family:var(--font);outline:none;width:100%;"></div><button class="btn btn-primary" onclick="scrapeProduct()"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="8" r="6"/><path d="M8 4v4l3 3"/></svg>Product ophalen</button></div><div id="pl-result" style="display:none;"><div class="settings-card"><h2>Productinfo</h2><div class="field-grid" style="margin-bottom:16px;"><div class="field"><label>Productnaam</label><input id="pl-name" type="text" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"></div><div class="field"><label>Type product</label><input id="pl-type" type="text" placeholder="Dress, Maxi Dress, Top..." style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"></div><div class="field"><label>Originele prijs</label><input id="pl-price" type="number" step="0.01" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"></div><div class="field"><label>Valuta</label><select id="pl-currency" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"><option value="EUR">EUR (&euro;)</option><option value="GBP">GBP (&pound;)</option><option value="USD">USD ($)</option></select></div><div class="field"><label>Prijs in GBP (automatisch)</label><input id="pl-gbp" type="text" readonly style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;opacity:0.7;"></div><div class="field"><label>Seizoen</label><select id="pl-season" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"><option value="ALL YEAR">ALL YEAR</option><option value="SUMMER">SUMMER</option><option value="WINTER">WINTER</option></select></div></div><div class="field" style="margin-bottom:14px;"><label>Kleuren (komma gescheiden)</label><input id="pl-colors" type="text" placeholder="black, white, red..." style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"></div><div class="field" style="margin-bottom:14px;"><label>Maten (komma gescheiden)</label><input id="pl-sizes" type="text" value="XS (UK6), S (UK8), M (UK10), L (UK12), XL (UK14), XXL (UK16)" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"></div><div class="field" style="margin-bottom:14px;"><label>Extra tags (optioneel)</label><input id="pl-tags" type="text" placeholder="midi dress, occasion wear..." style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"></div><div id="pl-images-preview" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;"></div><div style="display:flex;gap:10px;flex-wrap:wrap;"><button class="btn btn-primary" id="pl-submit-btn" onclick="submitProduct()">Product aanmaken in Shopify</button><button class="btn" onclick="navigate(\'producten\')">Annuleren</button></div></div></div><div id="pl-status" style="display:none;" class="banner banner-info"><div><h3 id="pl-status-title">Bezig...</h3><p id="pl-status-msg"></p></div></div><div id="pl-success" style="display:none;" class="banner banner-info"><div><h3 id="pl-success-title">&#10003; Product aangemaakt!</h3><p id="pl-success-msg"></p></div></div></div>';
   document.getElementById('pl-price').addEventListener('input', updateGbpPrice);
   document.getElementById('pl-currency').addEventListener('change', updateGbpPrice);
 }
@@ -543,8 +539,6 @@ async function scrapeProduct() {
   }
 }
 
-var lastCreatedProductId = null;
-
 async function submitProduct() {
   var btn = document.getElementById('pl-submit-btn');
   btn.disabled = true;
@@ -569,54 +563,16 @@ async function submitProduct() {
     });
     var data = await r.json();
     if (data.error) throw new Error(data.error);
-    lastCreatedProductId = data.product && data.product.id;
     setPlStatus(false);
     document.getElementById('pl-success').style.display = 'block';
     document.getElementById('pl-success-title').textContent = 'Product aangemaakt!';
     document.getElementById('pl-success-msg').textContent = '"' + (data.product && data.product.title) + '" is aangemaakt in Shopify! Prijs: £' + data.price + ' | Kleuren: ' + (data.colorsUsed || []).join(', ');
-    document.getElementById('pl-photos-btn').style.display = 'inline-flex';
   } catch(err) {
     setPlStatus(false);
     alert('Fout: ' + err.message);
   } finally {
     btn.disabled = false;
     btn.textContent = 'Product aanmaken in Shopify';
-  }
-}
-
-async function generatePhotosForProduct() {
-  var btn = document.getElementById('pl-photos-btn');
-  btn.disabled = true;
-  btn.textContent = "Foto's genereren...";
-  setPlStatus(true, "Foto's genereren via kie.ai...", 'Dit duurt 5-10 minuten. Sluit dit venster niet.');
-  try {
-    var productInfo = {
-      title: document.getElementById('pl-name').value,
-      type: document.getElementById('pl-type').value || 'Dress',
-      originalPrice: parseFloat(document.getElementById('pl-price').value),
-      currency: document.getElementById('pl-currency').value,
-      season: document.getElementById('pl-season').value,
-      colors: document.getElementById('pl-colors').value.split(',').map(function(s) { return s.trim(); }).filter(Boolean),
-      sizes: document.getElementById('pl-sizes').value.split(',').map(function(s) { return s.trim(); }).filter(Boolean),
-      extraTags: document.getElementById('pl-tags').value.split(',').map(function(s) { return s.trim(); }).filter(Boolean),
-      shopifyProductId: lastCreatedProductId
-    };
-    var r = await fetch('/api/generate-product', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ productInfo: productInfo, generatePhotos: true })
-    });
-    var data = await r.json();
-    if (data.error) throw new Error(data.error);
-    setPlStatus(false);
-    document.getElementById('pl-success-title').textContent = 'Alles klaar!';
-    document.getElementById('pl-success-msg').textContent = data.imagesGenerated + " foto's gegenereerd en toegevoegd aan het product in Shopify!";
-  } catch(err) {
-    setPlStatus(false);
-    alert("Foto's fout: " + err.message);
-  } finally {
-    btn.disabled = false;
-    btn.textContent = "Foto's genereren";
   }
 }
 
@@ -629,8 +585,9 @@ function setPlStatus(show, title, msg) {
     document.getElementById('pl-status-msg').textContent = msg || '';
   }
 }
+
 function renderFotoGenerator() {
-  document.getElementById('content').innerHTML = '<div style="max-width:700px;"><div class="settings-card"><h2>Foto Generator</h2><p class="desc">Plak een Shopify admin productlink en wij genereren automatisch 8 professionele productfoto\'s via kie.ai.</p><div class="field" style="margin-bottom:14px;"><label>Shopify Admin URL</label><input id="fg-url" type="text" placeholder="https://admin.shopify.com/store/yamira-london/products/12345..." style="padding:10px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:13px;font-family:var(--font);outline:none;width:100%;"></div><div class="field" style="margin-bottom:16px;"><label>Kleur (optioneel — vul in als je een specifieke kleur wilt)</label><input id="fg-color" type="text" placeholder="bijv. black, pink, burgundy..." style="padding:10px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:13px;font-family:var(--font);outline:none;width:100%;"></div><button class="btn btn-primary" id="fg-btn" onclick="startFotoGenerator()">&#128248; Foto\'s genereren</button></div><div id="fg-status" style="display:none;" class="banner banner-info"><div><h3 id="fg-status-title">Bezig...</h3><p id="fg-status-msg"></p></div></div><div id="fg-success" style="display:none;" class="banner banner-info"><div><h3>&#10003; Foto\'s aangemaakt!</h3><p id="fg-success-msg"></p></div></div><div id="fg-images" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;"></div></div>';
+  document.getElementById('content').innerHTML = '<div style="max-width:700px;"><div class="settings-card"><h2>Foto Generator</h2><p class="desc">Plak een Shopify admin productlink en wij genereren automatisch 8 professionele productfoto\'s via kie.ai en voegen ze toe aan het product.</p><div class="field" style="margin-bottom:14px;"><label>Shopify Admin URL</label><input id="fg-url" type="text" placeholder="https://admin.shopify.com/store/yamira-london/products/12345..." style="padding:10px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:13px;font-family:var(--font);outline:none;width:100%;"></div><div class="field" style="margin-bottom:16px;"><label>Kleur (optioneel)</label><input id="fg-color" type="text" placeholder="bijv. black, pink, burgundy..." style="padding:10px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:13px;font-family:var(--font);outline:none;width:100%;"></div><button class="btn btn-primary" id="fg-btn" onclick="startFotoGenerator()">&#128248; Foto\'s genereren</button></div><div id="fg-status" style="display:none;" class="banner banner-info"><div><h3 id="fg-status-title">Bezig...</h3><p id="fg-status-msg"></p></div></div><div id="fg-success" style="display:none;" class="banner banner-info"><div><h3>&#10003; Foto\'s aangemaakt!</h3><p id="fg-success-msg"></p></div></div><div id="fg-images" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;"></div></div>';
 }
 
 async function startFotoGenerator() {
@@ -658,8 +615,8 @@ async function startFotoGenerator() {
     document.getElementById('fg-success').style.display = 'block';
     document.getElementById('fg-success-msg').textContent = data.imagesGenerated + " foto's gegenereerd en automatisch toegevoegd aan \"" + data.productTitle + "\" in Shopify!";
     if (data.imageUrls && data.imageUrls.length > 0) {
-      document.getElementById('fg-images').innerHTML = data.imageUrls.map(function(url) {
-        return '<img src="' + url + '" style="width:150px;height:200px;object-fit:cover;border-radius:8px;border:1px solid var(--border);" onerror="this.style.display=\'none\'">';
+      document.getElementById('fg-images').innerHTML = data.imageUrls.map(function(imgUrl) {
+        return '<img src="' + imgUrl + '" style="width:150px;height:200px;object-fit:cover;border-radius:8px;border:1px solid var(--border);" onerror="this.style.display=\'none\'">';
       }).join('');
     }
   } catch(err) {
@@ -670,6 +627,7 @@ async function startFotoGenerator() {
     btn.textContent = "Foto's genereren";
   }
 }
+
 checkUrlToken();
 updateConnStatus();
 renderProducten();
