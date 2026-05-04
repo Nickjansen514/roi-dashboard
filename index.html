@@ -21,8 +21,6 @@
   }
   body { font-family: var(--font); background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.5; }
   .app { display: flex; min-height: 100vh; }
-
-  /* Sidebar */
   .sidebar { width: 230px; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; position: fixed; top: 0; left: 0; bottom: 0; z-index: 10; }
   .logo { padding: 22px 20px 18px; border-bottom: 1px solid var(--border); }
   .logo-mark { font-size: 16px; font-weight: 500; letter-spacing: -0.4px; }
@@ -38,8 +36,6 @@
   .conn-row { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--text2); margin-bottom: 5px; }
   .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
   .dot-green { background: #3aad72; } .dot-orange { background: #e5952a; } .dot-red { background: #c94040; }
-
-  /* Main */
   .main { margin-left: 230px; flex: 1; display: flex; flex-direction: column; min-height: 100vh; }
   .topbar { background: var(--surface); border-bottom: 1px solid var(--border); padding: 14px 28px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 5; }
   .page-title { font-size: 15px; font-weight: 500; letter-spacing: -0.2px; }
@@ -53,8 +49,6 @@
   .btn-primary { background: var(--blue); color: #fff; border-color: var(--blue); }
   .btn-primary:hover { background: #244d8c; border-color: #244d8c; }
   .content { padding: 24px 28px; flex: 1; }
-
-  /* Login screen */
   .login-wrap { display: flex; align-items: center; justify-content: center; min-height: calc(100vh - 60px); }
   .login-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 36px 40px; width: 420px; text-align: center; }
   .login-card h2 { font-size: 20px; font-weight: 500; margin-bottom: 8px; }
@@ -64,8 +58,6 @@
   .login-field input { padding: 10px 12px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface2); color: var(--text); font-size: 13px; font-family: var(--font); outline: none; transition: border-color 0.12s; }
   .login-field input:focus { border-color: var(--blue); background: var(--surface); }
   .login-field input::placeholder { color: var(--text3); }
-
-  /* Banners */
   .banner { border-radius: 8px; padding: 14px 18px; margin-bottom: 20px; display: flex; align-items: flex-start; gap: 12px; font-size: 12px; }
   .banner-warn { background: var(--amber-light); border: 1px solid #e8c06a; }
   .banner-info { background: var(--blue-light); border: 1px solid #b0c4e8; }
@@ -75,9 +67,6 @@
   .banner-info h3 { color: #1e3d78; } .banner-info p { color: #2a4e8c; line-height: 1.6; }
   .banner-err h3 { color: #7a1e1e; } .banner-err p { color: #8b2222; line-height: 1.6; }
   .banner code { font-family: var(--mono); font-size: 11px; padding: 1px 5px; border-radius: 3px; background: rgba(0,0,0,0.06); }
-  .banner-actions { margin-left: auto; flex-shrink: 0; }
-
-  /* KPI */
   .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 22px; }
   .kpi { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; position: relative; overflow: hidden; }
   .kpi::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: var(--kpi-accent, var(--border)); }
@@ -85,8 +74,6 @@
   .kpi-value { font-size: 24px; font-weight: 300; letter-spacing: -0.8px; }
   .kpi-sub { font-size: 11px; color: var(--text3); margin-top: 5px; }
   .kpi-down { color: var(--red); }
-
-  /* Table */
   .table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
   .table-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid var(--border); }
   .table-title { font-size: 13px; font-weight: 500; }
@@ -113,13 +100,9 @@
   .badge-gray { background: var(--surface2); color: var(--text3); }
   .refund-neg { color: var(--red); font-weight: 500; }
   .dash { color: var(--text3); }
-
-  /* Charts */
   .chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
   .chart-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px; }
   .chart-label { font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text3); margin-bottom: 14px; }
-
-  /* Settings */
   .settings-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 22px 24px; margin-bottom: 16px; }
   .settings-card h2 { font-size: 14px; font-weight: 500; margin-bottom: 4px; }
   .settings-card .desc { font-size: 12px; color: var(--text2); margin-bottom: 18px; line-height: 1.6; }
@@ -131,11 +114,8 @@
   .field input::placeholder { color: var(--text3); font-family: var(--font); }
   .field .hint { font-size: 10px; color: var(--text3); line-height: 1.5; }
   .status-row { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-radius: 7px; background: var(--surface2); border: 1px solid var(--border); font-size: 12px; color: var(--text2); margin-top: 12px; }
-
-  /* Spinner */
   .spinner { width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; display: inline-block; }
   @keyframes spin { to { transform: rotate(360deg); } }
-
   @media (max-width: 1100px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } .chart-grid { grid-template-columns: 1fr; } }
 </style>
 </head>
@@ -171,7 +151,6 @@
       <div class="conn-row" style="margin-top:6px;font-size:10px;color:var(--text3);"><span id="lbl-sync">Nog niet gesynchroniseerd</span></div>
     </div>
   </aside>
-
   <main class="main">
     <div class="topbar">
       <span class="page-title" id="page-title">Producten</span>
@@ -191,11 +170,9 @@
     <div class="content" id="content"></div>
   </main>
 </div>
-
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script>
 const BACKEND_URL = window.location.origin;
-
 let shopifyToken = localStorage.getItem('shopify_token') || '';
 let shopifyStore = localStorage.getItem('shopify_store') || '';
 let googleAdsToken = localStorage.getItem('gads_token') || '';
@@ -214,18 +191,20 @@ function checkUrlToken() {
   const token = params.get('token');
   const shop = params.get('shop');
   if (token && shop) {
-    shopifyToken = token; shopifyStore = shop;
+    shopifyToken = token;
+    shopifyStore = shop;
     localStorage.setItem('shopify_token', token);
     localStorage.setItem('shopify_store', shop);
     window.history.replaceState({}, document.title, window.location.pathname);
-    updateConnStatus(); syncAll();
+    updateConnStatus();
+    syncAll();
   }
 }
 
 function shopifyLogin() {
   const store = document.getElementById('login-store').value.trim().replace(/^https?:\/\//, '').replace(/\/$/, '');
   if (!store) return alert('Vul je store URL in');
-  window.location.href = `${BACKEND_URL}/api/auth?action=login&shop=${store}`;
+  window.location.href = BACKEND_URL + '/api/auth?action=login&shop=' + store;
 }
 
 function updateConnStatus() {
@@ -238,15 +217,16 @@ function updateConnStatus() {
   const ls = localStorage.getItem('roi-last-sync');
   if (ls) {
     const d = new Date(ls);
-    document.getElementById('lbl-sync').textContent = 'Sync: ' + d.toLocaleDateString('nl-NL') + ' ' + d.toLocaleTimeString('nl-NL', {hour:'2-digit',minute:'2-digit'});
+    document.getElementById('lbl-sync').textContent = 'Sync: ' + d.toLocaleDateString('nl-NL') + ' ' + d.toLocaleTimeString('nl-NL', {hour:'2-digit', minute:'2-digit'});
   }
 }
 
 function navigate(page) {
   currentPage = page;
-  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(function(el) { el.classList.remove('active'); });
   document.getElementById('nav-' + page).classList.add('active');
-  document.getElementById('page-title').textContent = page === 'producten' ? 'Producten' : page === 'dashboard' ? 'Dashboard' : page === 'lister' ? 'Product Lister' : 'Instellingen';
+  var titles = {producten: 'Producten', dashboard: 'Dashboard', lister: 'Product Lister', instellingen: 'Instellingen'};
+  document.getElementById('page-title').textContent = titles[page] || page;
   destroyCharts();
   if (page === 'producten') renderProducten();
   else if (page === 'dashboard') renderDashboard();
@@ -256,83 +236,89 @@ function navigate(page) {
 
 function setPeriod(p, el) {
   period = p;
-  document.querySelectorAll('.ptab').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.ptab').forEach(function(b) { b.classList.remove('active'); });
   el.classList.add('active');
-  const cached = localStorage.getItem('roi-data-' + period);
+  var cached = localStorage.getItem('roi-data-' + period);
   if (cached) productData = JSON.parse(cached);
   if (currentPage === 'producten') renderProducten();
   else if (currentPage === 'dashboard') renderDashboard();
 }
 
 function destroyCharts() {
-  Object.values(charts).forEach(c => { try { c.destroy(); } catch(e){} });
+  Object.values(charts).forEach(function(c) { try { c.destroy(); } catch(e) {} });
   charts = {};
 }
 
 async function fetchShopifyOrders(days) {
-  const r = await fetch(`/api/shopify?shop=${shopifyStore}&token=${shopifyToken}&days=${days}`);
+  var r = await fetch('/api/shopify?shop=' + shopifyStore + '&token=' + shopifyToken + '&days=' + days);
   if (!r.ok) throw new Error('Shopify orders fout: ' + r.status);
   return r.json();
 }
 
 async function fetchGoogleAds(days) {
-  const cid = googleAdsCid.replace(/-/g, '');
-  const since = new Date(Date.now() - days * 86400000).toISOString().split('T')[0];
-  const today = new Date().toISOString().split('T')[0];
-  const query = `SELECT ad_group_criterion.listing_group.case_value.product_item_id.value, metrics.cost_micros, metrics.clicks, metrics.impressions, metrics.ctr, metrics.conversions FROM shopping_performance_view WHERE segments.date BETWEEN '${since.replace(/-/g,'')}' AND '${today.replace(/-/g,'')}'`;
-  const r = await fetch(`https://googleads.googleapis.com/v17/customers/${cid}/googleAds:searchStream`, {
+  var cid = googleAdsCid.replace(/-/g, '');
+  var since = new Date(Date.now() - days * 86400000).toISOString().split('T')[0];
+  var today = new Date().toISOString().split('T')[0];
+  var query = 'SELECT ad_group_criterion.listing_group.case_value.product_item_id.value, metrics.cost_micros, metrics.clicks, metrics.impressions, metrics.ctr, metrics.conversions FROM shopping_performance_view WHERE segments.date BETWEEN \'' + since.replace(/-/g,'') + '\' AND \'' + today.replace(/-/g,'') + '\'';
+  var r = await fetch('https://googleads.googleapis.com/v17/customers/' + cid + '/googleAds:searchStream', {
     method: 'POST',
     headers: { 'Authorization': 'Bearer ' + googleAdsToken, 'developer-token': googleAdsDevToken, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query })
+    body: JSON.stringify({ query: query })
   });
   if (!r.ok) throw new Error('Google Ads fout: ' + r.status);
-  const text = await r.text();
+  var text = await r.text();
   if (!text.trim()) return [];
   try { return JSON.parse('[' + text.replace(/\]\s*\[/g, ',') + ']'); } catch(e) { return []; }
 }
 
 function processData(shopifyResult, gadsRows) {
-  const map = {};
-  (shopifyResult.orders || []).forEach(order => {
-    const isRefund = order.financial_status === 'refunded' || order.financial_status === 'partially_refunded';
-    (order.line_items || []).forEach(item => {
-      const id = String(item.product_id);
-      if (!map[id]) map[id] = { id, name: item.title, omzet: 0, refunds: 0, spend: 0, kliks: 0, impressions: 0, conversies: 0 };
-      const val = parseFloat(item.price) * item.quantity;
+  var map = {};
+  (shopifyResult.orders || []).forEach(function(order) {
+    var isRefund = order.financial_status === 'refunded' || order.financial_status === 'partially_refunded';
+    (order.line_items || []).forEach(function(item) {
+      var id = String(item.product_id);
+      if (!map[id]) map[id] = { id: id, name: item.title, omzet: 0, refunds: 0, spend: 0, kliks: 0, impressions: 0, conversies: 0 };
+      var val = parseFloat(item.price) * item.quantity;
       if (isRefund) map[id].refunds += val; else map[id].omzet += val;
     });
   });
-  (gadsRows || []).forEach(batch => {
-    (batch.results || []).forEach(row => {
-      const pid = row.adGroupCriterion?.listingGroup?.caseValue?.productItemId?.value || '_unknown';
+  (gadsRows || []).forEach(function(batch) {
+    (batch.results || []).forEach(function(row) {
+      var pid = (row.adGroupCriterion && row.adGroupCriterion.listingGroup && row.adGroupCriterion.listingGroup.caseValue && row.adGroupCriterion.listingGroup.caseValue.productItemId && row.adGroupCriterion.listingGroup.caseValue.productItemId.value) || '_unknown';
       if (!map[pid]) map[pid] = { id: pid, name: pid, omzet: 0, refunds: 0, spend: 0, kliks: 0, impressions: 0, conversies: 0 };
-      map[pid].spend += (row.metrics?.costMicros || 0) / 1e6;
-      map[pid].kliks += parseInt(row.metrics?.clicks || 0);
-      map[pid].impressions += parseInt(row.metrics?.impressions || 0);
-      map[pid].conversies += parseFloat(row.metrics?.conversions || 0);
+      map[pid].spend += ((row.metrics && row.metrics.costMicros) || 0) / 1e6;
+      map[pid].kliks += parseInt((row.metrics && row.metrics.clicks) || 0);
+      map[pid].impressions += parseInt((row.metrics && row.metrics.impressions) || 0);
+      map[pid].conversies += parseFloat((row.metrics && row.metrics.conversions) || 0);
     });
   });
-  return Object.values(map).map(p => ({ ...p, ctr: p.impressions > 0 ? (p.kliks / p.impressions * 100) : 0, roas: p.spend > 0 ? (p.omzet / p.spend) : null }));
+  return Object.values(map).map(function(p) {
+    return Object.assign({}, p, {
+      ctr: p.impressions > 0 ? (p.kliks / p.impressions * 100) : 0,
+      roas: p.spend > 0 ? (p.omzet / p.spend) : null
+    });
+  });
 }
 
 async function syncAll() {
   if (!shopifyToken && !googleAdsToken) { navigate('instellingen'); return; }
-  const btn = document.getElementById('sync-btn');
+  var btn = document.getElementById('sync-btn');
   btn.innerHTML = '<span class="spinner"></span> Bezig...';
   btn.disabled = true;
   try {
-    let shopifyResult = { orders: [] };
-    let gadsResult = [];
+    var shopifyResult = { orders: [] };
+    var gadsResult = [];
     if (shopifyToken) shopifyResult = await fetchShopifyOrders(period);
     if (googleAdsToken) gadsResult = await fetchGoogleAds(period);
     productData = processData(shopifyResult, gadsResult);
     localStorage.setItem('roi-data-' + period, JSON.stringify(productData));
     localStorage.setItem('roi-last-sync', new Date().toISOString());
-    updateConnStatus(); destroyCharts();
+    updateConnStatus();
+    destroyCharts();
     if (currentPage === 'producten') renderProducten();
     else if (currentPage === 'dashboard') renderDashboard();
   } catch(err) {
-    document.getElementById('content').innerHTML = `<div class="banner banner-err"><div><h3>Fout bij synchroniseren</h3><p>${err.message}</p></div></div>`;
+    document.getElementById('content').innerHTML = '<div class="banner banner-err"><div><h3>Fout bij synchroniseren</h3><p>' + err.message + '</p></div></div>';
   } finally {
     btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M13.5 8A5.5 5.5 0 1 1 8 2.5"/><path d="M13.5 2.5v3h-3"/></svg> Synchroniseren';
     btn.disabled = false;
@@ -348,150 +334,102 @@ function getDemoData() {
     { id:'1005', name:'Heren Blazer Broek Set Slim Fit', omzet:480.64, refunds:0, spend:132.80, kliks:256, impressions:20590, ctr:1.24, roas:3.62, conversies:5 },
     { id:'1006', name:'Bodywarmer Heren Rits Opstaande Kraag', omzet:390.94, refunds:34.95, spend:106.77, kliks:191, impressions:9338, ctr:2.05, roas:3.66, conversies:4 },
     { id:'1007', name:'Heren Set Regular Fit Tweedelig', omzet:371.12, refunds:0, spend:144.85, kliks:302, impressions:18267, ctr:1.65, roas:2.56, conversies:3 },
-    { id:'1008', name:'Elegante Getailleerde Dames Blazer', omzet:329.68, refunds:0, spend:67.78, kliks:202, impressions:9863, ctr:2.05, roas:4.86, conversies:4 },
+    { id:'1008', name:'Elegante Getailleerde Dames Blazer', omzet:329.68, refunds:0, spend:67.78, kliks:202, impressions:9863, ctr:2.05, roas:4.86, conversies:4 }
   ];
 }
 
 function renderLogin() {
-  document.getElementById('content').innerHTML = `
-    <div class="login-wrap">
-      <div class="login-card">
-        <h2>Verbind je Shopify store</h2>
-        <p>Vul je store URL in en klik op Verbinden.</p>
-        <div class="login-field">
-          <label>Store URL</label>
-          <input id="login-store" type="text" placeholder="jouwstore.myshopify.com" value="${shopifyStore}">
-        </div>
-        <button class="btn btn-primary" style="width:100%;justify-content:center;padding:11px;" onclick="shopifyLogin()">Verbinden met Shopify →</button>
-      </div>
-    </div>`;
+  document.getElementById('content').innerHTML = '<div class="login-wrap"><div class="login-card"><h2>Verbind je Shopify store</h2><p>Vul je store URL in en klik op Verbinden.</p><div class="login-field"><label>Store URL</label><input id="login-store" type="text" placeholder="jouwstore.myshopify.com" value="' + shopifyStore + '"></div><button class="btn btn-primary" style="width:100%;justify-content:center;padding:11px;" onclick="shopifyLogin()">Verbinden met Shopify &rarr;</button></div></div>';
 }
 
 function renderProducten() {
   if (!shopifyToken) { renderLogin(); return; }
-  const cached = localStorage.getItem('roi-data-' + period);
+  var cached = localStorage.getItem('roi-data-' + period);
   if (productData.length === 0 && cached) productData = JSON.parse(cached);
-  const data = productData.length > 0 ? productData : getDemoData();
-  const isDemo = productData.length === 0;
-  const totalSpend = data.reduce((s,p) => s + p.spend, 0);
-  const totalOmzet = data.reduce((s,p) => s + p.omzet, 0);
-  const totalRefunds = data.reduce((s,p) => s + p.refunds, 0);
-  const totalRoas = totalSpend > 0 ? totalOmzet / totalSpend : 0;
-  const totalKliks = data.reduce((s,p) => s + p.kliks, 0);
-  const totalImpr = data.reduce((s,p) => s + p.impressions, 0);
-  const avgCtr = totalImpr > 0 ? (totalKliks / totalImpr * 100) : 0;
-  const roasColor = totalRoas >= 3 ? 'var(--green)' : totalRoas >= 2 ? 'var(--amber)' : 'var(--red)';
-  document.getElementById('content').innerHTML = `
-    ${isDemo ? `<div class="banner banner-info"><div><h3>Demo data — klik op Synchroniseren voor echte data</h3><p>Klik rechtsboven op <strong>Synchroniseren</strong>.</p></div></div>` : ''}
-    <div class="kpi-grid">
-      <div class="kpi" style="--kpi-accent:var(--blue)"><div class="kpi-label">Spend</div><div class="kpi-value">€${totalSpend.toLocaleString('nl-NL',{minimumFractionDigits:2,maximumFractionDigits:2})}</div><div class="kpi-sub">${period} dagen</div></div>
-      <div class="kpi" style="--kpi-accent:var(--green)"><div class="kpi-label">Omzet</div><div class="kpi-value">€${totalOmzet.toLocaleString('nl-NL',{minimumFractionDigits:2,maximumFractionDigits:2})}</div><div class="kpi-sub ${totalRefunds > 0 ? 'kpi-down' : ''}">${totalRefunds > 0 ? '−€'+totalRefunds.toFixed(2)+' refunds' : 'geen refunds'}</div></div>
-      <div class="kpi" style="--kpi-accent:${roasColor}"><div class="kpi-label">ROAS</div><div class="kpi-value" style="color:${roasColor}">${totalRoas.toFixed(2)}x</div><div class="kpi-sub">Totaal rendement</div></div>
-      <div class="kpi" style="--kpi-accent:#9b6dc9"><div class="kpi-label">CTR gemiddeld</div><div class="kpi-value">${avgCtr.toFixed(2)}%</div><div class="kpi-sub">${totalKliks.toLocaleString('nl-NL')} kliks · ${(totalImpr/1000).toFixed(1)}K impr.</div></div>
-    </div>
-    <div class="table-wrap">
-      <div class="table-header">
-        <div style="display:flex;align-items:center;gap:8px;"><span class="table-title">Alle producten</span><span class="table-meta" id="prod-count">${data.length} producten</span></div>
-        <input class="search" placeholder="Zoek product..." oninput="onSearch(this.value)" value="${searchQ}">
-      </div>
-      <table><thead><tr>
-        <th onclick="sortBy('name')" style="text-align:left;" class="${sortCol==='name'?'sort-'+sortDir:''}">Product</th>
-        <th onclick="sortBy('spend')" class="${sortCol==='spend'?'sort-'+sortDir:''}">Spend</th>
-        <th onclick="sortBy('kliks')" class="${sortCol==='kliks'?'sort-'+sortDir:''}">Kliks</th>
-        <th onclick="sortBy('impressions')" class="${sortCol==='impressions'?'sort-'+sortDir:''}">Impressies</th>
-        <th onclick="sortBy('ctr')" class="${sortCol==='ctr'?'sort-'+sortDir:''}">CTR</th>
-        <th onclick="sortBy('omzet')" class="${sortCol==='omzet'?'sort-'+sortDir:''}">Omzet</th>
-        <th onclick="sortBy('refunds')" class="${sortCol==='refunds'?'sort-'+sortDir:''}">Refunds</th>
-        <th onclick="sortBy('roas')" class="${sortCol==='roas'?'sort-'+sortDir:''}">ROAS</th>
-      </tr></thead>
-      <tbody id="tbody">${buildRows(getSortedData(data))}</tbody></table>
-    </div>`;
+  var data = productData.length > 0 ? productData : getDemoData();
+  var isDemo = productData.length === 0;
+  var totalSpend = data.reduce(function(s,p) { return s + p.spend; }, 0);
+  var totalOmzet = data.reduce(function(s,p) { return s + p.omzet; }, 0);
+  var totalRefunds = data.reduce(function(s,p) { return s + p.refunds; }, 0);
+  var totalRoas = totalSpend > 0 ? totalOmzet / totalSpend : 0;
+  var totalKliks = data.reduce(function(s,p) { return s + p.kliks; }, 0);
+  var totalImpr = data.reduce(function(s,p) { return s + p.impressions; }, 0);
+  var avgCtr = totalImpr > 0 ? (totalKliks / totalImpr * 100) : 0;
+  var roasColor = totalRoas >= 3 ? 'var(--green)' : totalRoas >= 2 ? 'var(--amber)' : 'var(--red)';
+  var html = '';
+  if (isDemo) html += '<div class="banner banner-info"><div><h3>Demo data</h3><p>Klik op <strong>Synchroniseren</strong> voor echte data.</p></div></div>';
+  html += '<div class="kpi-grid">';
+  html += '<div class="kpi" style="--kpi-accent:var(--blue)"><div class="kpi-label">Spend</div><div class="kpi-value">&euro;' + totalSpend.toLocaleString('nl-NL',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</div><div class="kpi-sub">' + period + ' dagen</div></div>';
+  html += '<div class="kpi" style="--kpi-accent:var(--green)"><div class="kpi-label">Omzet</div><div class="kpi-value">&euro;' + totalOmzet.toLocaleString('nl-NL',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</div><div class="kpi-sub' + (totalRefunds > 0 ? ' kpi-down' : '') + '">' + (totalRefunds > 0 ? '&minus;&euro;' + totalRefunds.toFixed(2) + ' refunds' : 'geen refunds') + '</div></div>';
+  html += '<div class="kpi" style="--kpi-accent:' + roasColor + '"><div class="kpi-label">ROAS</div><div class="kpi-value" style="color:' + roasColor + '">' + totalRoas.toFixed(2) + 'x</div><div class="kpi-sub">Totaal rendement</div></div>';
+  html += '<div class="kpi" style="--kpi-accent:#9b6dc9"><div class="kpi-label">CTR gemiddeld</div><div class="kpi-value">' + avgCtr.toFixed(2) + '%</div><div class="kpi-sub">' + totalKliks.toLocaleString('nl-NL') + ' kliks &middot; ' + (totalImpr/1000).toFixed(1) + 'K impr.</div></div>';
+  html += '</div>';
+  html += '<div class="table-wrap"><div class="table-header"><div style="display:flex;align-items:center;gap:8px;"><span class="table-title">Alle producten</span><span class="table-meta" id="prod-count">' + data.length + ' producten</span></div><input class="search" placeholder="Zoek product..." oninput="onSearch(this.value)" value="' + searchQ + '"></div>';
+  html += '<table><thead><tr><th onclick="sortBy(\'name\')" style="text-align:left;" class="' + (sortCol==='name'?'sort-'+sortDir:'') + '">Product</th><th onclick="sortBy(\'spend\')" class="' + (sortCol==='spend'?'sort-'+sortDir:'') + '">Spend</th><th onclick="sortBy(\'kliks\')" class="' + (sortCol==='kliks'?'sort-'+sortDir:'') + '">Kliks</th><th onclick="sortBy(\'impressions\')" class="' + (sortCol==='impressions'?'sort-'+sortDir:'') + '">Impressies</th><th onclick="sortBy(\'ctr\')" class="' + (sortCol==='ctr'?'sort-'+sortDir:'') + '">CTR</th><th onclick="sortBy(\'omzet\')" class="' + (sortCol==='omzet'?'sort-'+sortDir:'') + '">Omzet</th><th onclick="sortBy(\'refunds\')" class="' + (sortCol==='refunds'?'sort-'+sortDir:'') + '">Refunds</th><th onclick="sortBy(\'roas\')" class="' + (sortCol==='roas'?'sort-'+sortDir:'') + '">ROAS</th></tr></thead><tbody id="tbody">' + buildRows(getSortedData(data)) + '</tbody></table></div>';
+  document.getElementById('content').innerHTML = html;
 }
 
 function getSortedData(data) {
-  const q = searchQ.toLowerCase();
-  let filtered = q ? data.filter(p => p.name.toLowerCase().includes(q)) : [...data];
-  filtered.sort((a,b) => { let av = a[sortCol] ?? -Infinity, bv = b[sortCol] ?? -Infinity; return sortDir === 'asc' ? av - bv : bv - av; });
+  var q = searchQ.toLowerCase();
+  var filtered = q ? data.filter(function(p) { return p.name.toLowerCase().indexOf(q) !== -1; }) : data.slice();
+  filtered.sort(function(a,b) {
+    var av = a[sortCol] !== undefined && a[sortCol] !== null ? a[sortCol] : -Infinity;
+    var bv = b[sortCol] !== undefined && b[sortCol] !== null ? b[sortCol] : -Infinity;
+    return sortDir === 'asc' ? av - bv : bv - av;
+  });
   return filtered;
 }
 
 function buildRows(data) {
-  if (!data.length) return `<tr><td colspan="8" style="text-align:center;padding:30px;color:var(--text3)">Geen producten gevonden</td></tr>`;
-  return data.map(p => {
-    const roasBadge = p.roas === null ? `<span class="badge badge-gray">—</span>` : p.roas >= 3 ? `<span class="badge badge-green">${p.roas.toFixed(2)}x</span>` : p.roas >= 2 ? `<span class="badge badge-amber">${p.roas.toFixed(2)}x</span>` : `<span class="badge badge-red">${p.roas.toFixed(2)}x</span>`;
-    const imprFmt = p.impressions >= 10000 ? (p.impressions/1000).toFixed(1)+'K' : p.impressions.toLocaleString('nl-NL');
-    return `<tr><td><span class="prod-name">${p.name}</span><span class="prod-id">#${p.id}</span></td><td>€${p.spend.toFixed(2)}</td><td>${p.kliks.toLocaleString('nl-NL')}</td><td>${imprFmt}</td><td>${p.ctr.toFixed(2)}%</td><td>€${p.omzet.toFixed(2)}</td><td>${p.refunds > 0 ? `<span class="refund-neg">−€${p.refunds.toFixed(2)}</span>` : '<span class="dash">—</span>'}</td><td>${roasBadge}</td></tr>`;
+  if (!data.length) return '<tr><td colspan="8" style="text-align:center;padding:30px;color:var(--text3)">Geen producten gevonden</td></tr>';
+  return data.map(function(p) {
+    var roasBadge = p.roas === null ? '<span class="badge badge-gray">&mdash;</span>' : p.roas >= 3 ? '<span class="badge badge-green">' + p.roas.toFixed(2) + 'x</span>' : p.roas >= 2 ? '<span class="badge badge-amber">' + p.roas.toFixed(2) + 'x</span>' : '<span class="badge badge-red">' + p.roas.toFixed(2) + 'x</span>';
+    var imprFmt = p.impressions >= 10000 ? (p.impressions/1000).toFixed(1) + 'K' : p.impressions.toLocaleString('nl-NL');
+    return '<tr><td><span class="prod-name">' + p.name + '</span><span class="prod-id">#' + p.id + '</span></td><td>&euro;' + p.spend.toFixed(2) + '</td><td>' + p.kliks.toLocaleString('nl-NL') + '</td><td>' + imprFmt + '</td><td>' + p.ctr.toFixed(2) + '%</td><td>&euro;' + p.omzet.toFixed(2) + '</td><td>' + (p.refunds > 0 ? '<span class="refund-neg">&minus;&euro;' + p.refunds.toFixed(2) + '</span>' : '<span class="dash">&mdash;</span>') + '</td><td>' + roasBadge + '</td></tr>';
   }).join('');
 }
 
 function onSearch(q) {
   searchQ = q;
-  const data = productData.length > 0 ? productData : getDemoData();
-  const sorted = getSortedData(data);
+  var data = productData.length > 0 ? productData : getDemoData();
+  var sorted = getSortedData(data);
   document.getElementById('tbody').innerHTML = buildRows(sorted);
   document.getElementById('prod-count').textContent = sorted.length + ' producten';
 }
 
 function sortBy(col) {
-  if (sortCol === col) sortDir = sortDir === 'asc' ? 'desc' : 'asc'; else { sortCol = col; sortDir = 'desc'; }
+  if (sortCol === col) sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+  else { sortCol = col; sortDir = 'desc'; }
   renderProducten();
 }
 
 function renderDashboard() {
   if (!shopifyToken) { renderLogin(); return; }
-  const cached = localStorage.getItem('roi-data-' + period);
+  var cached = localStorage.getItem('roi-data-' + period);
   if (productData.length === 0 && cached) productData = JSON.parse(cached);
-  const data = productData.length > 0 ? productData : getDemoData();
-  const top5roas = [...data].filter(p => p.roas !== null).sort((a,b) => b.roas - a.roas).slice(0,5);
-  const top5spend = [...data].sort((a,b) => b.spend - a.spend).slice(0,5);
-  const short = arr => arr.map(p => p.name.length > 22 ? p.name.substring(0,22)+'…' : p.name);
-  document.getElementById('content').innerHTML = `
-    <div class="chart-grid">
-      <div class="chart-card"><div class="chart-label">ROAS per product (top 5)</div><div style="position:relative;height:240px;"><canvas id="ch-roas"></canvas></div></div>
-      <div class="chart-card"><div class="chart-label">Spend vs omzet (top 5)</div><div style="position:relative;height:240px;"><canvas id="ch-spend"></canvas></div></div>
-    </div>
-    <div class="chart-card"><div class="chart-label">Impressies per product</div><div style="position:relative;height:${data.slice(0,8).length * 38 + 40}px;"><canvas id="ch-impr"></canvas></div></div>`;
-  setTimeout(() => {
-    charts.roas = new Chart(document.getElementById('ch-roas'), { type: 'bar', data: { labels: short(top5roas), datasets: [{ label: 'ROAS', data: top5roas.map(p => +p.roas.toFixed(2)), backgroundColor: top5roas.map(p => p.roas >= 3 ? '#3aad72' : p.roas >= 2 ? '#e5952a' : '#c94040'), borderRadius: 5 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { callback: v => v+'x' } } } } });
-    charts.spend = new Chart(document.getElementById('ch-spend'), { type: 'bar', data: { labels: short(top5spend), datasets: [{ label: 'Spend', data: top5spend.map(p => +p.spend.toFixed(2)), backgroundColor: '#2d5fa8', borderRadius: 4 }, { label: 'Omzet', data: top5spend.map(p => +p.omzet.toFixed(2)), backgroundColor: '#3aad72', borderRadius: 4 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' } }, scales: { y: { beginAtZero: true, ticks: { callback: v => '€'+v } } } } });
-    const top8 = [...data].sort((a,b) => b.impressions - a.impressions).slice(0,8);
-    charts.impr = new Chart(document.getElementById('ch-impr'), { type: 'bar', data: { labels: short(top8), datasets: [{ label: 'Impressies', data: top8.map(p => p.impressions), backgroundColor: '#7a94c0', borderRadius: 4 }] }, options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true } } } });
+  var data = productData.length > 0 ? productData : getDemoData();
+  var top5roas = data.filter(function(p) { return p.roas !== null; }).sort(function(a,b) { return b.roas - a.roas; }).slice(0,5);
+  var top5spend = data.slice().sort(function(a,b) { return b.spend - a.spend; }).slice(0,5);
+  var short = function(arr) { return arr.map(function(p) { return p.name.length > 22 ? p.name.substring(0,22) + '...' : p.name; }); };
+  document.getElementById('content').innerHTML = '<div class="chart-grid"><div class="chart-card"><div class="chart-label">ROAS per product (top 5)</div><div style="position:relative;height:240px;"><canvas id="ch-roas"></canvas></div></div><div class="chart-card"><div class="chart-label">Spend vs omzet (top 5)</div><div style="position:relative;height:240px;"><canvas id="ch-spend"></canvas></div></div></div><div class="chart-card"><div class="chart-label">Impressies per product</div><div style="position:relative;height:' + (data.slice(0,8).length * 38 + 40) + 'px;"><canvas id="ch-impr"></canvas></div></div>';
+  setTimeout(function() {
+    charts.roas = new Chart(document.getElementById('ch-roas'), { type: 'bar', data: { labels: short(top5roas), datasets: [{ label: 'ROAS', data: top5roas.map(function(p) { return +p.roas.toFixed(2); }), backgroundColor: top5roas.map(function(p) { return p.roas >= 3 ? '#3aad72' : p.roas >= 2 ? '#e5952a' : '#c94040'; }), borderRadius: 5 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { callback: function(v) { return v + 'x'; } } } } } });
+    charts.spend = new Chart(document.getElementById('ch-spend'), { type: 'bar', data: { labels: short(top5spend), datasets: [{ label: 'Spend', data: top5spend.map(function(p) { return +p.spend.toFixed(2); }), backgroundColor: '#2d5fa8', borderRadius: 4 }, { label: 'Omzet', data: top5spend.map(function(p) { return +p.omzet.toFixed(2); }), backgroundColor: '#3aad72', borderRadius: 4 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' } }, scales: { y: { beginAtZero: true, ticks: { callback: function(v) { return '€' + v; } } } } } });
+    var top8 = data.slice().sort(function(a,b) { return b.impressions - a.impressions; }).slice(0,8);
+    charts.impr = new Chart(document.getElementById('ch-impr'), { type: 'bar', data: { labels: short(top8), datasets: [{ label: 'Impressies', data: top8.map(function(p) { return p.impressions; }), backgroundColor: '#7a94c0', borderRadius: 4 }] }, options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true } } } });
   }, 100);
 }
 
 function renderInstellingen() {
-  document.getElementById('content').innerHTML = `
-    <div class="settings-card">
-      <h2>Shopify verbinding</h2>
-      <p class="desc">Klik op de knop om opnieuw in te loggen via Shopify OAuth.</p>
-      <div class="field-grid">
-        <div class="field"><label>Store URL</label><input id="f-store" type="text" placeholder="jouwstore.myshopify.com" value="${shopifyStore}"></div>
-      </div>
-      <div style="margin-top:12px;display:flex;gap:10px;">
-        <button class="btn btn-primary" onclick="shopifyLogin()">Opnieuw verbinden met Shopify</button>
-        ${shopifyToken ? `<button class="btn" onclick="logoutShopify()">Uitloggen</button>` : ''}
-      </div>
-      <div class="status-row" style="margin-top:12px;">
-        <span class="dot ${shopifyToken ? 'dot-green' : 'dot-orange'}"></span>
-        ${shopifyToken ? `Verbonden met <strong>${shopifyStore}</strong>` : 'Niet verbonden'}
-      </div>
-    </div>
-    <div class="settings-card">
-      <h2>Google Ads verbinding</h2>
-      <p class="desc">Haal een OAuth token op via <a href="https://developers.google.com/oauthplayground" target="_blank" style="color:var(--blue)">OAuth Playground</a>.</p>
-      <div class="field-grid">
-        <div class="field"><label>OAuth Access Token</label><input id="f-gtoken" type="password" placeholder="ya29.xxxx" value="${googleAdsToken}"></div>
-        <div class="field"><label>Customer ID</label><input id="f-gcid" type="text" placeholder="123-456-7890" value="${googleAdsCid}"></div>
-        <div class="field"><label>Developer Token</label><input id="f-gdev" type="password" placeholder="xxxxxxxxxxxx" value="${googleAdsDevToken}"></div>
-      </div>
-      <div style="margin-top:12px;"><button class="btn btn-primary" onclick="saveGads()">Opslaan</button></div>
-    </div>`;
+  document.getElementById('content').innerHTML = '<div class="settings-card"><h2>Shopify verbinding</h2><p class="desc">Klik op de knop om opnieuw in te loggen via Shopify OAuth.</p><div class="field-grid"><div class="field"><label>Store URL</label><input id="f-store" type="text" placeholder="jouwstore.myshopify.com" value="' + shopifyStore + '"></div></div><div style="margin-top:12px;display:flex;gap:10px;"><button class="btn btn-primary" onclick="shopifyLogin()">Opnieuw verbinden met Shopify</button>' + (shopifyToken ? '<button class="btn" onclick="logoutShopify()">Uitloggen</button>' : '') + '</div><div class="status-row" style="margin-top:12px;"><span class="dot ' + (shopifyToken ? 'dot-green' : 'dot-orange') + '"></span>' + (shopifyToken ? 'Verbonden met <strong>' + shopifyStore + '</strong>' : 'Niet verbonden') + '</div></div><div class="settings-card"><h2>Google Ads verbinding</h2><p class="desc">Haal een OAuth token op via <a href="https://developers.google.com/oauthplayground" target="_blank" style="color:var(--blue)">OAuth Playground</a>.</p><div class="field-grid"><div class="field"><label>OAuth Access Token</label><input id="f-gtoken" type="password" placeholder="ya29.xxxx" value="' + googleAdsToken + '"></div><div class="field"><label>Customer ID</label><input id="f-gcid" type="text" placeholder="123-456-7890" value="' + googleAdsCid + '"></div><div class="field"><label>Developer Token</label><input id="f-gdev" type="password" placeholder="xxxxxxxxxxxx" value="' + googleAdsDevToken + '"></div></div><div style="margin-top:12px;"><button class="btn btn-primary" onclick="saveGads()">Opslaan</button></div></div>';
 }
 
 function logoutShopify() {
   shopifyToken = ''; shopifyStore = '';
-  localStorage.removeItem('shopify_token'); localStorage.removeItem('shopify_store');
-  updateConnStatus(); renderInstellingen();
+  localStorage.removeItem('shopify_token');
+  localStorage.removeItem('shopify_store');
+  updateConnStatus();
+  renderInstellingen();
 }
 
 function saveGads() {
@@ -501,198 +439,132 @@ function saveGads() {
   localStorage.setItem('gads_token', googleAdsToken);
   localStorage.setItem('gads_cid', googleAdsCid);
   localStorage.setItem('gads_dev', googleAdsDevToken);
-  updateConnStatus(); navigate('producten');
+  updateConnStatus();
+  navigate('producten');
 }
 
 // ── Product Lister ────────────────────────────────────────────
-const COLOR_MAP = {
-  'noir': 'black', 'blanc': 'white', 'rouge': 'red', 'bleu': 'blue',
-  'vert': 'green', 'rose': 'pink', 'beige': 'beige', 'crème': 'cream',
-  'gris': 'grey', 'marron': 'brown', 'orange': 'orange', 'violet': 'purple',
-  'jaune': 'yellow', 'marine': 'navy', 'bordeaux': 'burgundy',
-  'rouge foncé': 'dark red', 'khaki': 'khaki', 'lila': 'lilac',
-  'zwart': 'black', 'wit': 'white', 'blauw': 'blue', 'groen': 'green',
-  'roze': 'pink', 'grijs': 'grey', 'bruin': 'brown', 'geel': 'yellow',
-  'rood': 'red', 'paars': 'purple'
+var COLOR_MAP = {
+  'noir':'black','blanc':'white','rouge':'red','bleu':'blue','vert':'green','rose':'pink',
+  'beige':'beige','creme':'cream','gris':'grey','marron':'brown','orange':'orange',
+  'violet':'purple','jaune':'yellow','marine':'navy','bordeaux':'burgundy',
+  'rouge fonce':'dark red','khaki':'khaki','lila':'lilac','zwart':'black','wit':'white',
+  'blauw':'blue','groen':'green','roze':'pink','grijs':'grey','bruin':'brown',
+  'geel':'yellow','rood':'red','paars':'purple'
 };
 
-const SIZE_MAP = {
-  'XS': 'XS (UK6)', 'S': 'S (UK8)', 'M': 'M (UK10)',
-  'L': 'L (UK12)', 'XL': 'XL (UK14)', 'XXL': 'XXL (UK16)',
-  '2XL': 'XXL (UK16)', '3XL': 'XXXL (UK18)'
+var SIZE_MAP = {
+  'XS':'XS (UK6)','S':'S (UK8)','M':'M (UK10)','L':'L (UK12)',
+  'XL':'XL (UK14)','XXL':'XXL (UK16)','2XL':'XXL (UK16)','3XL':'XXXL (UK18)'
 };
 
 function renderProductLister() {
-  document.getElementById('content').innerHTML = `
-    <div style="max-width:800px;">
-      <div class="settings-card">
-        <h2>Product Lister</h2>
-        <p class="desc">Plak een productlink en wij genereren automatisch de beschrijving, tags en foto's voor Yamira London.</p>
-        <div class="field" style="margin-bottom:14px;">
-          <label>Product URL</label>
-          <input id="pl-url" type="text" placeholder="https://www.example.com/products/dress" style="padding:10px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:13px;font-family:var(--font);outline:none;width:100%;">
-        </div>
-        <button class="btn btn-primary" onclick="scrapeProduct()">
-          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="8" r="6"/><path d="M8 4v4l3 3"/></svg>
-          Product ophalen
-        </button>
-      </div>
-
-      <div id="pl-result" style="display:none;">
-        <div class="settings-card">
-          <h2>Productinfo</h2>
-          <div class="field-grid" style="margin-bottom:16px;">
-            <div class="field"><label>Productnaam</label><input id="pl-name" type="text" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"></div>
-            <div class="field"><label>Type product</label><input id="pl-type" type="text" placeholder="Dress, Maxi Dress, Top..." style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"></div>
-            <div class="field"><label>Originele prijs</label><input id="pl-price" type="number" step="0.01" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"></div>
-            <div class="field"><label>Valuta</label><select id="pl-currency" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"><option value="EUR">EUR (€)</option><option value="GBP">GBP (£)</option><option value="USD">USD ($)</option></select></div>
-            <div class="field"><label>Prijs in GBP (automatisch)</label><input id="pl-gbp" type="text" readonly style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;opacity:0.7;"></div>
-            <div class="field"><label>Seizoen</label><select id="pl-season" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"><option value="ALL YEAR">ALL YEAR</option><option value="SUMMER">SUMMER</option><option value="WINTER">WINTER</option></select></div>
-          </div>
-          <div class="field" style="margin-bottom:14px;"><label>Kleuren (komma gescheiden)</label><input id="pl-colors" type="text" placeholder="black, white, red..." style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"></div>
-          <div class="field" style="margin-bottom:14px;"><label>Maten (komma gescheiden)</label><input id="pl-sizes" type="text" value="XS (UK6), S (UK8), M (UK10), L (UK12), XL (UK14), XXL (UK16)" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"></div>
-          <div class="field" style="margin-bottom:14px;"><label>Extra tags (optioneel)</label><input id="pl-tags" type="text" placeholder="midi dress, occasion wear..." style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"></div>
-          <div id="pl-images-preview" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;"></div>
-          <div style="display:flex;gap:10px;flex-wrap:wrap;">
-            <button class="btn btn-primary" id="pl-submit-btn" onclick="submitProduct()">Product aanmaken in Shopify</button>
-            <button class="btn" id="pl-photos-btn" onclick="generatePhotosForProduct()" style="display:none;">📸 Foto's genereren</button>
-            <button class="btn" onclick="navigate('producten')">Annuleren</button>
-          </div>
-        </div>
-      </div>
-
-      <div id="pl-status" style="display:none;" class="banner banner-info">
-        <div><h3 id="pl-status-title">Bezig...</h3><p id="pl-status-msg"></p></div>
-      </div>
-      <div id="pl-success" style="display:none;" class="banner banner-info">
-        <div><h3 id="pl-success-title">✓ Product aangemaakt!</h3><p id="pl-success-msg"></p></div>
-      </div>
-    </div>`;
-
+  document.getElementById('content').innerHTML = '<div style="max-width:800px;"><div class="settings-card"><h2>Product Lister</h2><p class="desc">Plak een productlink en wij genereren automatisch de beschrijving, tags en foto\'s voor Yamira London.</p><div class="field" style="margin-bottom:14px;"><label>Product URL</label><input id="pl-url" type="text" placeholder="https://www.example.com/products/dress" style="padding:10px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:13px;font-family:var(--font);outline:none;width:100%;"></div><button class="btn btn-primary" onclick="scrapeProduct()"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="8" r="6"/><path d="M8 4v4l3 3"/></svg>Product ophalen</button></div><div id="pl-result" style="display:none;"><div class="settings-card"><h2>Productinfo</h2><div class="field-grid" style="margin-bottom:16px;"><div class="field"><label>Productnaam</label><input id="pl-name" type="text" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"></div><div class="field"><label>Type product</label><input id="pl-type" type="text" placeholder="Dress, Maxi Dress, Top..." style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"></div><div class="field"><label>Originele prijs</label><input id="pl-price" type="number" step="0.01" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"></div><div class="field"><label>Valuta</label><select id="pl-currency" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"><option value="EUR">EUR (&euro;)</option><option value="GBP">GBP (&pound;)</option><option value="USD">USD ($)</option></select></div><div class="field"><label>Prijs in GBP (automatisch)</label><input id="pl-gbp" type="text" readonly style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;opacity:0.7;"></div><div class="field"><label>Seizoen</label><select id="pl-season" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"><option value="ALL YEAR">ALL YEAR</option><option value="SUMMER">SUMMER</option><option value="WINTER">WINTER</option></select></div></div><div class="field" style="margin-bottom:14px;"><label>Kleuren (komma gescheiden)</label><input id="pl-colors" type="text" placeholder="black, white, red..." style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"></div><div class="field" style="margin-bottom:14px;"><label>Maten (komma gescheiden)</label><input id="pl-sizes" type="text" value="XS (UK6), S (UK8), M (UK10), L (UK12), XL (UK14), XXL (UK16)" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"></div><div class="field" style="margin-bottom:14px;"><label>Extra tags (optioneel)</label><input id="pl-tags" type="text" placeholder="midi dress, occasion wear..." style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"></div><div id="pl-images-preview" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;"></div><div style="display:flex;gap:10px;flex-wrap:wrap;"><button class="btn btn-primary" id="pl-submit-btn" onclick="submitProduct()">Product aanmaken in Shopify</button><button class="btn" id="pl-photos-btn" onclick="generatePhotosForProduct()" style="display:none;">&#128248; Foto\'s genereren</button><button class="btn" onclick="navigate(\'producten\')">Annuleren</button></div></div></div><div id="pl-status" style="display:none;" class="banner banner-info"><div><h3 id="pl-status-title">Bezig...</h3><p id="pl-status-msg"></p></div></div><div id="pl-success" style="display:none;" class="banner banner-info"><div><h3 id="pl-success-title">&#10003; Product aangemaakt!</h3><p id="pl-success-msg"></p></div></div></div>';
   document.getElementById('pl-price').addEventListener('input', updateGbpPrice);
   document.getElementById('pl-currency').addEventListener('change', updateGbpPrice);
 }
 
 function updateGbpPrice() {
-  const price = parseFloat(document.getElementById('pl-price').value) || 0;
-  const currency = document.getElementById('pl-currency').value;
-  const gbp = convertToGbp(price, currency);
+  var price = parseFloat(document.getElementById('pl-price').value) || 0;
+  var currency = document.getElementById('pl-currency').value;
+  var gbp = convertToGbp(price, currency);
   document.getElementById('pl-gbp').value = '£' + gbp.toFixed(2);
 }
 
 function convertToGbp(price, currency) {
-  const rates = { EUR: 0.86, USD: 0.79, GBP: 1 };
-  const gbp = price * (rates[currency] || 0.86);
-  const base = Math.floor(gbp);
-  const remainder = base % 10;
+  var rates = { EUR: 0.86, USD: 0.79, GBP: 1 };
+  var gbp = price * (rates[currency] || 0.86);
+  var base = Math.floor(gbp);
+  var remainder = base % 10;
   if (remainder < 5) return Math.floor(base / 10) * 10 + 4.95;
   return Math.floor(base / 10) * 10 + 9.95;
 }
 
 async function scrapeProduct() {
-  const url = document.getElementById('pl-url').value.trim();
+  var url = document.getElementById('pl-url').value.trim();
   if (!url) return alert('Vul een URL in');
   setPlStatus(true, 'Product ophalen...', 'Even geduld, we halen de productinfo op.');
   try {
-    const r = await fetch('/api/scrape', {
+    var r = await fetch('/api/scrape', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url })
+      body: JSON.stringify({ url: url })
     });
-    const data = await r.json();
+    var data = await r.json();
     if (data.error) throw new Error(data.error);
     setPlStatus(false);
     document.getElementById('pl-result').style.display = 'block';
-
-    // Naam
     document.getElementById('pl-name').value = data.title || '';
-
-    // Prijs
     if (data.price) { document.getElementById('pl-price').value = data.price; updateGbpPrice(); }
-
-    // ✅ Kleuren automatisch invullen
     if (data.colors && data.colors.length > 0) {
-      const translated = data.colors.map(c => COLOR_MAP[c.toLowerCase().trim()] || c.toLowerCase().trim());
+      var translated = data.colors.map(function(c) {
+        var key = c.toLowerCase().trim().replace(/[èéê]/g,'e').replace(/[àâ]/g,'a');
+        return COLOR_MAP[key] || c.toLowerCase().trim();
+      });
       document.getElementById('pl-colors').value = translated.join(', ');
     }
-
-    // ✅ Maten automatisch invullen
     if (data.sizes && data.sizes.length > 0) {
-      const mapped = data.sizes.map(s => SIZE_MAP[s.toUpperCase()] || s);
+      var mapped = data.sizes.map(function(s) { return SIZE_MAP[s.toUpperCase()] || s; });
       document.getElementById('pl-sizes').value = mapped.join(', ');
     }
-
-    // ✅ Type product automatisch bepalen
-    const titleLower = (data.title || '').toLowerCase();
-    let autoType = 'Dress';
-    if (titleLower.includes('maxi')) autoType = 'Maxi Dress';
-    else if (titleLower.includes('midi')) autoType = 'Midi Dress';
-    else if (titleLower.includes('mini')) autoType = 'Mini Dress';
-    else if (titleLower.includes('robe') || titleLower.includes('dress')) autoType = 'Dress';
-    else if (titleLower.includes('top') || titleLower.includes('blouse')) autoType = 'Top';
-    else if (titleLower.includes('jupe') || titleLower.includes('skirt')) autoType = 'Skirt';
-    else if (titleLower.includes('pantalon') || titleLower.includes('trouser') || titleLower.includes('pant')) autoType = 'Trousers';
-    else if (titleLower.includes('veste') || titleLower.includes('jacket') || titleLower.includes('blazer')) autoType = 'Jacket';
-    else if (titleLower.includes('manteau') || titleLower.includes('coat')) autoType = 'Coat';
-    else if (titleLower.includes('combinaison') || titleLower.includes('jumpsuit')) autoType = 'Jumpsuit';
-    else if (titleLower.includes('ensemble') || titleLower.includes('set')) autoType = 'Co-ord Set';
+    var titleLower = (data.title || '').toLowerCase();
+    var autoType = 'Dress';
+    if (titleLower.indexOf('maxi') !== -1) autoType = 'Maxi Dress';
+    else if (titleLower.indexOf('midi') !== -1) autoType = 'Midi Dress';
+    else if (titleLower.indexOf('mini') !== -1) autoType = 'Mini Dress';
+    else if (titleLower.indexOf('robe') !== -1 || titleLower.indexOf('dress') !== -1) autoType = 'Dress';
+    else if (titleLower.indexOf('top') !== -1 || titleLower.indexOf('blouse') !== -1) autoType = 'Top';
+    else if (titleLower.indexOf('jupe') !== -1 || titleLower.indexOf('skirt') !== -1) autoType = 'Skirt';
+    else if (titleLower.indexOf('pantalon') !== -1 || titleLower.indexOf('trouser') !== -1) autoType = 'Trousers';
+    else if (titleLower.indexOf('veste') !== -1 || titleLower.indexOf('jacket') !== -1 || titleLower.indexOf('blazer') !== -1) autoType = 'Jacket';
+    else if (titleLower.indexOf('manteau') !== -1 || titleLower.indexOf('coat') !== -1) autoType = 'Coat';
+    else if (titleLower.indexOf('combinaison') !== -1 || titleLower.indexOf('jumpsuit') !== -1) autoType = 'Jumpsuit';
+    else if (titleLower.indexOf('ensemble') !== -1 || titleLower.indexOf('set') !== -1) autoType = 'Co-ord Set';
     document.getElementById('pl-type').value = autoType;
-
-    // Foto preview van competitor
     if (data.images && data.images.length > 0) {
-      const preview = document.getElementById('pl-images-preview');
-      preview.innerHTML = data.images.slice(0, 6).map(img =>
-        '<img src="' + img + '" style="width:80px;height:80px;object-fit:cover;border-radius:6px;border:1px solid var(--border);" onerror="this.style.display=\'none\'">'
-      ).join('');
+      var preview = document.getElementById('pl-images-preview');
+      preview.innerHTML = data.images.slice(0, 6).map(function(img) {
+        return '<img src="' + img + '" style="width:80px;height:80px;object-fit:cover;border-radius:6px;border:1px solid var(--border);" onerror="this.style.display=\'none\'">';
+      }).join('');
     }
-
   } catch(err) {
     setPlStatus(false);
     alert('Fout: ' + err.message);
   }
 }
 
-// Sla shopify product ID op na aanmaken
-let lastCreatedProductId = null;
+var lastCreatedProductId = null;
 
 async function submitProduct() {
-  const btn = document.getElementById('pl-submit-btn');
+  var btn = document.getElementById('pl-submit-btn');
   btn.disabled = true;
   btn.textContent = 'Bezig...';
   setPlStatus(true, 'Product aanmaken...', 'Even geduld...');
-
   try {
-    const productInfo = {
+    var productInfo = {
       title: document.getElementById('pl-name').value,
       type: document.getElementById('pl-type').value || 'Dress',
       originalPrice: parseFloat(document.getElementById('pl-price').value),
       currency: document.getElementById('pl-currency').value,
       season: document.getElementById('pl-season').value,
-      colors: document.getElementById('pl-colors').value.split(',').map(s => s.trim()).filter(Boolean),
-      sizes: document.getElementById('pl-sizes').value.split(',').map(s => s.trim()).filter(Boolean),
-      extraTags: document.getElementById('pl-tags').value.split(',').map(s => s.trim()).filter(Boolean),
-      originalImages: [...document.querySelectorAll('#pl-images-preview img')].map(img => img.src)
+      colors: document.getElementById('pl-colors').value.split(',').map(function(s) { return s.trim(); }).filter(Boolean),
+      sizes: document.getElementById('pl-sizes').value.split(',').map(function(s) { return s.trim(); }).filter(Boolean),
+      extraTags: document.getElementById('pl-tags').value.split(',').map(function(s) { return s.trim(); }).filter(Boolean),
+      originalImages: Array.from(document.querySelectorAll('#pl-images-preview img')).map(function(img) { return img.src; })
     };
-
-    const r = await fetch('/api/generate-product', {
+    var r = await fetch('/api/generate-product', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ productInfo, generatePhotos: false })
+      body: JSON.stringify({ productInfo: productInfo, generatePhotos: false })
     });
-
-    const data = await r.json();
+    var data = await r.json();
     if (data.error) throw new Error(data.error);
-
-    lastCreatedProductId = data.product?.id;
+    lastCreatedProductId = data.product && data.product.id;
     setPlStatus(false);
     document.getElementById('pl-success').style.display = 'block';
-    document.getElementById('pl-success-title').textContent = '✓ Product aangemaakt!';
-    document.getElementById('pl-success-msg').textContent =
-      '"' + data.product?.title + '" is aangemaakt als concept in Shopify! Prijs: £' + data.price + ' | Kleuren: ' + (data.colorsUsed || []).join(', ');
-
-    // Toon foto's knop
+    document.getElementById('pl-success-title').textContent = 'Product aangemaakt!';
+    document.getElementById('pl-success-msg').textContent = '"' + (data.product && data.product.title) + '" is aangemaakt in Shopify! Prijs: £' + data.price + ' | Kleuren: ' + (data.colorsUsed || []).join(', ');
     document.getElementById('pl-photos-btn').style.display = 'inline-flex';
-
   } catch(err) {
     setPlStatus(false);
     alert('Fout: ' + err.message);
@@ -703,54 +575,48 @@ async function submitProduct() {
 }
 
 async function generatePhotosForProduct() {
-  const btn = document.getElementById('pl-photos-btn');
+  var btn = document.getElementById('pl-photos-btn');
   btn.disabled = true;
-  btn.textContent = '⏳ Foto\'s genereren...';
-  setPlStatus(true, 'Foto\'s genereren via kie.ai...', 'Dit duurt 5-10 minuten. Sluit dit venster niet.');
-
+  btn.textContent = 'Foto\'s genereren...';
+  setPlStatus(true, "Foto's genereren via kie.ai...", 'Dit duurt 5-10 minuten. Sluit dit venster niet.');
   try {
-    const productInfo = {
+    var productInfo = {
       title: document.getElementById('pl-name').value,
       type: document.getElementById('pl-type').value || 'Dress',
       originalPrice: parseFloat(document.getElementById('pl-price').value),
       currency: document.getElementById('pl-currency').value,
       season: document.getElementById('pl-season').value,
-      colors: document.getElementById('pl-colors').value.split(',').map(s => s.trim()).filter(Boolean),
-      sizes: document.getElementById('pl-sizes').value.split(',').map(s => s.trim()).filter(Boolean),
-      extraTags: document.getElementById('pl-tags').value.split(',').map(s => s.trim()).filter(Boolean),
+      colors: document.getElementById('pl-colors').value.split(',').map(function(s) { return s.trim(); }).filter(Boolean),
+      sizes: document.getElementById('pl-sizes').value.split(',').map(function(s) { return s.trim(); }).filter(Boolean),
+      extraTags: document.getElementById('pl-tags').value.split(',').map(function(s) { return s.trim(); }).filter(Boolean),
       shopifyProductId: lastCreatedProductId
     };
-
-    const r = await fetch('/api/generate-product', {
+    var r = await fetch('/api/generate-product', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ productInfo, generatePhotos: true })
+      body: JSON.stringify({ productInfo: productInfo, generatePhotos: true })
     });
-
-    const data = await r.json();
+    var data = await r.json();
     if (data.error) throw new Error(data.error);
-
     setPlStatus(false);
-    document.getElementById('pl-success-title').textContent = '✓ Alles klaar!';
-    document.getElementById('pl-success-msg').textContent =
-      data.imagesGenerated + ' foto\'s gegenereerd en toegevoegd aan het product in Shopify!';
-
+    document.getElementById('pl-success-title').textContent = 'Alles klaar!';
+    document.getElementById('pl-success-msg').textContent = data.imagesGenerated + " foto's gegenereerd en toegevoegd aan het product in Shopify!";
   } catch(err) {
     setPlStatus(false);
-    alert('Foto\'s fout: ' + err.message);
+    alert("Foto's fout: " + err.message);
   } finally {
     btn.disabled = false;
-    btn.textContent = '📸 Foto\'s genereren';
+    btn.textContent = "Foto's genereren";
   }
 }
 
-function setPlStatus(show, title = '', msg = '') {
-  const el = document.getElementById('pl-status');
+function setPlStatus(show, title, msg) {
+  var el = document.getElementById('pl-status');
   if (!el) return;
   el.style.display = show ? 'block' : 'none';
   if (show) {
-    document.getElementById('pl-status-title').textContent = title;
-    document.getElementById('pl-status-msg').textContent = msg;
+    document.getElementById('pl-status-title').textContent = title || '';
+    document.getElementById('pl-status-msg').textContent = msg || '';
   }
 }
 
