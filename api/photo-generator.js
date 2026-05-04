@@ -46,7 +46,7 @@ async function submitKieTask(prompt, imageUrl) {
   // Remix: voeg referentieafbeelding toe met strength
   if (imageUrl) {
     input.image_url = imageUrl;
-    input.strength = 0.65; // 0.65 = houdt jurk goed vast maar past model toe
+    input.strength = 0.85; // 0.85 = houdt jurk goed vast maar past model toe
   }
 
   const r = await fetch('https://api.kie.ai/api/v1/jobs/createTask', {
