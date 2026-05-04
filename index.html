@@ -300,6 +300,7 @@ function processData(shopifyResult, gadsRows) {
   });
 }
 
+// ✅ FIX: Google Ads fouten blokkeren de Shopify sync niet meer
 async function syncAll() {
   if (!shopifyToken && !googleAdsToken) { navigate('instellingen'); return; }
   var btn = document.getElementById('sync-btn');
@@ -309,7 +310,13 @@ async function syncAll() {
     var shopifyResult = { orders: [] };
     var gadsResult = [];
     if (shopifyToken) shopifyResult = await fetchShopifyOrders(period);
-    if (googleAdsToken) gadsResult = await fetchGoogleAds(period);
+    if (googleAdsToken) {
+      try {
+        gadsResult = await fetchGoogleAds(period);
+      } catch(gadsErr) {
+        console.log('Google Ads overgeslagen:', gadsErr.message);
+      }
+    }
     productData = processData(shopifyResult, gadsResult);
     localStorage.setItem('roi-data-' + period, JSON.stringify(productData));
     localStorage.setItem('roi-last-sync', new Date().toISOString());
@@ -443,7 +450,6 @@ function saveGads() {
   navigate('producten');
 }
 
-// ── Product Lister ────────────────────────────────────────────
 var COLOR_MAP = {
   'noir':'black','blanc':'white','rouge':'red','bleu':'blue','vert':'green','rose':'pink',
   'beige':'beige','creme':'cream','gris':'grey','marron':'brown','orange':'orange',
@@ -577,7 +583,7 @@ async function submitProduct() {
 async function generatePhotosForProduct() {
   var btn = document.getElementById('pl-photos-btn');
   btn.disabled = true;
-  btn.textContent = 'Foto\'s genereren...';
+  btn.textContent = "Foto's genereren...";
   setPlStatus(true, "Foto's genereren via kie.ai...", 'Dit duurt 5-10 minuten. Sluit dit venster niet.');
   try {
     var productInfo = {
@@ -620,7 +626,6 @@ function setPlStatus(show, title, msg) {
   }
 }
 
-// ── Init ──────────────────────────────────────────────────────
 checkUrlToken();
 updateConnStatus();
 renderProducten();
