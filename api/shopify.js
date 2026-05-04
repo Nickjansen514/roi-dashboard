@@ -12,15 +12,19 @@ export default async function handler(req, res) {
 
   let url;
   if (resource === 'products') {
-    url = `https://${cleanShop}/admin/api/2024-01/products.json?limit=250`;
+    url = 'https://' + cleanShop + '/admin/api/2024-01/products.json?limit=250';
   } else {
-    url = `https://${cleanShop}/admin/api/2024-01/orders.json?status=any&created_at_min=${since}&limit=250`;
+    url = 'https://' + cleanShop + '/admin/api/2024-01/orders.json?status=any&created_at_min=' + since + '&limit=250';
   }
 
   try {
     const r = await fetch(url, {
       headers: { 'X-Shopify-Access-Token': token }
     });
+    if (!r.ok) {
+      const errText = await r.text();
+      return res.status(r.status).json({ error: 'Shopify fout: ' + r.status + ' ' + errText });
+    }
     const data = await r.json();
     return res.status(200).json(data);
   } catch (err) {
