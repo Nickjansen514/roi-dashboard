@@ -2,7 +2,6 @@ const KIE_API_KEY = process.env.KIE_API_KEY;
 const SHOPIFY_TOKEN = process.env.SHOPIFY_TOKEN;
 const SHOPIFY_STORE = process.env.SHOPIFY_STORE;
 
-// Vast Yamira London model
 const MODEL = 'a confident professional fashion model, early 30s, light medium skin tone, long dark brown wavy hair, slim build, UK size 10, standing upright, British fashion aesthetic';
 const CROP = 'mid-thigh up';
 const STYLING = 'minimal delicate jewellery, nude heels';
@@ -28,10 +27,10 @@ const sizeMap = {
 
 const colorMap = {
   'noir': 'black', 'blanc': 'white', 'rouge': 'red', 'bleu': 'blue',
-  'vert': 'green', 'rose': 'pink', 'beige': 'beige', 'crème': 'cream',
+  'vert': 'green', 'rose': 'pink', 'beige': 'beige', 'creme': 'cream',
   'gris': 'grey', 'marron': 'brown', 'orange': 'orange', 'violet': 'purple',
   'jaune': 'yellow', 'marine': 'navy', 'bordeaux': 'burgundy',
-  'rouge foncé': 'dark red', 'khaki': 'khaki', 'lila': 'lilac',
+  'rouge fonce': 'dark red', 'khaki': 'khaki', 'lila': 'lilac',
   'zwart': 'black', 'wit': 'white', 'blauw': 'blue', 'groen': 'green',
   'roze': 'pink', 'grijs': 'grey', 'bruin': 'brown', 'geel': 'yellow',
   'rood': 'red', 'paars': 'purple',
@@ -102,13 +101,7 @@ OUTPUT FORMAT - Always output exactly this JSON with no other text, no markdown,
 {"seoTitle":"...","description":"...","metaDescription":"...","urlHandle":"..."}`,
       messages: [{
         role: 'user',
-        content: `Create a Shopify product listing for this product:
-Name: ${productInfo.title}
-Type: ${productInfo.type}
-Colors: ${(productInfo.colors || []).join(', ')}
-Material: ${productInfo.material || 'not specified'}
-Season: ${productInfo.season || 'not specified'}
-Original description: ${productInfo.originalDescription || 'none'}`
+        content: 'Create a Shopify product listing for this product:\nName: ' + productInfo.title + '\nType: ' + productInfo.type + '\nColors: ' + (productInfo.colors || []).join(', ') + '\nMaterial: ' + (productInfo.material || 'not specified') + '\nSeason: ' + (productInfo.season || 'not specified') + '\nOriginal description: ' + (productInfo.originalDescription || 'none')
       }]
     })
   });
@@ -119,7 +112,7 @@ Original description: ${productInfo.originalDescription || 'none'}`
   }
 
   const data = await response.json();
-  const text = data.content?.[0]?.text || '{}';
+  const text = (data.content && data.content[0] && data.content[0].text) || '{}';
   console.log('[generateDescription] Claude text:', text.substring(0, 200));
 
   try {
@@ -138,7 +131,7 @@ Original description: ${productInfo.originalDescription || 'none'}`
 
 function buildPhotoPrompts(seoTitle, color) {
   const colorDesc = colorPromptDescription(color);
-  const GARMENT = `${seoTitle} in ${colorDesc}`;
+  const GARMENT = seoTitle + ' in ' + colorDesc;
 
   const detailKeywords = ['neckline', 'sleeve', 'collar', 'hem', 'waist', 'button', 'zip', 'ruffle', 'bow', 'tie', 'slit', 'pleat', 'gather', 'ruche', 'butterfly'];
   let detail = 'neckline and sleeve detail';
@@ -147,21 +140,20 @@ function buildPhotoPrompts(seoTitle, color) {
   }
 
   return [
-    `Professional e-commerce fashion photo. The model is ${MODEL}, neutral confident expression. She is wearing ${GARMENT}, styled with ${STYLING}. The photo is cropped from ${CROP} — the garment fills the frame and is the clear focus, NOT a full-body shot. Clean light gray studio background, soft even studio lighting, no harsh shadows. High-end fashion e-commerce photography style. Photorealistic. No text, no watermark.`,
-    `Professional e-commerce fashion photo. The model is ${MODEL}, turned with her back fully to the camera, looking slightly over her left shoulder with a relaxed expression. She is wearing ${GARMENT} — back details, seams, and construction clearly visible. Styled with ${STYLING}. Photo cropped from ${CROP} — tight on the garment, NOT a full-body shot. Clean light gray studio background, soft even studio lighting. High-end fashion e-commerce photography style. Photorealistic. No text, no watermark.`,
-    `Professional e-commerce fashion photo. The model is ${MODEL}, posed at a 45-degree angle to the camera, looking toward the camera with a relaxed expression. She is wearing ${GARMENT}, styled with ${STYLING}. Photo cropped from ${CROP} — tight on the garment, NOT a full-body shot. Clean light gray studio background, soft even studio lighting. High-end fashion e-commerce photography style. Photorealistic. No text, no watermark.`,
-    `Extreme macro close-up photo of the fabric of a ${GARMENT}. The fabric color is ${colorDesc}. Shows the weave, texture, and material quality in sharp detail, slight natural fold in the fabric for depth. Soft diffused natural lighting, neutral background. Fabric texture fills the entire frame. 3:4 aspect ratio. Photorealistic product photography. No model, no text, no watermark.`,
-    `Close-up product photo of the ${detail} on a ${GARMENT}. The fabric color is ${colorDesc}. Sharp focus on the detail with slight background blur showing the surrounding fabric. Soft studio lighting. Shows craftsmanship and construction quality clearly. 3:4 aspect ratio. Photorealistic fashion detail photography. No model, no text, no watermark.`,
-    `Lifestyle fashion photography. The model is ${MODEL}, in a natural candid pose outdoors in an urban setting — city sidewalk, warm golden hour sunlight, blurred background with soft bokeh. She is wearing ${GARMENT} styled with ${STYLING} and a small handbag. Natural expression, slight smile. Full body visible from head to toe. Editorial fashion photography style. Photorealistic. No text, no watermark.`,
-    `Full-body studio fashion photo. The model is ${MODEL}, standing in a relaxed pose, full body visible from head to toe. She is wearing ${GARMENT} styled as a complete outfit with ${STYLING} and complementary footwear. Clean light gray studio background, soft even studio lighting. Fashion lookbook photography style. Photorealistic. No text, no watermark.`,
-    `Flat lay product photo of ${GARMENT} laid neatly and symmetrically on a clean white marble surface. Fully spread out, wrinkle-free, all design details visible. Shot from directly above (bird's eye view). Soft natural window light from the left. One or two minimal complementary accessories placed beside the garment for context. Clean editorial e-commerce style. 3:4 aspect ratio. Photorealistic. No model, no text, no watermark.`
+    'Professional e-commerce fashion photo. The model is ' + MODEL + ', neutral confident expression. She is wearing ' + GARMENT + ', styled with ' + STYLING + '. The photo is cropped from ' + CROP + ' — the garment fills the frame and is the clear focus, NOT a full-body shot. Clean light gray studio background, soft even studio lighting, no harsh shadows. High-end fashion e-commerce photography style. Photorealistic. No text, no watermark.',
+    'Professional e-commerce fashion photo. The model is ' + MODEL + ', turned with her back fully to the camera, looking slightly over her left shoulder with a relaxed expression. She is wearing ' + GARMENT + ' — back details, seams, and construction clearly visible. Styled with ' + STYLING + '. Photo cropped from ' + CROP + ' — tight on the garment, NOT a full-body shot. Clean light gray studio background, soft even studio lighting. High-end fashion e-commerce photography style. Photorealistic. No text, no watermark.',
+    'Professional e-commerce fashion photo. The model is ' + MODEL + ', posed at a 45-degree angle to the camera, looking toward the camera with a relaxed expression. She is wearing ' + GARMENT + ', styled with ' + STYLING + '. Photo cropped from ' + CROP + ' — tight on the garment, NOT a full-body shot. Clean light gray studio background, soft even studio lighting. High-end fashion e-commerce photography style. Photorealistic. No text, no watermark.',
+    'Extreme macro close-up photo of the fabric of a ' + GARMENT + '. The fabric color is ' + colorDesc + '. Shows the weave, texture, and material quality in sharp detail, slight natural fold in the fabric for depth. Soft diffused natural lighting, neutral background. Fabric texture fills the entire frame. 3:4 aspect ratio. Photorealistic product photography. No model, no text, no watermark.',
+    'Close-up product photo of the ' + detail + ' on a ' + GARMENT + '. The fabric color is ' + colorDesc + '. Sharp focus on the detail with slight background blur showing the surrounding fabric. Soft studio lighting. Shows craftsmanship and construction quality clearly. 3:4 aspect ratio. Photorealistic fashion detail photography. No model, no text, no watermark.',
+    'Lifestyle fashion photography. The model is ' + MODEL + ', in a natural candid pose outdoors in an urban setting — city sidewalk, warm golden hour sunlight, blurred background with soft bokeh. She is wearing ' + GARMENT + ' styled with ' + STYLING + ' and a small handbag. Natural expression, slight smile. Full body visible from head to toe. Editorial fashion photography style. Photorealistic. No text, no watermark.',
+    'Full-body studio fashion photo. The model is ' + MODEL + ', standing in a relaxed pose, full body visible from head to toe. She is wearing ' + GARMENT + ' styled as a complete outfit with ' + STYLING + ' and complementary footwear. Clean light gray studio background, soft even studio lighting. Fashion lookbook photography style. Photorealistic. No text, no watermark.',
+    'Flat lay product photo of ' + GARMENT + ' laid neatly and symmetrically on a clean white marble surface. Fully spread out, wrinkle-free, all design details visible. Shot from directly above (bird\'s eye view). Soft natural window light from the left. One or two minimal complementary accessories placed beside the garment for context. Clean editorial e-commerce style. 3:4 aspect ratio. Photorealistic. No model, no text, no watermark.'
   ];
 }
 
 async function submitKieTask(prompt) {
   console.log('[Kie.ai] Submitting:', prompt.substring(0, 80) + '...');
 
-  // BELANGRIJK: geen image_size parameter — die is niet geldig voor ideogram/v3-text-to-image
   const r = await fetch('https://api.kie.ai/api/v1/jobs/createTask', {
     method: 'POST',
     headers: {
@@ -171,7 +163,7 @@ async function submitKieTask(prompt) {
     body: JSON.stringify({
       model: 'ideogram/v3-text-to-image',
       input: {
-        prompt,
+        prompt: prompt,
         rendering_speed: 'BALANCED',
         style: 'REALISTIC'
       }
@@ -186,44 +178,53 @@ async function submitKieTask(prompt) {
   let data;
   try { data = JSON.parse(responseText); } catch(e) { throw new Error('Kie.ai invalid JSON: ' + responseText); }
 
-  const taskId = data?.data?.taskId || data?.data?.task_id || data?.taskId;
+  const taskId = data && data.data && (data.data.taskId || data.data.task_id) || data && data.taskId;
   if (!taskId) throw new Error('Geen taskId van kie.ai: ' + JSON.stringify(data));
 
   console.log('[Kie.ai] Task ID:', taskId);
   return taskId;
 }
 
+// ✅ GECORRIGEERD: juist poll-adres en juiste response parsing
 async function pollKieTask(taskId) {
   for (let i = 0; i < 40; i++) {
-    await new Promise(r => setTimeout(r, 5000));
-    const poll = await fetch(`https://api.kie.ai/api/v1/jobs/result/${taskId}`, {
+    await new Promise(function(r) { setTimeout(r, 5000); });
+
+    const poll = await fetch('https://api.kie.ai/api/v1/jobs/recordInfo?taskId=' + taskId, {
       headers: { 'Authorization': 'Bearer ' + KIE_API_KEY }
     });
     const pollText = await poll.text();
-    console.log(`[Kie.ai] Poll ${i + 1} for ${taskId}:`, pollText.substring(0, 150));
+    console.log('[Kie.ai] Poll ' + (i + 1) + ' for ' + taskId + ':', pollText.substring(0, 200));
 
     let result;
     try { result = JSON.parse(pollText); } catch(e) { continue; }
 
-    const status = result?.data?.status || result?.status;
-    const output = result?.data?.output || result?.data?.images || result?.output;
+    const state = result && result.data && result.data.state;
 
-    if (['completed','succeed','succeeded','SUCCESS'].includes(status)) {
-      const imgUrl = Array.isArray(output) ? output[0] : (typeof output === 'string' ? output : null);
+    if (state === 'success') {
+      let imgUrl = null;
+      try {
+        const resultJson = JSON.parse(result.data.resultJson);
+        imgUrl = resultJson.resultUrls && resultJson.resultUrls[0];
+      } catch(e) {
+        console.error('[Kie.ai] resultJson parse error:', result.data && result.data.resultJson);
+      }
       console.log('[Kie.ai] Done! URL:', imgUrl);
       return imgUrl || null;
     }
-    if (['failed','error','FAILED'].includes(status)) {
-      throw new Error('Kie.ai task mislukt: ' + taskId);
+
+    if (state === 'fail') {
+      throw new Error('Kie.ai task mislukt: ' + taskId + ' | ' + (result.data && result.data.failMsg));
     }
-    console.log('[Kie.ai] Status:', status, '— wachten...');
+
+    console.log('[Kie.ai] State:', state || 'unknown', '— wachten...');
   }
   throw new Error('Kie.ai timeout: ' + taskId);
 }
 
 async function createShopifyProduct(productData) {
-  const store = SHOPIFY_STORE?.replace(/^https?:\/\//, '').replace(/\/$/, '');
-  const r = await fetch(`https://${store}/admin/api/2024-01/products.json`, {
+  const store = SHOPIFY_STORE.replace(/^https?:\/\//, '').replace(/\/$/, '');
+  const r = await fetch('https://' + store + '/admin/api/2024-01/products.json', {
     method: 'POST',
     headers: {
       'X-Shopify-Access-Token': SHOPIFY_TOKEN,
@@ -288,21 +289,22 @@ export default async function handler(req, res) {
       for (let i = 0; i < prompts.length; i++) {
         try {
           const taskId = await submitKieTask(prompts[i]);
-          taskIds.push({ taskId, index: i });
+          taskIds.push({ taskId: taskId, index: i });
         } catch(e) {
-          console.error(`[handler] Submit task ${i} failed:`, e.message);
+          console.error('[handler] Submit task ' + i + ' failed:', e.message);
         }
       }
 
-      for (const { taskId, index } of taskIds) {
+      for (let j = 0; j < taskIds.length; j++) {
+        const item = taskIds[j];
         try {
-          const imgUrl = await pollKieTask(taskId);
+          const imgUrl = await pollKieTask(item.taskId);
           if (imgUrl) {
-            generatedImages.push({ src: imgUrl, position: index + 1 });
-            console.log(`[handler] Photo ${index + 1} done:`, imgUrl);
+            generatedImages.push({ src: imgUrl, position: item.index + 1 });
+            console.log('[handler] Photo ' + (item.index + 1) + ' done:', imgUrl);
           }
         } catch(e) {
-          console.error(`[handler] Photo ${index + 1} failed:`, e.message);
+          console.error('[handler] Photo ' + (item.index + 1) + ' failed:', e.message);
         }
       }
       console.log('[handler] Total photos:', generatedImages.length);
@@ -311,17 +313,17 @@ export default async function handler(req, res) {
     const shopifyProduct = {
       title: seoTitle,
       handle: urlHandle || undefined,
-      body_html: description ? `<p>${description.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>')}</p>` : '',
+      body_html: description ? '<p>' + description.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>') + '</p>' : '',
       metafields: metaDescription ? [{ key: 'description_tag', value: metaDescription, type: 'single_line_text_field', namespace: 'global' }] : [],
       vendor: 'Yamira London',
       product_type: productInfo.type || 'Dress',
-      tags,
+      tags: tags,
       status: 'draft',
-      variants,
-      options: variants[0]?.option2 ? [{ name: 'Colour' }, { name: 'Size' }] : [{ name: 'Size' }],
+      variants: variants,
+      options: variants[0] && variants[0].option2 ? [{ name: 'Colour' }, { name: 'Size' }] : [{ name: 'Size' }],
       images: generatedImages.length > 0
         ? generatedImages
-        : (productInfo.originalImages || []).map(src => ({ src }))
+        : (productInfo.originalImages || []).map(function(src) { return { src: src }; })
     };
 
     const result = await createShopifyProduct(shopifyProduct);
@@ -329,7 +331,11 @@ export default async function handler(req, res) {
     return res.status(200).json({
       success: true,
       product: result.product,
-      seoTitle, description, metaDescription, price, tags,
+      seoTitle: seoTitle,
+      description: description,
+      metaDescription: metaDescription,
+      price: price,
+      tags: tags,
       colorsUsed: colors,
       imagesGenerated: generatedImages.length
     });
