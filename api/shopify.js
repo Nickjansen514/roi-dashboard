@@ -8,14 +8,15 @@ export default async function handler(req, res) {
   if (!shop || !token) return res.status(400).json({ error: 'Missing shop or token' });
 
   const d = parseInt(days) || 7;
-let since;
-if (d === 1) {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  since = today.toISOString();
-} else {
-  since = new Date(Date.now() - d * 86400000).toISOString();
-}
+  let since;
+  if (d === 1) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    since = today.toISOString();
+  } else {
+    since = new Date(Date.now() - d * 86400000).toISOString();
+  }
+
   const cleanShop = shop.replace(/^https?:\/\//, '').replace(/\/$/, '');
 
   let url;
