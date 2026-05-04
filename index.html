@@ -586,13 +586,15 @@ function setPlStatus(show, title, msg) {
   }
 }
 
+// ✅ UPDATED: Foto Generator met referentiefoto ondersteuning
 function renderFotoGenerator() {
-  document.getElementById('content').innerHTML = '<div style="max-width:700px;"><div class="settings-card"><h2>Foto Generator</h2><p class="desc">Plak een Shopify admin productlink en wij genereren automatisch 8 professionele productfoto\'s via kie.ai en voegen ze toe aan het product.</p><div class="field" style="margin-bottom:14px;"><label>Shopify Admin URL</label><input id="fg-url" type="text" placeholder="https://admin.shopify.com/store/yamira-london/products/12345..." style="padding:10px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:13px;font-family:var(--font);outline:none;width:100%;"></div><div class="field" style="margin-bottom:16px;"><label>Kleur (optioneel)</label><input id="fg-color" type="text" placeholder="bijv. black, pink, burgundy..." style="padding:10px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:13px;font-family:var(--font);outline:none;width:100%;"></div><button class="btn btn-primary" id="fg-btn" onclick="startFotoGenerator()">&#128248; Foto\'s genereren</button></div><div id="fg-status" style="display:none;" class="banner banner-info"><div><h3 id="fg-status-title">Bezig...</h3><p id="fg-status-msg"></p></div></div><div id="fg-success" style="display:none;" class="banner banner-info"><div><h3>&#10003; Foto\'s aangemaakt!</h3><p id="fg-success-msg"></p></div></div><div id="fg-images" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;"></div></div>';
+  document.getElementById('content').innerHTML = '<div style="max-width:700px;"><div class="settings-card"><h2>Foto Generator</h2><p class="desc">Plak een Shopify admin productlink en wij genereren automatisch 8 professionele productfoto\'s. De originele productfoto wordt gebruikt als referentie zodat de jurk exact klopt.</p><div class="field" style="margin-bottom:14px;"><label>Shopify Admin URL</label><input id="fg-url" type="text" placeholder="https://admin.shopify.com/store/yamira-london/products/12345..." style="padding:10px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:13px;font-family:var(--font);outline:none;width:100%;"></div><div class="field" style="margin-bottom:14px;"><label>Kleur (optioneel)</label><input id="fg-color" type="text" placeholder="bijv. black, pink, burgundy..." style="padding:10px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:13px;font-family:var(--font);outline:none;width:100%;"></div><div class="field" style="margin-bottom:16px;"><label>Specifieke referentiefoto URL (optioneel — laat leeg voor automatisch)</label><input id="fg-refimg" type="text" placeholder="https://... (laat leeg, dan pakt die de eerste productfoto)" style="padding:10px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:13px;font-family:var(--font);outline:none;width:100%;"></div><button class="btn btn-primary" id="fg-btn" onclick="startFotoGenerator()">&#128248; Foto\'s genereren</button></div><div id="fg-status" style="display:none;" class="banner banner-info"><div><h3 id="fg-status-title">Bezig...</h3><p id="fg-status-msg"></p></div></div><div id="fg-success" style="display:none;" class="banner banner-info"><div><h3>&#10003; Foto\'s aangemaakt!</h3><p id="fg-success-msg"></p></div></div><div id="fg-images" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;"></div></div>';
 }
 
 async function startFotoGenerator() {
   var url = document.getElementById('fg-url').value.trim();
   var color = document.getElementById('fg-color').value.trim();
+  var refImg = document.getElementById('fg-refimg').value.trim();
   if (!url) return alert('Vul een Shopify admin URL in');
   var btn = document.getElementById('fg-btn');
   btn.disabled = true;
@@ -607,13 +609,13 @@ async function startFotoGenerator() {
     var r = await fetch('/api/photo-generator', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ adminUrl: url, color: color })
+      body: JSON.stringify({ adminUrl: url, color: color, referenceImageUrl: refImg || null })
     });
     var data = await r.json();
     if (data.error) throw new Error(data.error);
     statusEl.style.display = 'none';
     document.getElementById('fg-success').style.display = 'block';
-    document.getElementById('fg-success-msg').textContent = data.imagesGenerated + " foto's gegenereerd en automatisch toegevoegd aan \"" + data.productTitle + "\" in Shopify!";
+    document.getElementById('fg-success-msg').textContent = data.imagesGenerated + " foto\'s gegenereerd en automatisch toegevoegd aan \"" + data.productTitle + "\" in Shopify!";
     if (data.imageUrls && data.imageUrls.length > 0) {
       document.getElementById('fg-images').innerHTML = data.imageUrls.map(function(imgUrl) {
         return '<img src="' + imgUrl + '" style="width:150px;height:200px;object-fit:cover;border-radius:8px;border:1px solid var(--border);" onerror="this.style.display=\'none\'">';
