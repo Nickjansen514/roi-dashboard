@@ -41,7 +41,10 @@ const COLOR_TRANSLATION = {
 function translateAndCapitalizeColor(color) {
   const lower = color.toLowerCase().trim();
   if (COLOR_TRANSLATION[lower]) return COLOR_TRANSLATION[lower];
-  return color.trim().replace(/\b\w/g, function(c) { return c.toUpperCase(); });
+  // Capitalize every word
+  return color.trim().split(' ').map(function(w) {
+    return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
+  }).join(' ');
 }
 
 // Detecteer producttype uit titel
@@ -185,6 +188,7 @@ export default async function handler(req, res) {
       images = [...imageSet];
       console.log('[scrape] Shopify images found:', images.length);
       console.log('[scrape] Image IDs:', (shopifyJson.images || []).map(function(i) { return i.id; }));
+      console.log('[scrape] Image URLs:', images.slice(0,5));
     }
 
     // ─── 2. Extra foto's uit HTML als Shopify JSON niet genoeg heeft ─────────
