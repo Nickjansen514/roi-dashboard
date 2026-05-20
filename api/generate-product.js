@@ -6,18 +6,15 @@ const MODEL = 'a confident professional fashion model, early 30s, light medium s
 const CROP = 'mid-thigh up';
 const STYLING = 'minimal delicate jewellery, nude heels';
 
-// ── Prijsomrekening naar dichtstbijzijnde x4.99 of x9.99 ──────────────────
 function convertPrice(originalPrice, currency = 'EUR') {
   const rates = { EUR: 0.86, USD: 0.79, GBP: 1 };
   const gbp = originalPrice * (rates[currency] || 0.86);
-
   const candidates = [];
   const base = Math.floor(gbp);
   for (let i = base - 10; i <= base + 10; i++) {
     candidates.push(parseFloat((Math.floor(i / 10) * 10 + 4.99).toFixed(2)));
     candidates.push(parseFloat((Math.floor(i / 10) * 10 + 9.99).toFixed(2)));
   }
-
   const valid = candidates.filter(function(c) { return c > 0; });
   let closest = valid[0];
   let minDiff = Math.abs(gbp - closest);
@@ -88,7 +85,6 @@ function colorPromptDescription(color) {
   return descriptions[color] || color;
 }
 
-// ── SEO titel omzetten naar URL handle ────────────────────────────────────
 function titleToUrlHandle(title) {
   return title
     .toLowerCase()
@@ -100,7 +96,6 @@ function titleToUrlHandle(title) {
 
 async function generateDescription(productInfo) {
   console.log('[generateDescription] Starting for:', productInfo.title);
-
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -158,11 +153,7 @@ OUTPUT FORMAT — output ONLY this JSON, no other text, no markdown, no code blo
     return JSON.parse(clean);
   } catch (e) {
     console.error('[generateDescription] Parse failed:', e.message);
-    return {
-      seoTitle: productInfo.title,
-      description: text,
-      metaDescription: ''
-    };
+    return { seoTitle: productInfo.title, description: text, metaDescription: '' };
   }
 }
 
@@ -246,19 +237,11 @@ export default async function handler(req, res) {
     const description = generated.description || '';
     const seoTitle = generated.seoTitle || productInfo.title;
     const metaDescription = generated.metaDescription || '';
-
-    // ✅ URL handle = exact de SEO titel als URL
     const urlHandle = titleToUrlHandle(seoTitle);
-
-    // ✅ Kleuren: exact van concurrent, hoofdletter, vertaald
     const colors = (productInfo.colors || []).map(translateColor);
-
-    // ✅ Tags: alleen seizoen + producttype (geen kleuren, geen Yamira London)
     const productType = productInfo.type || 'Dress';
     const season = productInfo.season || 'ALL YEAR';
     const tags = [season, productType].filter(Boolean).join(', ');
-
-    // ✅ Prijs: dichtstbijzijnde x4.99/x9.99, GEEN compare price
     const price = convertPrice(productInfo.originalPrice, productInfo.currency || 'EUR');
     const sizes = (productInfo.sizes || ['XS (UK6)', 'S (UK8)', 'M (UK10)', 'L (UK12)', 'XL (UK14)', 'XXL (UK16)']).map(function(s) {
       return sizeMap[s.toUpperCase().trim()] || s;
@@ -277,20 +260,10 @@ export default async function handler(req, res) {
       }
     }
 
-    // ✅ Metavelden: neckline, dress style, occasion, colour, fit, sleeve length, length type — GEEN fabric
-    const metafields = [
+    // ✅ Alleen meta description metafield — geen andere metavelden om 422 errors te voorkomen
+    const metafields = metaDescription ? [
       { namespace: 'global', key: 'description_tag', value: metaDescription, type: 'single_line_text_field' }
-    ];
-
-    // Voeg product-specifieke metavelden toe op basis van producttype en info
-    if (productInfo.neckline) metafields.push({ namespace: 'shopify', key: 'neckline', value: productInfo.neckline, type: 'single_line_text_field' });
-    if (productInfo.dressStyle) metafields.push({ namespace: 'shopify', key: 'dress-style', value: productInfo.dressStyle, type: 'single_line_text_field' });
-    if (productInfo.occasion) metafields.push({ namespace: 'shopify', key: 'dress-occasion', value: productInfo.occasion, type: 'single_line_text_field' });
-    if (productInfo.fit) metafields.push({ namespace: 'shopify', key: 'fit', value: productInfo.fit, type: 'single_line_text_field' });
-    if (productInfo.sleeveLength) metafields.push({ namespace: 'shopify', key: 'sleeve-length-type', value: productInfo.sleeveLength, type: 'single_line_text_field' });
-    if (productInfo.lengthType) metafields.push({ namespace: 'shopify', key: 'skirt-dress-length-type', value: productInfo.lengthType, type: 'single_line_text_field' });
-    if (colors.length > 0) metafields.push({ namespace: 'shopify', key: 'color-pattern', value: colors[0], type: 'single_line_text_field' });
-    if (season !== 'ALL YEAR') metafields.push({ namespace: 'shopify', key: 'target-gender', value: 'Female', type: 'single_line_text_field' });
+    ] : [];
 
     let generatedImages = [];
     if (generatePhotos) {
