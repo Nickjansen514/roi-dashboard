@@ -25,6 +25,15 @@ const COLOR_TRANSLATION = {
   'blush': 'Blush', 'wine': 'Wine', 'plum': 'Plum', 'fuchsia': 'Fuchsia',
   'magenta': 'Magenta', 'turquoise': 'Turquoise', 'aqua': 'Aqua',
   'lemon': 'Lemon', 'khaki green': 'Khaki Green', 'chocolate': 'Chocolate',
+  // Metaalkleur Nederlands
+  'goud': 'Gold', 'zilver': 'Silver', 'koper': 'Copper', 'brons': 'Bronze',
+  // Overige Nederlands gemist
+  'lichtblauw': 'Light Blue', 'donkerblauw': 'Dark Blue', 'lichtroze': 'Light Pink',
+  'donkerrood': 'Dark Red', 'lichtgroen': 'Light Green', 'donkergroen': 'Dark Green',
+  'panterprint': 'Leopard Print', 'luipaardprint': 'Leopard Print', 'dierenprint': 'Animal Print',
+  'gebloemd': 'Floral', 'gestreept': 'Striped', 'ecru': 'Ecru', 'zand': 'Sand',
+  'oudroze': 'Dusty Pink', 'poederroze': 'Powder Pink', 'offwhite': 'Off White',
+  'naturel': 'Natural', 'donkerbruin': 'Dark Brown', 'lichtbruin': 'Light Brown',
   // Extra Nederlands/specifiek
   'lichtblauw': 'Light Blue', 'donkerblauw': 'Dark Blue', 'lichtroze': 'Light Pink',
   'donkerrood': 'Dark Red', 'donkergroen': 'Dark Green', 'lichtgroen': 'Light Green',
