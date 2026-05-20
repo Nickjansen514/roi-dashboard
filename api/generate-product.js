@@ -221,22 +221,44 @@ async function createShopifyProduct(productData) {
   return r.json();
 }
 
-// Upload extra images after product creation (Shopify limiet bij aanmaken)
+// Upload alle images na product aanmaken - één voor één met retry
 async function addExtraImages(productId, imageUrls) {
   const store = SHOPIFY_STORE.replace(/^https?:\/\//, '').replace(/\/$/, '');
+  console.log('[addExtraImages] Uploading', imageUrls.length, 'images to product', productId);
+  let success = 0;
   for (let i = 0; i < imageUrls.length; i++) {
-    try {
-      await fetch('https://' + store + '/admin/api/2024-01/products/' + productId + '/images.json', {
-        method: 'POST',
-        headers: { 'X-Shopify-Access-Token': SHOPIFY_TOKEN, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image: { src: imageUrls[i], position: i + 2 } })
-      });
-      // Kleine pauze om rate limit te vermijden
-      await new Promise(function(r) { setTimeout(r, 300); });
-    } catch(e) {
-      console.error('[addExtraImages] Failed for image ' + i + ':', e.message);
+    let uploaded = false;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const r = await fetch('https://' + store + '/admin/api/2024-01/products/' + productId + '/images.json', {
+          method: 'POST',
+          headers: { 'X-Shopify-Access-Token': SHOPIFY_TOKEN, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ image: { src: imageUrls[i] } })
+        });
+        if (r.status === 429) {
+          // Rate limit - wacht 2 seconden
+          await new Promise(function(r) { setTimeout(r, 2000); });
+          continue;
+        }
+        if (r.ok) {
+          success++;
+          console.log('[addExtraImages] Image ' + (i+1) + '/' + imageUrls.length + ' uploaded');
+          uploaded = true;
+          break;
+        } else {
+          const err = await r.text();
+          console.error('[addExtraImages] Image ' + (i+1) + ' failed:', r.status, err.substring(0, 100));
+          break;
+        }
+      } catch(e) {
+        console.error('[addExtraImages] Image ' + (i+1) + ' error:', e.message);
+        break;
+      }
     }
+    // 500ms pauze tussen uploads
+    await new Promise(function(r) { setTimeout(r, 500); });
   }
+  console.log('[addExtraImages] Done:', success, '/', imageUrls.length, 'uploaded');
 }
 
 export default async function handler(req, res) {
