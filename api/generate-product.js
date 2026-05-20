@@ -89,8 +89,17 @@ function titleToUrlHandle(title) {
     .replace(/^-|-$/g, '');
 }
 
+// ✅ Verwijder brand prefix zoals "Cherie | " of "Nike - " uit producttitel
+function cleanTitle(title) {
+  // Verwijder alles voor | of - als het een brandnaam prefix is
+  return title.replace(/^[^|–\-]+[|–\-]\s*/, '').trim() || title.trim();
+}
+
 async function generateDescription(productInfo) {
-  console.log('[generateDescription] Starting for:', productInfo.title);
+  // ✅ Schoon de titel op voor Claude
+  const cleanedTitle = cleanTitle(productInfo.title);
+  console.log('[generateDescription] Starting for:', cleanedTitle, '(original:', productInfo.title + ')');
+
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -107,34 +116,32 @@ BRAND CONTEXT:
 Store: Yamira London. Market: United Kingdom. Language: Natural UK English. Target: Women aged 18-45. Tone: clean, neutral, refined, factual. Never write hype, never exaggerate.
 
 SEO TITLE RULES:
-- Use high-volume UK search keywords where relevant: dresses for women, summer dresses, maxi dress, midi dress, black dress, white dress, party dresses, wedding guest dresses, bodycon dress, wrap dress, floral dress, linen dress, satin dress, jumpsuits, womens coats, trench coat, bomber jacket, blazer, cardigan, co-ord set, two piece set
-- Title must be descriptive, specific, keyword rich
+- Use high-volume UK search keywords where relevant: dresses for women, summer dresses, maxi dress, midi dress, black dress, white dress, party dresses, wedding guest dresses, bodycon dress, wrap dress, floral dress, linen dress, satin dress, jumpsuits, womens coats, trench coat, bomber jacket, blazer, cardigan, co-ord set, two piece set, midi skirt, mini skirt, maxi skirt, skirt for women
+- Title must be descriptive, specific, keyword rich — 100% English only
 - MUST end with "for women"
 - NEVER use: luxury, elegant, perfect, flattering, shaping, slimming, premium quality, comfort fit
+- NEVER include Dutch, French or any non-English words
 - Structure: Primary keyword + secondary keyword + descriptive detail + for women
 
 PRODUCT DESCRIPTION RULES:
 - Structure EXACTLY: Intro paragraph (2 sentences) + 5 bullet points + Closing sentence (1 sentence)
 - Use only visible product features
 - NEVER mention: comfort, support, posture, pain relief, healing, anti-slip, breathable, slimming, shaping, luxury, elegant, perfect, flattering
-- Natural UK English only
+- Natural UK English only — translate any non-English product name to English
+- In the description, refer to the product by its English type (e.g. "This scallop-edge midi skirt..." not "The Kanten Rok...")
 
 META DESCRIPTION RULES:
-- EXACTLY like top global fashion e-commerce stores (ASOS, Boohoo, PrettyLittleThing, Missguided)
-- Format: [Product type] + [key design feature] + [occasion/style context] + [call to action] — ending with "– Yamira London"
+- EXACTLY like top global fashion e-commerce stores (ASOS, Boohoo, PrettyLittleThing)
+- Format: [Product type] + [key design feature] + [occasion/style context] + [call to action] ending with "– Yamira London"
 - Max 160 characters STRICTLY
-- Include the main search keyword naturally
-- Be direct, punchy, benefit-driven — not just descriptive
-- Examples of the RIGHT style:
-  * "Shop the open back maxi dress that turns heads. Floor-length cotton with V-neck — perfect for summer days. – Yamira London"
-  * "The ruched midi dress you need this season. Figure-skimming silhouette, satin finish, available in 4 colours. – Yamira London"
-  * "Floral wrap dress for women — feminine print, adjustable tie waist, midi length. Shop new arrivals. – Yamira London"
+- Be direct, punchy, benefit-driven
+- 100% English only
 
 OUTPUT FORMAT — output ONLY this JSON, no other text, no markdown, no code blocks:
 {"seoTitle":"...","description":"...","metaDescription":"..."}`,
       messages: [{
         role: 'user',
-        content: 'Create a listing for:\nName: ' + productInfo.title + '\nType: ' + productInfo.type + '\nColors: ' + (productInfo.colors || []).join(', ') + '\nMaterial: ' + (productInfo.material || 'not specified') + '\nSeason: ' + (productInfo.season || 'not specified') + '\nOriginal description: ' + (productInfo.originalDescription || 'none') + '\n\nIMPORTANT: The product name may be in Dutch or French. Translate ALL elements to natural UK English. Never use Dutch or French words in the SEO title, description, or meta description. The SEO title and all content must be 100% English.'
+        content: 'Create a listing for:\nName: ' + cleanedTitle + '\nType: ' + productInfo.type + '\nColors: ' + (productInfo.colors || []).join(', ') + '\nMaterial: ' + (productInfo.material || 'not specified') + '\nSeason: ' + (productInfo.season || 'not specified') + '\nOriginal description: ' + (productInfo.originalDescription || 'none') + '\n\nIMPORTANT: The product name may be in Dutch or French. Translate EVERYTHING to natural UK English. The SEO title, description and meta description must be 100% English — no Dutch or French words anywhere.'
       }]
     })
   });
@@ -153,7 +160,7 @@ OUTPUT FORMAT — output ONLY this JSON, no other text, no markdown, no code blo
     return JSON.parse(clean);
   } catch (e) {
     console.error('[generateDescription] Parse failed:', e.message);
-    return { seoTitle: productInfo.title, description: text, metaDescription: '' };
+    return { seoTitle: cleanedTitle, description: text, metaDescription: '' };
   }
 }
 
@@ -221,13 +228,12 @@ async function createShopifyProduct(productData) {
   return r.json();
 }
 
-// Upload alle images na product aanmaken - één voor één met retry
+// Upload alle images na product aanmaken — één voor één met retry
 async function addExtraImages(productId, imageUrls) {
   const store = SHOPIFY_STORE.replace(/^https?:\/\//, '').replace(/\/$/, '');
   console.log('[addExtraImages] Uploading', imageUrls.length, 'images to product', productId);
   let success = 0;
   for (let i = 0; i < imageUrls.length; i++) {
-    let uploaded = false;
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
         const r = await fetch('https://' + store + '/admin/api/2024-01/products/' + productId + '/images.json', {
@@ -236,14 +242,12 @@ async function addExtraImages(productId, imageUrls) {
           body: JSON.stringify({ image: { src: imageUrls[i] } })
         });
         if (r.status === 429) {
-          // Rate limit - wacht 2 seconden
           await new Promise(function(r) { setTimeout(r, 2000); });
           continue;
         }
         if (r.ok) {
           success++;
           console.log('[addExtraImages] Image ' + (i+1) + '/' + imageUrls.length + ' uploaded');
-          uploaded = true;
           break;
         } else {
           const err = await r.text();
@@ -255,7 +259,6 @@ async function addExtraImages(productId, imageUrls) {
         break;
       }
     }
-    // 500ms pauze tussen uploads
     await new Promise(function(r) { setTimeout(r, 500); });
   }
   console.log('[addExtraImages] Done:', success, '/', imageUrls.length, 'uploaded');
@@ -281,14 +284,17 @@ export default async function handler(req, res) {
     const colors = (productInfo.colors || []).map(translateColor);
     const productType = productInfo.type || 'Dress';
     const season = productInfo.season || 'ALL YEAR';
+
     // Tags: seizoen + producttype + hoofdcategorie
     const tagSet = [season, productType];
     const mainCategory = productType.includes('Dress') ? 'Dress' :
+                         (productType.includes('Skirt')) ? 'Bottoms' :
                          (productType.includes('Jacket') || productType.includes('Coat') || productType.includes('Blazer')) ? 'Outerwear' :
                          (productType.includes('Top') || productType.includes('Blouse')) ? 'Tops' :
-                         (productType.includes('Trouser') || productType.includes('Skirt')) ? 'Bottoms' : null;
+                         (productType.includes('Trouser') || productType.includes('Pants')) ? 'Bottoms' : null;
     if (mainCategory && mainCategory !== productType) tagSet.push(mainCategory);
     const tags = tagSet.filter(Boolean).join(', ');
+
     const price = convertPrice(productInfo.originalPrice, productInfo.currency || 'EUR');
     const sizes = (productInfo.sizes || ['XS (UK6)', 'S (UK8)', 'M (UK10)', 'L (UK12)', 'XL (UK14)', 'XXL (UK16)']).map(function(s) {
       return sizeMap[s.toUpperCase().trim()] || s;
@@ -307,7 +313,6 @@ export default async function handler(req, res) {
       }
     }
 
-    // Alleen meta description metafield
     const metafields = metaDescription ? [
       { namespace: 'global', key: 'description_tag', value: metaDescription, type: 'single_line_text_field' }
     ] : [];
@@ -330,7 +335,6 @@ export default async function handler(req, res) {
       title: seoTitle,
       handle: urlHandle,
       body_html: description ? (function(d) {
-        // Zet bullet punten om naar echte HTML lijst
         var parts = d.split('\n');
         var html = '';
         var inList = false;
@@ -355,13 +359,12 @@ export default async function handler(req, res) {
       status: 'draft',
       variants: variants,
       options: variants[0] && variants[0].option2 ? [{ name: 'Colour' }, { name: 'Size' }] : [{ name: 'Size' }],
-      images: [] // Foto's worden na aanmaken één voor één geupload
+      images: []
     };
 
     const result = await createShopifyProduct(shopifyProduct);
     const productId = result.product && result.product.id;
 
-    // Upload alle foto's na aanmaken (Shopify limiet bij aanmaken omzeilen)
     const allImageUrls = generatedImages.length > 0
       ? generatedImages.map(function(i) { return i.src; })
       : (productInfo.originalImages || []);
