@@ -101,7 +101,7 @@
         sinceId = match[1];
 
         // Wacht 500ms tussen batches
-        await new Promise(function(r) { setTimeout(r, 500); });
+        await new Promise(function(r) { setTimeout(r, 2000); });
 
       } catch(e) {
         log('❌ Fout: ' + e.message);
