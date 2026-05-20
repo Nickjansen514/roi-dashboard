@@ -6,22 +6,28 @@ export default async function handler(req, res) {
   const SHOPIFY_STORE = process.env.SHOPIFY_STORE;
   const store = SHOPIFY_STORE.replace(/^https?:\/\//, '').replace(/\/$/, '');
 
-  // Gebruik ?page=1, ?page=2 etc om pagina voor pagina te verwerken
-  const page = parseInt(req.query.page || '1');
-  const limit = 10; // 10 producten per keer zodat het snel genoeg is
+  // since_id voor pagination — start bij 0, volgende keer het laatste product ID
+  const sinceId = req.query.since_id || '0';
+  const limit = 10;
 
   const results = { updated: [], skipped: 0, errors: [] };
 
   try {
-    const url = 'https://' + store + '/admin/api/2024-01/products.json?limit=' + limit + '&page=' + page + '&fields=id,title,variants';
+    const url = 'https://' + store + '/admin/api/2024-01/products.json?limit=' + limit + '&since_id=' + sinceId + '&fields=id,title,variants';
 
     const r = await fetch(url, {
       headers: { 'X-Shopify-Access-Token': SHOPIFY_TOKEN }
     });
+
+    if (!r.ok) {
+      const errText = await r.text();
+      return res.status(500).json({ error: 'Shopify fout: ' + r.status + ' ' + errText });
+    }
+
     const data = await r.json();
     const products = data.products || [];
 
-    console.log('[price-update] Page:', page, '| Products:', products.length);
+    console.log('[price-update] since_id:', sinceId, '| Products:', products.length);
 
     for (const product of products) {
       for (const variant of product.variants || []) {
@@ -67,12 +73,13 @@ export default async function handler(req, res) {
       }
     }
 
+    const lastId = products.length > 0 ? products[products.length - 1].id : null;
+
     return res.status(200).json({
       success: true,
-      page: page,
       products_on_this_page: products.length,
       has_more: products.length === limit,
-      next_url: products.length === limit ? '/api/update-prices?page=' + (page + 1) : null,
+      next_url: products.length === limit ? '/api/update-prices?since_id=' + lastId : null,
       summary: {
         variants_updated: results.updated.length,
         variants_skipped: results.skipped,
