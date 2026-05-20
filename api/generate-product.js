@@ -134,7 +134,7 @@ OUTPUT FORMAT — output ONLY this JSON, no other text, no markdown, no code blo
 {"seoTitle":"...","description":"...","metaDescription":"..."}`,
       messages: [{
         role: 'user',
-        content: 'Create a listing for:\nName: ' + productInfo.title + '\nType: ' + productInfo.type + '\nColors: ' + (productInfo.colors || []).join(', ') + '\nMaterial: ' + (productInfo.material || 'not specified') + '\nSeason: ' + (productInfo.season || 'not specified') + '\nOriginal description: ' + (productInfo.originalDescription || 'none')
+        content: 'Create a listing for:\nName: ' + productInfo.title + '\nType: ' + productInfo.type + '\nColors: ' + (productInfo.colors || []).join(', ') + '\nMaterial: ' + (productInfo.material || 'not specified') + '\nSeason: ' + (productInfo.season || 'not specified') + '\nOriginal description: ' + (productInfo.originalDescription || 'none') + '\n\nIMPORTANT: The product name may be in Dutch or French. Translate ALL elements to natural UK English. Never use Dutch or French words in the SEO title, description, or meta description. The SEO title and all content must be 100% English.'
       }]
     })
   });
