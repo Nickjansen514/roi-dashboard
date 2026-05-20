@@ -550,19 +550,27 @@ async function scrapeProduct() {
     }
 
     // Auto-detect product type
-    var titleLower = (data.title || '').toLowerCase();
-    var autoType = 'Dress';
-    if (titleLower.indexOf('maxi') !== -1) autoType = 'Maxi Dress';
-    else if (titleLower.indexOf('midi') !== -1) autoType = 'Midi Dress';
-    else if (titleLower.indexOf('mini') !== -1) autoType = 'Mini Dress';
-    else if (titleLower.indexOf('robe') !== -1 || titleLower.indexOf('dress') !== -1) autoType = 'Dress';
-    else if (titleLower.indexOf('top') !== -1 || titleLower.indexOf('blouse') !== -1) autoType = 'Top';
-    else if (titleLower.indexOf('jupe') !== -1 || titleLower.indexOf('skirt') !== -1) autoType = 'Skirt';
-    else if (titleLower.indexOf('pantalon') !== -1 || titleLower.indexOf('trouser') !== -1) autoType = 'Trousers';
-    else if (titleLower.indexOf('veste') !== -1 || titleLower.indexOf('jacket') !== -1 || titleLower.indexOf('blazer') !== -1) autoType = 'Jacket';
-    else if (titleLower.indexOf('manteau') !== -1 || titleLower.indexOf('coat') !== -1) autoType = 'Coat';
-    else if (titleLower.indexOf('combinaison') !== -1 || titleLower.indexOf('jumpsuit') !== -1) autoType = 'Jumpsuit';
-    else if (titleLower.indexOf('ensemble') !== -1 || titleLower.indexOf('set') !== -1) autoType = 'Co-ord Set';
+    // ✅ Gebruik productType van scraper (al correct bepaald uit titel)
+    var autoType = data.productType || 'Dress';
+    // Fallback op titel als scraper geen productType heeft
+    if (!data.productType) {
+      var titleLower = (data.title || '').toLowerCase();
+      if (titleLower.indexOf('long dress') !== -1 || titleLower.indexOf('maxi') !== -1) autoType = 'Maxi Dress';
+      else if (titleLower.indexOf('midi') !== -1) autoType = 'Midi Dress';
+      else if (titleLower.indexOf('mini') !== -1) autoType = 'Mini Dress';
+      else if (titleLower.indexOf('bodycon') !== -1) autoType = 'Bodycon Dress';
+      else if (titleLower.indexOf('wrap dress') !== -1) autoType = 'Wrap Dress';
+      else if (titleLower.indexOf('robe') !== -1 || titleLower.indexOf('dress') !== -1) autoType = 'Dress';
+      else if (titleLower.indexOf('jumpsuit') !== -1 || titleLower.indexOf('combinaison') !== -1) autoType = 'Jumpsuit';
+      else if (titleLower.indexOf('blazer') !== -1) autoType = 'Blazer';
+      else if (titleLower.indexOf('jacket') !== -1 || titleLower.indexOf('veste') !== -1) autoType = 'Jacket';
+      else if (titleLower.indexOf('coat') !== -1 || titleLower.indexOf('manteau') !== -1) autoType = 'Coat';
+      else if (titleLower.indexOf('cardigan') !== -1) autoType = 'Cardigan';
+      else if (titleLower.indexOf('top') !== -1 || titleLower.indexOf('blouse') !== -1) autoType = 'Top';
+      else if (titleLower.indexOf('skirt') !== -1 || titleLower.indexOf('jupe') !== -1) autoType = 'Skirt';
+      else if (titleLower.indexOf('trouser') !== -1 || titleLower.indexOf('pants') !== -1) autoType = 'Trousers';
+      else if (titleLower.indexOf('set') !== -1 || titleLower.indexOf('ensemble') !== -1) autoType = 'Co-ord Set';
+    }
     document.getElementById('pl-type').value = autoType;
 
     // Foto preview
