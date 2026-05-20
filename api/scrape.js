@@ -25,6 +25,17 @@ const COLOR_TRANSLATION = {
   'blush': 'Blush', 'wine': 'Wine', 'plum': 'Plum', 'fuchsia': 'Fuchsia',
   'magenta': 'Magenta', 'turquoise': 'Turquoise', 'aqua': 'Aqua',
   'lemon': 'Lemon', 'khaki green': 'Khaki Green', 'chocolate': 'Chocolate',
+  // Extra Nederlands/specifiek
+  'lichtblauw': 'Light Blue', 'donkerblauw': 'Dark Blue', 'lichtroze': 'Light Pink',
+  'donkerrood': 'Dark Red', 'donkergroen': 'Dark Green', 'lichtgroen': 'Light Green',
+  'panterprint': 'Leopard Print', 'luipaardprint': 'Leopard Print', 'tijgerprint': 'Tiger Print',
+  'slangenprint': 'Snake Print', 'zebraprint': 'Zebra Print', 'dierenprint': 'Animal Print',
+  'gebloemd': 'Floral', 'gestreept': 'Striped', 'geblokt': 'Checked',
+  'ecru': 'Ecru', 'zand': 'Sand', 'cognac': 'Cognac', 'petrol': 'Petrol',
+  'oudroze': 'Dusty Pink', 'poederroze': 'Powder Pink', 'fuchsia': 'Fuchsia',
+  'lila': 'Lilac', 'paars': 'Purple', 'aubergine': 'Aubergine',
+  'donkerbruin': 'Dark Brown', 'lichtbruin': 'Light Brown', 'camel': 'Camel',
+  'offwhite': 'Off White', 'gebroken wit': 'Off White', 'naturel': 'Natural',
 };
 
 function translateAndCapitalizeColor(color) {
@@ -36,12 +47,17 @@ function translateAndCapitalizeColor(color) {
 // Detecteer producttype uit titel
 function detectProductType(title) {
   const t = (title || '').toLowerCase();
-  if (t.includes('maxi dress') || t.includes('maxi robe') || t.includes('long dress')) return 'Maxi Dress';
-  if (t.includes('midi dress') || t.includes('midi robe')) return 'Midi Dress';
-  if (t.includes('mini dress') || t.includes('mini robe')) return 'Mini Dress';
+  // Engels
+  if (t.includes('maxi dress') || t.includes('long dress')) return 'Maxi Dress';
+  if (t.includes('midi dress')) return 'Midi Dress';
+  if (t.includes('mini dress')) return 'Mini Dress';
   if (t.includes('bodycon dress') || t.includes('bodycon')) return 'Bodycon Dress';
   if (t.includes('wrap dress') || t.includes('robe portefeuille')) return 'Wrap Dress';
   if (t.includes('shirt dress')) return 'Shirt Dress';
+  if (t.includes('skirt') || t.includes('jupe')) return 'Skirt';
+  if (t.includes('midi skirt')) return 'Midi Skirt';
+  if (t.includes('mini skirt')) return 'Mini Skirt';
+  if (t.includes('maxi skirt')) return 'Maxi Skirt';
   if (t.includes('robe') || t.includes('dress')) return 'Dress';
   if (t.includes('two piece') || t.includes('co-ord') || t.includes('co ord') || t.includes('ensemble') || t.includes('set')) return 'Co-ord Set';
   if (t.includes('jumpsuit') || t.includes('combinaison')) return 'Jumpsuit';
@@ -51,10 +67,24 @@ function detectProductType(title) {
   if (t.includes('trench')) return 'Trench Coat';
   if (t.includes('cardigan')) return 'Cardigan';
   if (t.includes('hoodie')) return 'Hoodie';
-  if (t.includes('skirt') || t.includes('jupe')) return 'Skirt';
   if (t.includes('trouser') || t.includes('pants') || t.includes('pantalon')) return 'Trousers';
   if (t.includes('top') || t.includes('blouse')) return 'Top';
   if (t.includes('shirt') || t.includes('chemise')) return 'Shirt';
+  // Nederlands
+  if (t.includes('maxi rok') || t.includes('lange rok')) return 'Maxi Skirt';
+  if (t.includes('midi rok')) return 'Midi Skirt';
+  if (t.includes('mini rok')) return 'Mini Skirt';
+  if (t.includes('rok')) return 'Skirt';
+  if (t.includes('maxi jurk') || t.includes('lange jurk')) return 'Maxi Dress';
+  if (t.includes('midi jurk')) return 'Midi Dress';
+  if (t.includes('mini jurk')) return 'Mini Dress';
+  if (t.includes('jurk')) return 'Dress';
+  if (t.includes('broek')) return 'Trousers';
+  if (t.includes('jasje') || t.includes('jas')) return 'Jacket';
+  if (t.includes('vest')) return 'Cardigan';
+  if (t.includes('blouse') || t.includes('top')) return 'Top';
+  if (t.includes('jumpsuit') || t.includes('playsuit')) return 'Jumpsuit';
+  if (t.includes('set') || t.includes('twinset')) return 'Co-ord Set';
   return 'Dress';
 }
 
