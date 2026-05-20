@@ -12,7 +12,7 @@ const COLOR_TRANSLATION = {
   // Spaans
   'negro': 'Black', 'blanco': 'White', 'rojo': 'Red', 'azul': 'Blue',
   'verde': 'Green', 'rosa': 'Pink', 'amarillo': 'Yellow',
-  // Engels (zorg voor hoofdletter)
+  // Engels
   'black': 'Black', 'white': 'White', 'red': 'Red', 'blue': 'Blue',
   'green': 'Green', 'pink': 'Pink', 'grey': 'Grey', 'gray': 'Grey',
   'brown': 'Brown', 'purple': 'Purple', 'yellow': 'Yellow', 'navy': 'Navy',
@@ -20,7 +20,7 @@ const COLOR_TRANSLATION = {
   'dark red': 'Dark Red', 'camel': 'Camel', 'tan': 'Tan', 'coral': 'Coral',
   'mint': 'Mint', 'olive': 'Olive', 'gold': 'Gold', 'silver': 'Silver',
   'teal': 'Teal', 'mustard': 'Mustard', 'rust': 'Rust', 'apricot': 'Apricot',
-  'champagne': 'Champagne', 'ivory': 'Ivory', 'khaki': 'Khaki', 'orange': 'Orange',
+  'champagne': 'Champagne', 'ivory': 'Ivory', 'orange': 'Orange',
   'off white': 'Off White', 'light blue': 'Light Blue', 'dark blue': 'Dark Blue',
   'light pink': 'Light Pink', 'hot pink': 'Hot Pink', 'baby pink': 'Baby Pink',
   'army green': 'Army Green', 'forest green': 'Forest Green', 'sage': 'Sage',
@@ -34,7 +34,6 @@ const COLOR_TRANSLATION = {
 function translateAndCapitalizeColor(color) {
   const lower = color.toLowerCase().trim();
   if (COLOR_TRANSLATION[lower]) return COLOR_TRANSLATION[lower];
-  // Capitalize eerste letter van elk woord als niet gevonden
   return color.trim().replace(/\b\w/g, function(c) { return c.toUpperCase(); });
 }
 
@@ -86,9 +85,14 @@ export default async function handler(req, res) {
     if (shopifyJson) {
       title = shopifyJson.title || '';
 
-      // Prijs: laagste variant prijs
-      const allPrices = (shopifyJson.variants || []).map(function(v) { return parseFloat(v.price); }).filter(function(p) { return !isNaN(p) && p > 0; });
-      price = allPrices.length > 0 ? Math.min.apply(null, allPrices) : null;
+      // ✅ FIX: Pak laagste prijs inclusief compare_at_price (sale prijzen)
+      const allPrices = [];
+      (shopifyJson.variants || []).forEach(function(v) {
+        if (v.price) allPrices.push(parseFloat(v.price));
+        if (v.compare_at_price) allPrices.push(parseFloat(v.compare_at_price));
+      });
+      const validPrices = allPrices.filter(function(p) { return !isNaN(p) && p > 0; });
+      price = validPrices.length > 0 ? Math.min.apply(null, validPrices) : null;
 
       description = shopifyJson.body_html
         ? shopifyJson.body_html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
@@ -115,28 +119,22 @@ export default async function handler(req, res) {
         colors = [...colorSet].map(translateAndCapitalizeColor);
       }
 
-      // ✅ Foto's: alle unieke images uit Shopify JSON (inclusief variant images)
+      // ✅ FIX: Foto's max 50 in plaats van 20
       const imageSet = new Set();
-
-      // Eerst product-level images
       for (const img of shopifyJson.images || []) {
         if (img.src) imageSet.add(img.src);
       }
-
-      // Dan variant-level images (kleurspecifieke foto's)
       for (const v of shopifyJson.variants || []) {
         if (v.image_id) {
           const varImg = (shopifyJson.images || []).find(function(i) { return i.id === v.image_id; });
           if (varImg && varImg.src) imageSet.add(varImg.src);
         }
       }
-
-      images = [...imageSet].slice(0, 20);
+      images = [...imageSet].slice(0, 50);
     }
 
     // ─── 2. Fallback kleuren uit HTML ────────────────────────────────────────
     if (colors.length === 0) {
-      // Probeer inline JSON varianten
       const variantJsonMatch = html.match(/\[\s*\{[^[\]]{0,50}"option1"/);
       if (variantJsonMatch) {
         const startIdx = html.indexOf('[', variantJsonMatch.index);
@@ -156,7 +154,6 @@ export default async function handler(req, res) {
 
     // ─── 3. Prijs fallback voor niet-Shopify sites ────────────────────────────
     if (!price) {
-      // Probeer JSON-LD structured data
       const jsonLdMatches = [...html.matchAll(/<script[^>]+type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/gi)];
       for (const match of jsonLdMatches) {
         try {
@@ -173,13 +170,11 @@ export default async function handler(req, res) {
     }
 
     if (!price) {
-      // Probeer meta property price
       const metaPriceMatch = html.match(/property="product:price:amount"\s+content="([^"]+)"/);
       if (metaPriceMatch) price = parseFloat(metaPriceMatch[1]);
     }
 
     if (!price) {
-      // Algemene price regex
       const priceMatch = html.match(/["']price["']\s*:\s*["']?(\d+[\.,]\d+)["']?/);
       if (priceMatch) price = parseFloat(priceMatch[1].replace(',', '.'));
     }
@@ -189,7 +184,7 @@ export default async function handler(req, res) {
       const imgMatches = [...html.matchAll(/https?:\/\/[^"'\s]+\.(jpg|jpeg|png|webp)[^"'\s]*/gi)];
       images = [...new Set(imgMatches.map(function(m) { return m[0].split('?')[0]; }))].filter(function(img) {
         return !img.includes('icon') && !img.includes('logo') && !img.includes('favicon') && !img.includes('badge') && img.length > 20;
-      }).slice(0, 20);
+      }).slice(0, 50);
     }
 
     // ─── 5. Titel fallback ───────────────────────────────────────────────────
