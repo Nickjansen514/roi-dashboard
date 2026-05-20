@@ -108,14 +108,15 @@ export default async function handler(req, res) {
       title = shopifyJson.title || '';
       productType = detectProductType(title);
 
-      // ✅ Pak laagste prijs inclusief compare_at_price
-      const allPrices = [];
+      // Pak variant price (dit is de sale prijs als er een compare_at_price is)
+      // compare_at_price = originele prijs, price = sale prijs
+      const variantPrices = [];
       (shopifyJson.variants || []).forEach(function(v) {
-        if (v.price) allPrices.push(parseFloat(v.price));
-        if (v.compare_at_price) allPrices.push(parseFloat(v.compare_at_price));
+        if (v.price) variantPrices.push(parseFloat(v.price));
       });
-      const validPrices = allPrices.filter(function(p) { return !isNaN(p) && p > 0; });
-      price = validPrices.length > 0 ? Math.min.apply(null, validPrices) : null;
+      const validVariantPrices = variantPrices.filter(function(p) { return !isNaN(p) && p > 0; });
+      price = validVariantPrices.length > 0 ? Math.min.apply(null, validVariantPrices) : null;
+      console.log('[scrape] variant price (sale):', price);
 
       description = shopifyJson.body_html
         ? shopifyJson.body_html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
