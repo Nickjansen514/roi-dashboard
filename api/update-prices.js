@@ -5,19 +5,41 @@ export default async function handler(req, res) {
   const SHOPIFY_TOKEN = process.env.SHOPIFY_TOKEN;
   const SHOPIFY_STORE = process.env.SHOPIFY_STORE;
   const store = SHOPIFY_STORE.replace(/^https?:\/\//, '').replace(/\/$/, '');
-
-  // since_id voor pagination — start bij 0, volgende keer het laatste product ID
   const sinceId = req.query.since_id || '0';
-  const limit = 10;
+  const limit = 5;
 
   const results = { updated: [], skipped: 0, errors: [] };
 
+  async function updateVariant(variantId, updates, productTitle) {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const r = await fetch('https://' + store + '/admin/api/2024-01/variants/' + variantId + '.json', {
+        method: 'PUT',
+        headers: {
+          'X-Shopify-Access-Token': SHOPIFY_TOKEN,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ variant: { id: variantId, ...updates } })
+      });
+
+      if (r.status === 429) {
+        // Rate limited - wacht 1 seconde en probeer opnieuw
+        await new Promise(r => setTimeout(r, 1000));
+        continue;
+      }
+
+      if (r.ok) return true;
+
+      const err = await r.text();
+      results.errors.push({ product: productTitle, variantId, error: err });
+      return false;
+    }
+    results.errors.push({ product: productTitle, variantId, error: 'Rate limit na 3 pogingen' });
+    return false;
+  }
+
   try {
     const url = 'https://' + store + '/admin/api/2024-01/products.json?limit=' + limit + '&since_id=' + sinceId + '&fields=id,title,variants';
-
-    const r = await fetch(url, {
-      headers: { 'X-Shopify-Access-Token': SHOPIFY_TOKEN }
-    });
+    const r = await fetch(url, { headers: { 'X-Shopify-Access-Token': SHOPIFY_TOKEN } });
 
     if (!r.ok) {
       const errText = await r.text();
@@ -27,8 +49,6 @@ export default async function handler(req, res) {
     const data = await r.json();
     const products = data.products || [];
 
-    console.log('[price-update] since_id:', sinceId, '| Products:', products.length);
-
     for (const product of products) {
       for (const variant of product.variants || []) {
         const updates = {};
@@ -36,36 +56,20 @@ export default async function handler(req, res) {
         if (variant.price && variant.price.endsWith('.95')) {
           updates.price = variant.price.slice(0, -2) + '99';
         }
-
         if (variant.compare_at_price && variant.compare_at_price.endsWith('.95')) {
           updates.compare_at_price = variant.compare_at_price.slice(0, -2) + '99';
         }
 
         if (Object.keys(updates).length > 0) {
-          try {
-            const updateR = await fetch('https://' + store + '/admin/api/2024-01/variants/' + variant.id + '.json', {
-              method: 'PUT',
-              headers: {
-                'X-Shopify-Access-Token': SHOPIFY_TOKEN,
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({ variant: { id: variant.id, ...updates } })
+          // Wacht 600ms tussen elke call om rate limit te vermijden
+          await new Promise(r => setTimeout(r, 600));
+          const ok = await updateVariant(variant.id, updates, product.title);
+          if (ok) {
+            results.updated.push({
+              product: product.title,
+              old_price: variant.price,
+              new_price: updates.price || variant.price
             });
-
-            if (updateR.ok) {
-              results.updated.push({
-                product: product.title,
-                old_price: variant.price,
-                new_price: updates.price || variant.price,
-                old_compare: variant.compare_at_price || null,
-                new_compare: updates.compare_at_price || variant.compare_at_price || null
-              });
-            } else {
-              const err = await updateR.text();
-              results.errors.push({ product: product.title, error: err });
-            }
-          } catch (e) {
-            results.errors.push({ product: product.title, error: e.message });
           }
         } else {
           results.skipped++;
@@ -79,7 +83,9 @@ export default async function handler(req, res) {
       success: true,
       products_on_this_page: products.length,
       has_more: products.length === limit,
-      next_url: products.length === limit ? '/api/update-prices?since_id=' + lastId : null,
+      next_url: products.length === limit
+        ? 'https://project-jufmd.vercel.app/api/update-prices?since_id=' + lastId
+        : null,
       summary: {
         variants_updated: results.updated.length,
         variants_skipped: results.skipped,
@@ -90,7 +96,6 @@ export default async function handler(req, res) {
     });
 
   } catch (err) {
-    console.error('[price-update] Fatal error:', err.message);
     return res.status(500).json({ error: err.message });
   }
 }
