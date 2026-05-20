@@ -143,20 +143,18 @@ export default async function handler(req, res) {
         colors = [...colorSet].map(translateAndCapitalizeColor);
       }
 
-      // ✅ Foto's: bewaar VOLLEDIGE src inclusief CDN parameters
+      // ✅ Foto's: pak ALLE images uit Shopify JSON
+      // shopifyJson.images bevat alle product images inclusief alle kleurvarianten
       const imageSet = new Set();
+      
+      // Alle product images (dit zijn ALLE kleuren)
       for (const img of shopifyJson.images || []) {
         if (img.src) imageSet.add(img.src);
       }
-      // Variant images ook meenemen
-      for (const v of shopifyJson.variants || []) {
-        if (v.image_id) {
-          const varImg = (shopifyJson.images || []).find(function(i) { return i.id === v.image_id; });
-          if (varImg && varImg.src) imageSet.add(varImg.src);
-        }
-      }
+      
       images = [...imageSet];
       console.log('[scrape] Shopify images found:', images.length);
+      console.log('[scrape] Image IDs:', (shopifyJson.images || []).map(function(i) { return i.id; }));
     }
 
     // ─── 2. Extra foto's uit HTML als Shopify JSON niet genoeg heeft ─────────
