@@ -125,10 +125,14 @@ SEO TITLE RULES:
 
 PRODUCT DESCRIPTION RULES:
 - Structure EXACTLY: Intro paragraph (2 sentences) + 5 bullet points + Closing sentence (1 sentence)
-- Use only visible product features
+- Intro: Hook the reader immediately with the key design feature + styling versatility. Be specific and vivid.
+- Bullets: Each bullet must describe ONE specific, visible feature — cut, silhouette, hem detail, length, material finish, closure. Make each bullet earn its place.
+- Closing: One punchy styling suggestion sentence.
+- Use only visible product features — never invent
 - NEVER mention: comfort, support, posture, pain relief, healing, anti-slip, breathable, slimming, shaping, luxury, elegant, perfect, flattering
 - Natural UK English only — translate any non-English product name to English
 - In the description, refer to the product by its English type (e.g. "This scallop-edge midi skirt..." not "The Kanten Rok...")
+- Write like ASOS product copy: confident, specific, direct — not generic
 
 META DESCRIPTION RULES:
 - EXACTLY like top global fashion e-commerce stores (ASOS, Boohoo, PrettyLittleThing)
@@ -281,7 +285,14 @@ export default async function handler(req, res) {
     const seoTitle = generated.seoTitle || productInfo.title;
     const metaDescription = generated.metaDescription || '';
     const urlHandle = titleToUrlHandle(seoTitle);
-    const colors = (productInfo.colors || []).map(translateColor);
+    // Als kleuren maten bevatten of leeg zijn -> gebruik One Colour
+    const sizeKeywords = ['xs','s','m','l','xl','xxl','xxxl','xs (uk6)','s (uk8)','m (uk10)','l (uk12)','xl (uk14)','xxl (uk16)'];
+    const rawColors = (productInfo.colors || []).filter(function(c) {
+      return !sizeKeywords.includes(c.toLowerCase().trim());
+    });
+    const colors = rawColors.length > 0
+      ? rawColors.map(translateColor)
+      : ['One Colour'];
     const productType = productInfo.type || 'Dress';
     const season = productInfo.season || 'ALL YEAR';
 
