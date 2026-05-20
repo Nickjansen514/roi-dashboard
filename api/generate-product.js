@@ -57,11 +57,6 @@ function translateColor(color) {
   return colorMap[lower] || (color.charAt(0).toUpperCase() + color.slice(1).toLowerCase());
 }
 
-function mapSize(size) {
-  const upper = size.toUpperCase().trim();
-  return sizeMap[upper] || size;
-}
-
 function colorPromptDescription(color) {
   const descriptions = {
     'Black': 'deep black, NOT dark navy or charcoal',
@@ -112,7 +107,7 @@ BRAND CONTEXT:
 Store: Yamira London. Market: United Kingdom. Language: Natural UK English. Target: Women aged 18-45. Tone: clean, neutral, refined, factual. Never write hype, never exaggerate.
 
 SEO TITLE RULES:
-- Use high-volume UK search keywords where relevant: dresses, dresses for women, summer dresses, maxi dress, midi dress, black dress, white dress, party dresses, wedding guest dresses, bodycon dress, wrap dress, floral dress, linen dress, satin dress, jumpsuits, womens coats, trench coat, bomber jacket, blazer, cardigan, co-ord set, two piece set
+- Use high-volume UK search keywords where relevant: dresses for women, summer dresses, maxi dress, midi dress, black dress, white dress, party dresses, wedding guest dresses, bodycon dress, wrap dress, floral dress, linen dress, satin dress, jumpsuits, womens coats, trench coat, bomber jacket, blazer, cardigan, co-ord set, two piece set
 - Title must be descriptive, specific, keyword rich
 - MUST end with "for women"
 - NEVER use: luxury, elegant, perfect, flattering, shaping, slimming, premium quality, comfort fit
@@ -125,10 +120,15 @@ PRODUCT DESCRIPTION RULES:
 - Natural UK English only
 
 META DESCRIPTION RULES:
+- EXACTLY like top global fashion e-commerce stores (ASOS, Boohoo, PrettyLittleThing, Missguided)
+- Format: [Product type] + [key design feature] + [occasion/style context] + [call to action] — ending with "– Yamira London"
 - Max 160 characters STRICTLY
-- Must be compelling, SEO-focused, include main product keyword and key feature
-- Must end with "– Yamira London"
-- Do NOT just list colours - write a proper selling meta description
+- Include the main search keyword naturally
+- Be direct, punchy, benefit-driven — not just descriptive
+- Examples of the RIGHT style:
+  * "Shop the open back maxi dress that turns heads. Floor-length cotton with V-neck — perfect for summer days. – Yamira London"
+  * "The ruched midi dress you need this season. Figure-skimming silhouette, satin finish, available in 4 colours. – Yamira London"
+  * "Floral wrap dress for women — feminine print, adjustable tie waist, midi length. Shop new arrivals. – Yamira London"
 
 OUTPUT FORMAT — output ONLY this JSON, no other text, no markdown, no code blocks:
 {"seoTitle":"...","description":"...","metaDescription":"..."}`,
@@ -260,7 +260,7 @@ export default async function handler(req, res) {
       }
     }
 
-    // ✅ Alleen meta description metafield — geen andere metavelden om 422 errors te voorkomen
+    // Alleen meta description metafield
     const metafields = metaDescription ? [
       { namespace: 'global', key: 'description_tag', value: metaDescription, type: 'single_line_text_field' }
     ] : [];
