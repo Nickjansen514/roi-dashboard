@@ -1,18 +1,14 @@
 const COLOR_TRANSLATION = {
-  // Frans
   'noir': 'Black', 'blanc': 'White', 'rouge': 'Red', 'bleu': 'Blue',
   'vert': 'Green', 'rose': 'Pink', 'beige': 'Beige', 'crème': 'Cream', 'creme': 'Cream',
   'gris': 'Grey', 'marron': 'Brown', 'orange': 'Orange', 'violet': 'Purple',
   'jaune': 'Yellow', 'marine': 'Navy', 'bordeaux': 'Burgundy',
   'rouge foncé': 'Dark Red', 'rouge fonce': 'Dark Red', 'khaki': 'Khaki', 'lila': 'Lilac',
-  // Nederlands
   'zwart': 'Black', 'wit': 'White', 'blauw': 'Blue', 'groen': 'Green',
   'roze': 'Pink', 'grijs': 'Grey', 'bruin': 'Brown', 'geel': 'Yellow',
   'rood': 'Red', 'paars': 'Purple',
-  // Spaans
   'negro': 'Black', 'blanco': 'White', 'rojo': 'Red', 'azul': 'Blue',
   'verde': 'Green', 'rosa': 'Pink', 'amarillo': 'Yellow',
-  // Engels
   'black': 'Black', 'white': 'White', 'red': 'Red', 'blue': 'Blue',
   'green': 'Green', 'pink': 'Pink', 'grey': 'Grey', 'gray': 'Grey',
   'brown': 'Brown', 'purple': 'Purple', 'yellow': 'Yellow', 'navy': 'Navy',
@@ -35,6 +31,31 @@ function translateAndCapitalizeColor(color) {
   const lower = color.toLowerCase().trim();
   if (COLOR_TRANSLATION[lower]) return COLOR_TRANSLATION[lower];
   return color.trim().replace(/\b\w/g, function(c) { return c.toUpperCase(); });
+}
+
+// Detecteer producttype uit titel
+function detectProductType(title) {
+  const t = (title || '').toLowerCase();
+  if (t.includes('maxi dress') || t.includes('maxi robe') || t.includes('long dress')) return 'Maxi Dress';
+  if (t.includes('midi dress') || t.includes('midi robe')) return 'Midi Dress';
+  if (t.includes('mini dress') || t.includes('mini robe')) return 'Mini Dress';
+  if (t.includes('bodycon dress') || t.includes('bodycon')) return 'Bodycon Dress';
+  if (t.includes('wrap dress') || t.includes('robe portefeuille')) return 'Wrap Dress';
+  if (t.includes('shirt dress')) return 'Shirt Dress';
+  if (t.includes('robe') || t.includes('dress')) return 'Dress';
+  if (t.includes('two piece') || t.includes('co-ord') || t.includes('co ord') || t.includes('ensemble') || t.includes('set')) return 'Co-ord Set';
+  if (t.includes('jumpsuit') || t.includes('combinaison')) return 'Jumpsuit';
+  if (t.includes('blazer')) return 'Blazer';
+  if (t.includes('jacket') || t.includes('veste')) return 'Jacket';
+  if (t.includes('coat') || t.includes('manteau')) return 'Coat';
+  if (t.includes('trench')) return 'Trench Coat';
+  if (t.includes('cardigan')) return 'Cardigan';
+  if (t.includes('hoodie')) return 'Hoodie';
+  if (t.includes('skirt') || t.includes('jupe')) return 'Skirt';
+  if (t.includes('trouser') || t.includes('pants') || t.includes('pantalon')) return 'Trousers';
+  if (t.includes('top') || t.includes('blouse')) return 'Top';
+  if (t.includes('shirt') || t.includes('chemise')) return 'Shirt';
+  return 'Dress';
 }
 
 export default async function handler(req, res) {
@@ -81,11 +102,13 @@ export default async function handler(req, res) {
     let price = null;
     let description = '';
     let material = '';
+    let productType = '';
 
     if (shopifyJson) {
       title = shopifyJson.title || '';
+      productType = detectProductType(title);
 
-      // ✅ FIX: Pak laagste prijs inclusief compare_at_price (sale prijzen)
+      // ✅ Pak laagste prijs inclusief compare_at_price
       const allPrices = [];
       (shopifyJson.variants || []).forEach(function(v) {
         if (v.price) allPrices.push(parseFloat(v.price));
@@ -119,21 +142,50 @@ export default async function handler(req, res) {
         colors = [...colorSet].map(translateAndCapitalizeColor);
       }
 
-      // ✅ FIX: Foto's max 50 in plaats van 20
+      // ✅ Foto's: bewaar VOLLEDIGE src inclusief CDN parameters
       const imageSet = new Set();
       for (const img of shopifyJson.images || []) {
         if (img.src) imageSet.add(img.src);
       }
+      // Variant images ook meenemen
       for (const v of shopifyJson.variants || []) {
         if (v.image_id) {
           const varImg = (shopifyJson.images || []).find(function(i) { return i.id === v.image_id; });
           if (varImg && varImg.src) imageSet.add(varImg.src);
         }
       }
-      images = [...imageSet].slice(0, 50);
+      images = [...imageSet];
+      console.log('[scrape] Shopify images found:', images.length);
     }
 
-    // ─── 2. Fallback kleuren uit HTML ────────────────────────────────────────
+    // ─── 2. Extra foto's uit HTML als Shopify JSON niet genoeg heeft ─────────
+    // Zoek alle CDN afbeeldingen in de HTML broncode
+    const htmlImageMatches = [...html.matchAll(/https?:\/\/[^"'\s,]+\.(?:jpg|jpeg|png|webp)(?:\?[^"'\s,]*)?/gi)];
+    const htmlImages = htmlImageMatches
+      .map(function(m) { return m[0]; })
+      .filter(function(src) {
+        return !src.includes('icon') &&
+               !src.includes('logo') &&
+               !src.includes('favicon') &&
+               !src.includes('badge') &&
+               !src.includes('placeholder') &&
+               src.length > 30;
+      });
+
+    // Voeg HTML afbeeldingen toe die nog niet in de set zitten
+    // Normaliseer door query params te verwijderen voor deduplicatie check
+    const normalizedSet = new Set(images.map(function(i) { return i.split('?')[0]; }));
+    for (const img of htmlImages) {
+      const normalized = img.split('?')[0];
+      if (!normalizedSet.has(normalized)) {
+        normalizedSet.add(normalized);
+        images.push(img);
+      }
+    }
+
+    console.log('[scrape] Total images after HTML scan:', images.length);
+
+    // ─── 3. Fallback kleuren uit HTML ────────────────────────────────────────
     if (colors.length === 0) {
       const variantJsonMatch = html.match(/\[\s*\{[^[\]]{0,50}"option1"/);
       if (variantJsonMatch) {
@@ -152,7 +204,7 @@ export default async function handler(req, res) {
       }
     }
 
-    // ─── 3. Prijs fallback voor niet-Shopify sites ────────────────────────────
+    // ─── 4. Prijs fallback ────────────────────────────────────────────────────
     if (!price) {
       const jsonLdMatches = [...html.matchAll(/<script[^>]+type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/gi)];
       for (const match of jsonLdMatches) {
@@ -168,23 +220,13 @@ export default async function handler(req, res) {
         } catch(e) {}
       }
     }
-
     if (!price) {
       const metaPriceMatch = html.match(/property="product:price:amount"\s+content="([^"]+)"/);
       if (metaPriceMatch) price = parseFloat(metaPriceMatch[1]);
     }
-
     if (!price) {
       const priceMatch = html.match(/["']price["']\s*:\s*["']?(\d+[\.,]\d+)["']?/);
       if (priceMatch) price = parseFloat(priceMatch[1].replace(',', '.'));
-    }
-
-    // ─── 4. Afbeeldingen fallback ─────────────────────────────────────────────
-    if (images.length === 0) {
-      const imgMatches = [...html.matchAll(/https?:\/\/[^"'\s]+\.(jpg|jpeg|png|webp)[^"'\s]*/gi)];
-      images = [...new Set(imgMatches.map(function(m) { return m[0].split('?')[0]; }))].filter(function(img) {
-        return !img.includes('icon') && !img.includes('logo') && !img.includes('favicon') && !img.includes('badge') && img.length > 20;
-      }).slice(0, 50);
     }
 
     // ─── 5. Titel fallback ───────────────────────────────────────────────────
@@ -192,6 +234,7 @@ export default async function handler(req, res) {
       const h1Match = html.match(/<h1[^>]*>([^<]+)<\/h1>/);
       const titleMatch = html.match(/<title>([^<]+)<\/title>/);
       title = (h1Match?.[1] || titleMatch?.[1] || '').replace(/\s*[\-|–]\s*.*$/, '').trim();
+      productType = detectProductType(title);
     }
 
     // ─── 6. Beschrijving fallback ─────────────────────────────────────────────
@@ -201,6 +244,7 @@ export default async function handler(req, res) {
     }
 
     console.log('[scrape] title:', title);
+    console.log('[scrape] productType:', productType);
     console.log('[scrape] price:', price);
     console.log('[scrape] colors:', colors);
     console.log('[scrape] sizes:', sizes);
@@ -214,6 +258,7 @@ export default async function handler(req, res) {
       colors,
       sizes,
       images,
+      productType,
       shopifyJson: shopifyJson || null,
       rawHtmlLength: html.length
     });
