@@ -6,15 +6,32 @@ const MODEL = 'a confident professional fashion model, early 30s, light medium s
 const CROP = 'mid-thigh up';
 const STYLING = 'minimal delicate jewellery, nude heels';
 
+// ── Prijsomrekening naar dichtstbijzijnde x4.99 of x9.99 ──────────────────
 function convertPrice(originalPrice, currency = 'EUR') {
   const rates = { EUR: 0.86, USD: 0.79, GBP: 1 };
   const gbp = originalPrice * (rates[currency] || 0.86);
+
+  // Genereer alle kandidaten: x4.99 en x9.99 rond de GBP waarde
+  const candidates = [];
   const base = Math.floor(gbp);
-  const remainder = base % 10;
-  let rounded;
-  if (remainder < 5) rounded = Math.floor(base / 10) * 10 + 4.95;
-  else rounded = Math.floor(base / 10) * 10 + 9.95;
-  return rounded;
+  for (let i = base - 10; i <= base + 10; i++) {
+    candidates.push(Math.floor(i / 10) * 10 + 4.99);
+    candidates.push(Math.floor(i / 10) * 10 + 9.99);
+  }
+
+  // Filter positieve waarden en vind de dichtstbijzijnde
+  const valid = candidates.filter(function(c) { return c > 0; });
+  let closest = valid[0];
+  let minDiff = Math.abs(gbp - closest);
+  for (let j = 1; j < valid.length; j++) {
+    const diff = Math.abs(gbp - valid[j]);
+    if (diff < minDiff) {
+      minDiff = diff;
+      closest = valid[j];
+    }
+  }
+
+  return parseFloat(closest.toFixed(2));
 }
 
 const sizeMap = {
@@ -85,23 +102,37 @@ async function generateDescription(productInfo) {
     body: JSON.stringify({
       model: 'claude-sonnet-4-6',
       max_tokens: 2000,
-      system: `You are the dedicated product import and listing assistant for Yamira London, a UK-based women's fashion webshop. You create fully compliant Shopify-ready product listings. Follow these rules exactly:
+      system: `You are the dedicated product listing assistant for Yamira London, a UK-based women's fashion webshop. Create fully compliant Shopify-ready product listings. Follow every rule exactly.
 
-BRAND CONTEXT: Store name: Yamira London. Market: United Kingdom. Language: Natural UK English. Target audience: Women. Tone: clean, neutral, refined, factual, elegant, premium editorial style. Never write hype, never exaggerate, never make unsupported claims.
+BRAND CONTEXT:
+Store: Yamira London. Market: United Kingdom. Language: Natural UK English. Target: Women. Tone: clean, neutral, refined, factual. Never write hype, never exaggerate, never make unsupported claims.
 
-SEO TITLE RULES: Always generate a title that is 100% original, highly SEO optimised for UK Google searches, natural UK English, descriptive, specific, keyword rich, ends with "for women". Never use: luxury, elegant, perfect, flattering, shaping, slimming, premium quality, comfort fit. Structure: Primary keyword + secondary keyword + descriptive detail + for women.
+SEO TITLE RULES:
+- Use high-volume UK search keywords from this list where relevant: dresses, dresses for women, summer dresses, maxi dress, midi dress, black dress, white dress, party dresses, wedding guest dresses, bodycon dress, wrap dress, floral dress, linen dress, satin dress, jumpsuits, womens coats, trench coat, bomber jacket, blazer, cardigan, co-ord set, two piece set, women's clothing
+- Title must be 100% original, highly SEO optimised for UK Google, descriptive, specific, keyword rich
+- MUST end with "for women"
+- NEVER use: luxury, elegant, perfect, flattering, shaping, slimming, premium quality, comfort fit
+- Structure: Primary keyword + secondary keyword + descriptive detail + for women
 
-PRODUCT DESCRIPTION RULES: Always write in this structure: Intro paragraph (2 sentences), 5 bullet points, Closing sentence (1 sentence). Use visible product features only. Never invent features. Never mention: comfort, support, posture, pain relief, healing, anti-slip, breathable, slimming, shaping, luxury, elegant (as claim).
+PRODUCT DESCRIPTION RULES:
+- Structure: Intro paragraph (2 sentences) + 5 bullet points + Closing sentence (1 sentence)
+- Use only visible product features — never invent features
+- NEVER mention: comfort, support, posture, pain relief, healing, anti-slip, breathable, slimming, shaping, luxury, elegant (as claim), perfect, flattering
+- Write in natural UK English
 
-META DESCRIPTION RULES: max 160 characters, SEO focused, unique, natural UK English, end with "– Yamira London".
+META DESCRIPTION RULES:
+- Max 160 characters
+- SEO focused, unique, natural UK English
+- Must end with "– Yamira London"
 
-URL HANDLE RULES: lowercase only, hyphens only, no special characters, descriptive, unique.
+URL HANDLE RULES:
+- Lowercase only, hyphens only, no special characters
 
-OUTPUT FORMAT - Always output exactly this JSON with no other text, no markdown, no code blocks:
+OUTPUT FORMAT — output ONLY this JSON, no other text, no markdown, no code blocks:
 {"seoTitle":"...","description":"...","metaDescription":"...","urlHandle":"..."}`,
       messages: [{
         role: 'user',
-        content: 'Create a Shopify product listing for this product:\nName: ' + productInfo.title + '\nType: ' + productInfo.type + '\nColors: ' + (productInfo.colors || []).join(', ') + '\nMaterial: ' + (productInfo.material || 'not specified') + '\nSeason: ' + (productInfo.season || 'not specified') + '\nOriginal description: ' + (productInfo.originalDescription || 'none')
+        content: 'Create a Shopify product listing for:\nName: ' + productInfo.title + '\nType: ' + productInfo.type + '\nColors: ' + (productInfo.colors || []).join(', ') + '\nMaterial: ' + (productInfo.material || 'not specified') + '\nSeason: ' + (productInfo.season || 'not specified') + '\nOriginal description: ' + (productInfo.originalDescription || 'none')
       }]
     })
   });
@@ -113,7 +144,7 @@ OUTPUT FORMAT - Always output exactly this JSON with no other text, no markdown,
 
   const data = await response.json();
   const text = (data.content && data.content[0] && data.content[0].text) || '{}';
-  console.log('[generateDescription] Claude text:', text.substring(0, 200));
+  console.log('[generateDescription] Claude response:', text.substring(0, 300));
 
   try {
     const clean = text.replace(/```json\s*/gi, '').replace(/```\s*/gi, '').trim();
@@ -153,71 +184,34 @@ function buildPhotoPrompts(seoTitle, color) {
 
 async function submitKieTask(prompt) {
   console.log('[Kie.ai] Submitting:', prompt.substring(0, 80) + '...');
-
   const r = await fetch('https://api.kie.ai/api/v1/jobs/createTask', {
     method: 'POST',
-    headers: {
-      'Authorization': 'Bearer ' + KIE_API_KEY,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      model: 'ideogram/v3-text-to-image',
-      input: {
-        prompt: prompt,
-        rendering_speed: 'BALANCED',
-        style: 'REALISTIC'
-      }
-    })
+    headers: { 'Authorization': 'Bearer ' + KIE_API_KEY, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model: 'ideogram/v3-text-to-image', input: { prompt: prompt, rendering_speed: 'BALANCED', style: 'REALISTIC' } })
   });
-
   const responseText = await r.text();
-  console.log('[Kie.ai] Submit status:', r.status, '| Body:', responseText.substring(0, 200));
-
   if (!r.ok) throw new Error('Kie.ai submit fout: ' + r.status + ' ' + responseText);
-
   let data;
   try { data = JSON.parse(responseText); } catch(e) { throw new Error('Kie.ai invalid JSON: ' + responseText); }
-
   const taskId = data && data.data && (data.data.taskId || data.data.task_id) || data && data.taskId;
-  if (!taskId) throw new Error('Geen taskId van kie.ai: ' + JSON.stringify(data));
-
-  console.log('[Kie.ai] Task ID:', taskId);
+  if (!taskId) throw new Error('Geen taskId: ' + JSON.stringify(data));
   return taskId;
 }
 
-// ✅ GECORRIGEERD: juist poll-adres en juiste response parsing
 async function pollKieTask(taskId) {
   for (let i = 0; i < 40; i++) {
     await new Promise(function(r) { setTimeout(r, 5000); });
-
-    const poll = await fetch('https://api.kie.ai/api/v1/jobs/recordInfo?taskId=' + taskId, {
-      headers: { 'Authorization': 'Bearer ' + KIE_API_KEY }
-    });
+    const poll = await fetch('https://api.kie.ai/api/v1/jobs/recordInfo?taskId=' + taskId, { headers: { 'Authorization': 'Bearer ' + KIE_API_KEY } });
     const pollText = await poll.text();
-    console.log('[Kie.ai] Poll ' + (i + 1) + ' for ' + taskId + ':', pollText.substring(0, 200));
-
     let result;
     try { result = JSON.parse(pollText); } catch(e) { continue; }
-
     const state = result && result.data && result.data.state;
-
     if (state === 'success') {
       let imgUrl = null;
-      try {
-        const resultJson = JSON.parse(result.data.resultJson);
-        imgUrl = resultJson.resultUrls && resultJson.resultUrls[0];
-      } catch(e) {
-        console.error('[Kie.ai] resultJson parse error:', result.data && result.data.resultJson);
-      }
-      console.log('[Kie.ai] Done! URL:', imgUrl);
+      try { const rj = JSON.parse(result.data.resultJson); imgUrl = rj.resultUrls && rj.resultUrls[0]; } catch(e) {}
       return imgUrl || null;
     }
-
-    if (state === 'fail') {
-      throw new Error('Kie.ai task mislukt: ' + taskId + ' | ' + (result.data && result.data.failMsg));
-    }
-
-    console.log('[Kie.ai] State:', state || 'unknown', '— wachten...');
+    if (state === 'fail') throw new Error('Kie.ai task mislukt: ' + taskId);
   }
   throw new Error('Kie.ai timeout: ' + taskId);
 }
@@ -226,16 +220,10 @@ async function createShopifyProduct(productData) {
   const store = SHOPIFY_STORE.replace(/^https?:\/\//, '').replace(/\/$/, '');
   const r = await fetch('https://' + store + '/admin/api/2024-01/products.json', {
     method: 'POST',
-    headers: {
-      'X-Shopify-Access-Token': SHOPIFY_TOKEN,
-      'Content-Type': 'application/json'
-    },
+    headers: { 'X-Shopify-Access-Token': SHOPIFY_TOKEN, 'Content-Type': 'application/json' },
     body: JSON.stringify({ product: productData })
   });
-  if (!r.ok) {
-    const errText = await r.text();
-    throw new Error('Shopify fout: ' + r.status + ' ' + errText);
-  }
+  if (!r.ok) { const errText = await r.text(); throw new Error('Shopify fout: ' + r.status + ' ' + errText); }
   return r.json();
 }
 
@@ -248,7 +236,7 @@ export default async function handler(req, res) {
   const { productInfo, generatePhotos } = req.body || {};
   if (!productInfo) return res.status(400).json({ error: 'Product info missing' });
 
-  console.log('[handler] Product:', productInfo.title, '| generatePhotos:', generatePhotos);
+  console.log('[handler] Product:', productInfo.title);
 
   try {
     const generated = await generateDescription(productInfo);
@@ -258,11 +246,9 @@ export default async function handler(req, res) {
     const metaDescription = generated.metaDescription || '';
 
     const colors = (productInfo.colors || []).map(translateColor);
-    const tags = [
-      productInfo.type, productInfo.season, 'Yamira London',
-      ...colors, ...(productInfo.extraTags || [])
-    ].filter(Boolean).join(', ');
+    const tags = [productInfo.type, productInfo.season, 'Yamira London', ...colors, ...(productInfo.extraTags || [])].filter(Boolean).join(', ');
 
+    // ✅ Prijs: dichtstbijzijnde x4.99 of x9.99, GEEN compare price
     const price = convertPrice(productInfo.originalPrice, productInfo.currency || 'EUR');
     const sizes = (productInfo.sizes || ['XS', 'S', 'M', 'L', 'XL', 'XXL']).map(mapSize);
 
@@ -270,12 +256,23 @@ export default async function handler(req, res) {
     if (colors.length > 0 && sizes.length > 0) {
       for (const color of colors) {
         for (const size of sizes) {
-          variants.push({ option1: color, option2: size, price: price.toString(), compare_at_price: null, taxable: false });
+          variants.push({
+            option1: color,
+            option2: size,
+            price: price.toString(),
+            compare_at_price: null, // ✅ Altijd leeg
+            taxable: false
+          });
         }
       }
     } else {
       for (const size of sizes) {
-        variants.push({ option1: size, price: price.toString(), compare_at_price: null, taxable: false });
+        variants.push({
+          option1: size,
+          price: price.toString(),
+          compare_at_price: null, // ✅ Altijd leeg
+          taxable: false
+        });
       }
     }
 
@@ -283,31 +280,14 @@ export default async function handler(req, res) {
     if (generatePhotos) {
       const primaryColor = colors[0] || 'the garment colour';
       const prompts = buildPhotoPrompts(seoTitle, primaryColor);
-      console.log('[handler] Generating', prompts.length, 'photos for colour:', primaryColor);
-
       const taskIds = [];
       for (let i = 0; i < prompts.length; i++) {
-        try {
-          const taskId = await submitKieTask(prompts[i]);
-          taskIds.push({ taskId: taskId, index: i });
-        } catch(e) {
-          console.error('[handler] Submit task ' + i + ' failed:', e.message);
-        }
+        try { const taskId = await submitKieTask(prompts[i]); taskIds.push({ taskId: taskId, index: i }); } catch(e) { console.error('Submit task ' + i + ' failed:', e.message); }
       }
-
       for (let j = 0; j < taskIds.length; j++) {
         const item = taskIds[j];
-        try {
-          const imgUrl = await pollKieTask(item.taskId);
-          if (imgUrl) {
-            generatedImages.push({ src: imgUrl, position: item.index + 1 });
-            console.log('[handler] Photo ' + (item.index + 1) + ' done:', imgUrl);
-          }
-        } catch(e) {
-          console.error('[handler] Photo ' + (item.index + 1) + ' failed:', e.message);
-        }
+        try { const imgUrl = await pollKieTask(item.taskId); if (imgUrl) generatedImages.push({ src: imgUrl, position: item.index + 1 }); } catch(e) { console.error('Photo ' + (item.index + 1) + ' failed:', e.message); }
       }
-      console.log('[handler] Total photos:', generatedImages.length);
     }
 
     const shopifyProduct = {
@@ -321,9 +301,7 @@ export default async function handler(req, res) {
       status: 'draft',
       variants: variants,
       options: variants[0] && variants[0].option2 ? [{ name: 'Colour' }, { name: 'Size' }] : [{ name: 'Size' }],
-      images: generatedImages.length > 0
-        ? generatedImages
-        : (productInfo.originalImages || []).map(function(src) { return { src: src }; })
+      images: generatedImages.length > 0 ? generatedImages : (productInfo.originalImages || []).map(function(src) { return { src: src }; })
     };
 
     const result = await createShopifyProduct(shopifyProduct);
