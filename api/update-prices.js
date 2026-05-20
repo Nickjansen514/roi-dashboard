@@ -6,42 +6,33 @@ export default async function handler(req, res) {
   const SHOPIFY_STORE = process.env.SHOPIFY_STORE;
   const store = SHOPIFY_STORE.replace(/^https?:\/\//, '').replace(/\/$/, '');
 
-  const results = { updated: [], skipped: [], errors: [] };
+  // Gebruik ?page=1, ?page=2 etc om pagina voor pagina te verwerken
+  const page = parseInt(req.query.page || '1');
+  const limit = 10; // 10 producten per keer zodat het snel genoeg is
+
+  const results = { updated: [], skipped: 0, errors: [] };
 
   try {
-    // Haal alle producten op
-    let products = [];
-    let url = 'https://' + store + '/admin/api/2024-01/products.json?limit=250&fields=id,title,variants';
+    const url = 'https://' + store + '/admin/api/2024-01/products.json?limit=' + limit + '&page=' + page + '&fields=id,title,variants';
 
-    while (url) {
-      const r = await fetch(url, {
-        headers: { 'X-Shopify-Access-Token': SHOPIFY_TOKEN }
-      });
-      const data = await r.json();
-      products = products.concat(data.products || []);
+    const r = await fetch(url, {
+      headers: { 'X-Shopify-Access-Token': SHOPIFY_TOKEN }
+    });
+    const data = await r.json();
+    const products = data.products || [];
 
-      // Pagination
-      const linkHeader = r.headers.get('Link');
-      const nextMatch = linkHeader && linkHeader.match(/<([^>]+)>;\s*rel="next"/);
-      url = nextMatch ? nextMatch[1] : null;
-    }
-
-    console.log('[price-update] Total products:', products.length);
+    console.log('[price-update] Page:', page, '| Products:', products.length);
 
     for (const product of products) {
       for (const variant of product.variants || []) {
         const updates = {};
 
-        // Rond price af: .95 → .99
-        if (variant.price) {
-          const newPrice = roundPrice(variant.price);
-          if (newPrice !== variant.price) updates.price = newPrice;
+        if (variant.price && variant.price.endsWith('.95')) {
+          updates.price = variant.price.slice(0, -2) + '99';
         }
 
-        // Rond compare_at_price af: .95 → .99
-        if (variant.compare_at_price) {
-          const newCompare = roundPrice(variant.compare_at_price);
-          if (newCompare !== variant.compare_at_price) updates.compare_at_price = newCompare;
+        if (variant.compare_at_price && variant.compare_at_price.endsWith('.95')) {
+          updates.compare_at_price = variant.compare_at_price.slice(0, -2) + '99';
         }
 
         if (Object.keys(updates).length > 0) {
@@ -58,36 +49,33 @@ export default async function handler(req, res) {
             if (updateR.ok) {
               results.updated.push({
                 product: product.title,
-                variant: variant.id,
                 old_price: variant.price,
                 new_price: updates.price || variant.price,
-                old_compare: variant.compare_at_price,
-                new_compare: updates.compare_at_price || variant.compare_at_price
+                old_compare: variant.compare_at_price || null,
+                new_compare: updates.compare_at_price || variant.compare_at_price || null
               });
-              console.log('[price-update] Updated:', product.title, variant.id, updates);
             } else {
               const err = await updateR.text();
-              results.errors.push({ product: product.title, variant: variant.id, error: err });
+              results.errors.push({ product: product.title, error: err });
             }
-
-            // Rate limit: 0.5s wachten tussen calls
-            await new Promise(r => setTimeout(r, 500));
-
           } catch (e) {
-            results.errors.push({ product: product.title, variant: variant.id, error: e.message });
+            results.errors.push({ product: product.title, error: e.message });
           }
         } else {
-          results.skipped.push(variant.id);
+          results.skipped++;
         }
       }
     }
 
     return res.status(200).json({
       success: true,
+      page: page,
+      products_on_this_page: products.length,
+      has_more: products.length === limit,
+      next_url: products.length === limit ? '/api/update-prices?page=' + (page + 1) : null,
       summary: {
-        total_products: products.length,
         variants_updated: results.updated.length,
-        variants_skipped: results.skipped.length,
+        variants_skipped: results.skipped,
         errors: results.errors.length
       },
       updated: results.updated,
@@ -98,21 +86,4 @@ export default async function handler(req, res) {
     console.error('[price-update] Fatal error:', err.message);
     return res.status(500).json({ error: err.message });
   }
-}
-
-function roundPrice(priceStr) {
-  const price = parseFloat(priceStr);
-  if (isNaN(price)) return priceStr;
-
-  // Vervang .95 ending met .99
-  const str = price.toFixed(2);
-  if (str.endsWith('.95')) {
-    return str.slice(0, -2) + '99';
-  }
-  // Ook .95 varianten zoals 34.950
-  if (Math.abs((price % 1) - 0.95) < 0.001) {
-    return (Math.floor(price) + 0.99).toFixed(2);
-  }
-
-  return priceStr; // Niet .95, laat staan
 }
