@@ -333,27 +333,12 @@ export default async function handler(req, res) {
       status: 'draft',
       variants: variants,
       options: variants[0] && variants[0].option2 ? [{ name: 'Colour' }, { name: 'Size' }] : [{ name: 'Size' }],
-      images: (function() {
-        const allImgs = generatedImages.length > 0 ? generatedImages : (productInfo.originalImages || []).map(function(src) { return { src: src }; });
-        return allImgs.slice(0, 1); // Stuur alleen eerste foto bij aanmaken
-      })()
+      images: generatedImages.length > 0
+        ? generatedImages
+        : (productInfo.originalImages || []).map(function(src) { return { src: src }; })
     };
 
     const result = await createShopifyProduct(shopifyProduct);
-
-    // Upload alle resterende foto's na aanmaken product
-    const productId = result.product && result.product.id;
-    if (productId) {
-      const allImages = generatedImages.length > 0
-        ? generatedImages.map(function(i) { return i.src; })
-        : (productInfo.originalImages || []);
-      // Sla de eerste over (al toegevoegd bij aanmaken)
-      const extraImages = allImages.slice(1);
-      if (extraImages.length > 0) {
-        console.log('[handler] Uploading', extraImages.length, 'extra images...');
-        await addExtraImages(productId, extraImages);
-      }
-    }
 
     return res.status(200).json({
       success: true,
