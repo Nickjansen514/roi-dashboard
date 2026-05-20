@@ -11,26 +11,20 @@ function convertPrice(originalPrice, currency = 'EUR') {
   const rates = { EUR: 0.86, USD: 0.79, GBP: 1 };
   const gbp = originalPrice * (rates[currency] || 0.86);
 
-  // Genereer alle kandidaten: x4.99 en x9.99 rond de GBP waarde
   const candidates = [];
   const base = Math.floor(gbp);
   for (let i = base - 10; i <= base + 10; i++) {
-    candidates.push(Math.floor(i / 10) * 10 + 4.99);
-    candidates.push(Math.floor(i / 10) * 10 + 9.99);
+    candidates.push(parseFloat((Math.floor(i / 10) * 10 + 4.99).toFixed(2)));
+    candidates.push(parseFloat((Math.floor(i / 10) * 10 + 9.99).toFixed(2)));
   }
 
-  // Filter positieve waarden en vind de dichtstbijzijnde
   const valid = candidates.filter(function(c) { return c > 0; });
   let closest = valid[0];
   let minDiff = Math.abs(gbp - closest);
   for (let j = 1; j < valid.length; j++) {
     const diff = Math.abs(gbp - valid[j]);
-    if (diff < minDiff) {
-      minDiff = diff;
-      closest = valid[j];
-    }
+    if (diff < minDiff) { minDiff = diff; closest = valid[j]; }
   }
-
   return parseFloat(closest.toFixed(2));
 }
 
@@ -43,21 +37,27 @@ const sizeMap = {
 };
 
 const colorMap = {
-  'noir': 'black', 'blanc': 'white', 'rouge': 'red', 'bleu': 'blue',
-  'vert': 'green', 'rose': 'pink', 'beige': 'beige', 'creme': 'cream',
-  'gris': 'grey', 'marron': 'brown', 'orange': 'orange', 'violet': 'purple',
-  'jaune': 'yellow', 'marine': 'navy', 'bordeaux': 'burgundy',
-  'rouge fonce': 'dark red', 'khaki': 'khaki', 'lila': 'lilac',
-  'zwart': 'black', 'wit': 'white', 'blauw': 'blue', 'groen': 'green',
-  'roze': 'pink', 'grijs': 'grey', 'bruin': 'brown', 'geel': 'yellow',
-  'rood': 'red', 'paars': 'purple',
-  'negro': 'black', 'blanco': 'white', 'rojo': 'red', 'azul': 'blue',
-  'verde': 'green', 'rosa': 'pink', 'amarillo': 'yellow'
+  'noir': 'Black', 'blanc': 'White', 'rouge': 'Red', 'bleu': 'Blue',
+  'vert': 'Green', 'rose': 'Pink', 'beige': 'Beige', 'creme': 'Cream',
+  'gris': 'Grey', 'marron': 'Brown', 'orange': 'Orange', 'violet': 'Purple',
+  'jaune': 'Yellow', 'marine': 'Navy', 'bordeaux': 'Burgundy',
+  'rouge fonce': 'Dark Red', 'khaki': 'Khaki', 'lila': 'Lilac',
+  'zwart': 'Black', 'wit': 'White', 'blauw': 'Blue', 'groen': 'Green',
+  'roze': 'Pink', 'grijs': 'Grey', 'bruin': 'Brown', 'geel': 'Yellow',
+  'rood': 'Red', 'paars': 'Purple', 'negro': 'Black', 'blanco': 'White',
+  'rojo': 'Red', 'azul': 'Blue', 'verde': 'Green', 'rosa': 'Pink',
+  'amarillo': 'Yellow', 'black': 'Black', 'white': 'White', 'red': 'Red',
+  'blue': 'Blue', 'green': 'Green', 'pink': 'Pink', 'grey': 'Grey',
+  'brown': 'Brown', 'purple': 'Purple', 'yellow': 'Yellow', 'navy': 'Navy',
+  'burgundy': 'Burgundy', 'lilac': 'Lilac', 'cream': 'Cream',
+  'dark red': 'Dark Red', 'camel': 'Camel', 'tan': 'Tan', 'coral': 'Coral',
+  'mint': 'Mint', 'olive': 'Olive', 'gold': 'Gold', 'silver': 'Silver',
+  'teal': 'Teal', 'mustard': 'Mustard', 'rust': 'Rust'
 };
 
 function translateColor(color) {
   const lower = color.toLowerCase().trim();
-  return colorMap[lower] || lower;
+  return colorMap[lower] || (color.charAt(0).toUpperCase() + color.slice(1).toLowerCase());
 }
 
 function mapSize(size) {
@@ -67,26 +67,35 @@ function mapSize(size) {
 
 function colorPromptDescription(color) {
   const descriptions = {
-    'black': 'deep black, NOT dark navy or charcoal',
-    'white': 'clean white, NOT off-white or cream',
-    'red': 'bright red, NOT burgundy or dark red',
-    'dark red': 'deep dark red, NOT bright red or orange-red',
-    'pink': 'soft pink, NOT hot pink or magenta',
-    'blue': 'medium blue, NOT navy or light blue',
-    'navy': 'deep navy blue, NOT black or medium blue',
-    'green': 'green, NOT olive or khaki',
-    'khaki': 'warm khaki olive, NOT bright green or brown',
-    'orange': 'warm orange, NOT red-orange or yellow',
-    'yellow': 'warm yellow, NOT lime or gold',
-    'lilac': 'soft lilac purple, NOT pink or dark purple',
-    'purple': 'purple, NOT lilac or dark navy',
-    'grey': 'medium grey, NOT silver or charcoal',
-    'beige': 'warm beige, NOT white or cream',
-    'cream': 'soft cream, NOT white or beige',
-    'brown': 'warm brown, NOT dark or orange',
-    'burgundy': 'deep burgundy wine red, NOT bright red or dark brown',
+    'Black': 'deep black, NOT dark navy or charcoal',
+    'White': 'clean white, NOT off-white or cream',
+    'Red': 'bright red, NOT burgundy or dark red',
+    'Pink': 'soft pink, NOT hot pink or magenta',
+    'Blue': 'medium blue, NOT navy or light blue',
+    'Navy': 'deep navy blue, NOT black or medium blue',
+    'Green': 'green, NOT olive or khaki',
+    'Khaki': 'warm khaki olive, NOT bright green or brown',
+    'Orange': 'warm orange, NOT red-orange or yellow',
+    'Yellow': 'warm yellow, NOT lime or gold',
+    'Lilac': 'soft lilac purple, NOT pink or dark purple',
+    'Purple': 'purple, NOT lilac or dark navy',
+    'Grey': 'medium grey, NOT silver or charcoal',
+    'Beige': 'warm beige, NOT white or cream',
+    'Cream': 'soft cream, NOT white or beige',
+    'Brown': 'warm brown, NOT dark or orange',
+    'Burgundy': 'deep burgundy wine red, NOT bright red or dark brown',
   };
-  return descriptions[color.toLowerCase()] || color;
+  return descriptions[color] || color;
+}
+
+// ── SEO titel omzetten naar URL handle ────────────────────────────────────
+function titleToUrlHandle(title) {
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
 }
 
 async function generateDescription(productInfo) {
@@ -105,34 +114,32 @@ async function generateDescription(productInfo) {
       system: `You are the dedicated product listing assistant for Yamira London, a UK-based women's fashion webshop. Create fully compliant Shopify-ready product listings. Follow every rule exactly.
 
 BRAND CONTEXT:
-Store: Yamira London. Market: United Kingdom. Language: Natural UK English. Target: Women. Tone: clean, neutral, refined, factual. Never write hype, never exaggerate, never make unsupported claims.
+Store: Yamira London. Market: United Kingdom. Language: Natural UK English. Target: Women aged 18-45. Tone: clean, neutral, refined, factual. Never write hype, never exaggerate.
 
 SEO TITLE RULES:
-- Use high-volume UK search keywords from this list where relevant: dresses, dresses for women, summer dresses, maxi dress, midi dress, black dress, white dress, party dresses, wedding guest dresses, bodycon dress, wrap dress, floral dress, linen dress, satin dress, jumpsuits, womens coats, trench coat, bomber jacket, blazer, cardigan, co-ord set, two piece set, women's clothing
-- Title must be 100% original, highly SEO optimised for UK Google, descriptive, specific, keyword rich
+- Use high-volume UK search keywords where relevant: dresses, dresses for women, summer dresses, maxi dress, midi dress, black dress, white dress, party dresses, wedding guest dresses, bodycon dress, wrap dress, floral dress, linen dress, satin dress, jumpsuits, womens coats, trench coat, bomber jacket, blazer, cardigan, co-ord set, two piece set
+- Title must be descriptive, specific, keyword rich
 - MUST end with "for women"
 - NEVER use: luxury, elegant, perfect, flattering, shaping, slimming, premium quality, comfort fit
 - Structure: Primary keyword + secondary keyword + descriptive detail + for women
 
 PRODUCT DESCRIPTION RULES:
-- Structure: Intro paragraph (2 sentences) + 5 bullet points + Closing sentence (1 sentence)
-- Use only visible product features — never invent features
-- NEVER mention: comfort, support, posture, pain relief, healing, anti-slip, breathable, slimming, shaping, luxury, elegant (as claim), perfect, flattering
-- Write in natural UK English
+- Structure EXACTLY: Intro paragraph (2 sentences) + 5 bullet points + Closing sentence (1 sentence)
+- Use only visible product features
+- NEVER mention: comfort, support, posture, pain relief, healing, anti-slip, breathable, slimming, shaping, luxury, elegant, perfect, flattering
+- Natural UK English only
 
 META DESCRIPTION RULES:
-- Max 160 characters
-- SEO focused, unique, natural UK English
+- Max 160 characters STRICTLY
+- Must be compelling, SEO-focused, include main product keyword and key feature
 - Must end with "– Yamira London"
-
-URL HANDLE RULES:
-- Lowercase only, hyphens only, no special characters
+- Do NOT just list colours - write a proper selling meta description
 
 OUTPUT FORMAT — output ONLY this JSON, no other text, no markdown, no code blocks:
-{"seoTitle":"...","description":"...","metaDescription":"...","urlHandle":"..."}`,
+{"seoTitle":"...","description":"...","metaDescription":"..."}`,
       messages: [{
         role: 'user',
-        content: 'Create a Shopify product listing for:\nName: ' + productInfo.title + '\nType: ' + productInfo.type + '\nColors: ' + (productInfo.colors || []).join(', ') + '\nMaterial: ' + (productInfo.material || 'not specified') + '\nSeason: ' + (productInfo.season || 'not specified') + '\nOriginal description: ' + (productInfo.originalDescription || 'none')
+        content: 'Create a listing for:\nName: ' + productInfo.title + '\nType: ' + productInfo.type + '\nColors: ' + (productInfo.colors || []).join(', ') + '\nMaterial: ' + (productInfo.material || 'not specified') + '\nSeason: ' + (productInfo.season || 'not specified') + '\nOriginal description: ' + (productInfo.originalDescription || 'none')
       }]
     })
   });
@@ -144,7 +151,7 @@ OUTPUT FORMAT — output ONLY this JSON, no other text, no markdown, no code blo
 
   const data = await response.json();
   const text = (data.content && data.content[0] && data.content[0].text) || '{}';
-  console.log('[generateDescription] Claude response:', text.substring(0, 300));
+  console.log('[generateDescription] Response:', text.substring(0, 300));
 
   try {
     const clean = text.replace(/```json\s*/gi, '').replace(/```\s*/gi, '').trim();
@@ -154,8 +161,7 @@ OUTPUT FORMAT — output ONLY this JSON, no other text, no markdown, no code blo
     return {
       seoTitle: productInfo.title,
       description: text,
-      metaDescription: '',
-      urlHandle: productInfo.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+      metaDescription: ''
     };
   }
 }
@@ -163,13 +169,11 @@ OUTPUT FORMAT — output ONLY this JSON, no other text, no markdown, no code blo
 function buildPhotoPrompts(seoTitle, color) {
   const colorDesc = colorPromptDescription(color);
   const GARMENT = seoTitle + ' in ' + colorDesc;
-
   const detailKeywords = ['neckline', 'sleeve', 'collar', 'hem', 'waist', 'button', 'zip', 'ruffle', 'bow', 'tie', 'slit', 'pleat', 'gather', 'ruche', 'butterfly'];
   let detail = 'neckline and sleeve detail';
   for (const kw of detailKeywords) {
     if (seoTitle.toLowerCase().includes(kw)) { detail = kw + ' detail'; break; }
   }
-
   return [
     'Professional e-commerce fashion photo. The model is ' + MODEL + ', neutral confident expression. She is wearing ' + GARMENT + ', styled with ' + STYLING + '. The photo is cropped from ' + CROP + ' — the garment fills the frame and is the clear focus, NOT a full-body shot. Clean light gray studio background, soft even studio lighting, no harsh shadows. High-end fashion e-commerce photography style. Photorealistic. No text, no watermark.',
     'Professional e-commerce fashion photo. The model is ' + MODEL + ', turned with her back fully to the camera, looking slightly over her left shoulder with a relaxed expression. She is wearing ' + GARMENT + ' — back details, seams, and construction clearly visible. Styled with ' + STYLING + '. Photo cropped from ' + CROP + ' — tight on the garment, NOT a full-body shot. Clean light gray studio background, soft even studio lighting. High-end fashion e-commerce photography style. Photorealistic. No text, no watermark.',
@@ -183,7 +187,6 @@ function buildPhotoPrompts(seoTitle, color) {
 }
 
 async function submitKieTask(prompt) {
-  console.log('[Kie.ai] Submitting:', prompt.substring(0, 80) + '...');
   const r = await fetch('https://api.kie.ai/api/v1/jobs/createTask', {
     method: 'POST',
     headers: { 'Authorization': 'Bearer ' + KIE_API_KEY, 'Content-Type': 'application/json' },
@@ -192,7 +195,7 @@ async function submitKieTask(prompt) {
   const responseText = await r.text();
   if (!r.ok) throw new Error('Kie.ai submit fout: ' + r.status + ' ' + responseText);
   let data;
-  try { data = JSON.parse(responseText); } catch(e) { throw new Error('Kie.ai invalid JSON: ' + responseText); }
+  try { data = JSON.parse(responseText); } catch(e) { throw new Error('Kie.ai invalid JSON'); }
   const taskId = data && data.data && (data.data.taskId || data.data.task_id) || data && data.taskId;
   if (!taskId) throw new Error('Geen taskId: ' + JSON.stringify(data));
   return taskId;
@@ -242,39 +245,52 @@ export default async function handler(req, res) {
     const generated = await generateDescription(productInfo);
     const description = generated.description || '';
     const seoTitle = generated.seoTitle || productInfo.title;
-    const urlHandle = generated.urlHandle || productInfo.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
     const metaDescription = generated.metaDescription || '';
 
-    const colors = (productInfo.colors || []).map(translateColor);
-    const tags = [productInfo.type, productInfo.season, 'Yamira London', ...colors, ...(productInfo.extraTags || [])].filter(Boolean).join(', ');
+    // ✅ URL handle = exact de SEO titel als URL
+    const urlHandle = titleToUrlHandle(seoTitle);
 
-    // ✅ Prijs: dichtstbijzijnde x4.99 of x9.99, GEEN compare price
+    // ✅ Kleuren: exact van concurrent, hoofdletter, vertaald
+    const colors = (productInfo.colors || []).map(translateColor);
+
+    // ✅ Tags: alleen seizoen + producttype (geen kleuren, geen Yamira London)
+    const productType = productInfo.type || 'Dress';
+    const season = productInfo.season || 'ALL YEAR';
+    const tags = [season, productType].filter(Boolean).join(', ');
+
+    // ✅ Prijs: dichtstbijzijnde x4.99/x9.99, GEEN compare price
     const price = convertPrice(productInfo.originalPrice, productInfo.currency || 'EUR');
-    const sizes = (productInfo.sizes || ['XS', 'S', 'M', 'L', 'XL', 'XXL']).map(mapSize);
+    const sizes = (productInfo.sizes || ['XS (UK6)', 'S (UK8)', 'M (UK10)', 'L (UK12)', 'XL (UK14)', 'XXL (UK16)']).map(function(s) {
+      return sizeMap[s.toUpperCase().trim()] || s;
+    });
 
     const variants = [];
     if (colors.length > 0 && sizes.length > 0) {
       for (const color of colors) {
         for (const size of sizes) {
-          variants.push({
-            option1: color,
-            option2: size,
-            price: price.toString(),
-            compare_at_price: null, // ✅ Altijd leeg
-            taxable: false
-          });
+          variants.push({ option1: color, option2: size, price: price.toString(), compare_at_price: null, taxable: false });
         }
       }
     } else {
       for (const size of sizes) {
-        variants.push({
-          option1: size,
-          price: price.toString(),
-          compare_at_price: null, // ✅ Altijd leeg
-          taxable: false
-        });
+        variants.push({ option1: size, price: price.toString(), compare_at_price: null, taxable: false });
       }
     }
+
+    // ✅ Metavelden: neckline, dress style, occasion, colour, fit, sleeve length, length type — GEEN fabric
+    const metafields = [
+      { namespace: 'global', key: 'description_tag', value: metaDescription, type: 'single_line_text_field' }
+    ];
+
+    // Voeg product-specifieke metavelden toe op basis van producttype en info
+    if (productInfo.neckline) metafields.push({ namespace: 'shopify', key: 'neckline', value: productInfo.neckline, type: 'single_line_text_field' });
+    if (productInfo.dressStyle) metafields.push({ namespace: 'shopify', key: 'dress-style', value: productInfo.dressStyle, type: 'single_line_text_field' });
+    if (productInfo.occasion) metafields.push({ namespace: 'shopify', key: 'dress-occasion', value: productInfo.occasion, type: 'single_line_text_field' });
+    if (productInfo.fit) metafields.push({ namespace: 'shopify', key: 'fit', value: productInfo.fit, type: 'single_line_text_field' });
+    if (productInfo.sleeveLength) metafields.push({ namespace: 'shopify', key: 'sleeve-length-type', value: productInfo.sleeveLength, type: 'single_line_text_field' });
+    if (productInfo.lengthType) metafields.push({ namespace: 'shopify', key: 'skirt-dress-length-type', value: productInfo.lengthType, type: 'single_line_text_field' });
+    if (colors.length > 0) metafields.push({ namespace: 'shopify', key: 'color-pattern', value: colors[0], type: 'single_line_text_field' });
+    if (season !== 'ALL YEAR') metafields.push({ namespace: 'shopify', key: 'target-gender', value: 'Female', type: 'single_line_text_field' });
 
     let generatedImages = [];
     if (generatePhotos) {
@@ -286,17 +302,17 @@ export default async function handler(req, res) {
       }
       for (let j = 0; j < taskIds.length; j++) {
         const item = taskIds[j];
-        try { const imgUrl = await pollKieTask(item.taskId); if (imgUrl) generatedImages.push({ src: imgUrl, position: item.index + 1 }); } catch(e) { console.error('Photo ' + (item.index + 1) + ' failed:', e.message); }
+        try { const imgUrl = await pollKieTask(item.taskId); if (imgUrl) generatedImages.push({ src: imgUrl, position: item.index + 1 }); } catch(e) { console.error('Photo failed:', e.message); }
       }
     }
 
     const shopifyProduct = {
       title: seoTitle,
-      handle: urlHandle || undefined,
+      handle: urlHandle,
       body_html: description ? '<p>' + description.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>') + '</p>' : '',
-      metafields: metaDescription ? [{ key: 'description_tag', value: metaDescription, type: 'single_line_text_field', namespace: 'global' }] : [],
+      metafields: metafields,
       vendor: 'Yamira London',
-      product_type: productInfo.type || 'Dress',
+      product_type: productType,
       tags: tags,
       status: 'draft',
       variants: variants,
@@ -310,6 +326,7 @@ export default async function handler(req, res) {
       success: true,
       product: result.product,
       seoTitle: seoTitle,
+      urlHandle: urlHandle,
       description: description,
       metaDescription: metaDescription,
       price: price,
