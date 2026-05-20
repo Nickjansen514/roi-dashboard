@@ -241,7 +241,14 @@ export default async function handler(req, res) {
     const colors = (productInfo.colors || []).map(translateColor);
     const productType = productInfo.type || 'Dress';
     const season = productInfo.season || 'ALL YEAR';
-    const tags = [season, productType].filter(Boolean).join(', ');
+    // Tags: seizoen + producttype + hoofdcategorie
+    const tagSet = [season, productType];
+    const mainCategory = productType.includes('Dress') ? 'Dress' :
+                         (productType.includes('Jacket') || productType.includes('Coat') || productType.includes('Blazer')) ? 'Outerwear' :
+                         (productType.includes('Top') || productType.includes('Blouse')) ? 'Tops' :
+                         (productType.includes('Trouser') || productType.includes('Skirt')) ? 'Bottoms' : null;
+    if (mainCategory && mainCategory !== productType) tagSet.push(mainCategory);
+    const tags = tagSet.filter(Boolean).join(', ');
     const price = convertPrice(productInfo.originalPrice, productInfo.currency || 'EUR');
     const sizes = (productInfo.sizes || ['XS (UK6)', 'S (UK8)', 'M (UK10)', 'L (UK12)', 'XL (UK14)', 'XXL (UK16)']).map(function(s) {
       return sizeMap[s.toUpperCase().trim()] || s;
@@ -282,7 +289,25 @@ export default async function handler(req, res) {
     const shopifyProduct = {
       title: seoTitle,
       handle: urlHandle,
-      body_html: description ? '<p>' + description.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>') + '</p>' : '',
+      body_html: description ? (function(d) {
+        // Zet bullet punten om naar echte HTML lijst
+        var parts = d.split('\n');
+        var html = '';
+        var inList = false;
+        for (var i = 0; i < parts.length; i++) {
+          var line = parts[i].trim();
+          if (!line) continue;
+          if (line.startsWith('•') || line.startsWith('-') || line.startsWith('*')) {
+            if (!inList) { html += '<ul>'; inList = true; }
+            html += '<li>' + line.replace(/^[•\-\*]\s*/, '') + '</li>';
+          } else {
+            if (inList) { html += '</ul>'; inList = false; }
+            html += '<p>' + line + '</p>';
+          }
+        }
+        if (inList) html += '</ul>';
+        return html;
+      })(description) : '',
       metafields: metafields,
       vendor: 'Yamira London',
       product_type: productType,
