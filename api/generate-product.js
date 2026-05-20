@@ -333,12 +333,21 @@ export default async function handler(req, res) {
       status: 'draft',
       variants: variants,
       options: variants[0] && variants[0].option2 ? [{ name: 'Colour' }, { name: 'Size' }] : [{ name: 'Size' }],
-      images: generatedImages.length > 0
-        ? generatedImages
-        : (productInfo.originalImages || []).map(function(src) { return { src: src }; })
+      images: [] // Foto's worden na aanmaken één voor één geupload
     };
 
     const result = await createShopifyProduct(shopifyProduct);
+    const productId = result.product && result.product.id;
+
+    // Upload alle foto's na aanmaken (Shopify limiet bij aanmaken omzeilen)
+    const allImageUrls = generatedImages.length > 0
+      ? generatedImages.map(function(i) { return i.src; })
+      : (productInfo.originalImages || []);
+
+    if (productId && allImageUrls.length > 0) {
+      console.log('[handler] Uploading', allImageUrls.length, 'images to product', productId);
+      await addExtraImages(productId, allImageUrls);
+    }
 
     return res.status(200).json({
       success: true,
