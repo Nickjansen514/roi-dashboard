@@ -190,6 +190,65 @@ let sortDir = 'desc';
 let searchQ = '';
 let charts = {};
 
+// ✅ Kleurenvertaling met hoofdletter — zelfde als scrape.js
+var COLOR_MAP = {
+  'noir':'Black','blanc':'White','rouge':'Red','bleu':'Blue','vert':'Green','rose':'Pink',
+  'beige':'Beige','creme':'Cream','gris':'Grey','marron':'Brown','orange':'Orange',
+  'violet':'Purple','jaune':'Yellow','marine':'Navy','bordeaux':'Burgundy',
+  'rouge fonce':'Dark Red','khaki':'Khaki','lila':'Lilac',
+  'zwart':'Black','wit':'White','blauw':'Blue','groen':'Green','roze':'Pink',
+  'grijs':'Grey','bruin':'Brown','geel':'Yellow','rood':'Red','paars':'Purple',
+  'negro':'Black','blanco':'White','rojo':'Red','azul':'Blue','verde':'Green',
+  'rosa':'Pink','amarillo':'Yellow',
+  'black':'Black','white':'White','red':'Red','blue':'Blue','green':'Green',
+  'pink':'Pink','grey':'Grey','gray':'Grey','brown':'Brown','purple':'Purple',
+  'yellow':'Yellow','navy':'Navy','burgundy':'Burgundy','lilac':'Lilac',
+  'cream':'Cream','dark red':'Dark Red','camel':'Camel','tan':'Tan','coral':'Coral',
+  'mint':'Mint','olive':'Olive','gold':'Gold','silver':'Silver','teal':'Teal',
+  'mustard':'Mustard','rust':'Rust','nude':'Nude','stone':'Stone','taupe':'Taupe',
+  'mauve':'Mauve','blush':'Blush','wine':'Wine','plum':'Plum','fuchsia':'Fuchsia',
+  'turquoise':'Turquoise','aqua':'Aqua','ivory':'Ivory','sage':'Sage','denim':'Denim'
+};
+
+var SIZE_MAP = {
+  'XS':'XS (UK6)','S':'S (UK8)','M':'M (UK10)','L':'L (UK12)',
+  'XL':'XL (UK14)','XXL':'XXL (UK16)','2XL':'XXL (UK16)','3XL':'XXXL (UK18)'
+};
+
+function translateColor(color) {
+  var key = color.toLowerCase().trim().replace(/[èéê]/g,'e').replace(/[àâ]/g,'a').replace(/[ùú]/g,'u');
+  return COLOR_MAP[key] || (color.trim().charAt(0).toUpperCase() + color.trim().slice(1).toLowerCase());
+}
+
+// ✅ Prijs: dichtstbijzijnde x4.99 of x9.99 — ook naar beneden
+function convertToGbp(price, currency) {
+  var rates = { EUR: 0.86, USD: 0.79, GBP: 1 };
+  var gbp = price * (rates[currency] || 0.86);
+
+  var candidates = [];
+  var base = Math.floor(gbp);
+  for (var i = base - 10; i <= base + 10; i++) {
+    candidates.push(Math.floor(i / 10) * 10 + 4.99);
+    candidates.push(Math.floor(i / 10) * 10 + 9.99);
+  }
+  candidates = candidates.filter(function(c) { return c > 0; });
+
+  var closest = candidates[0];
+  var minDiff = Math.abs(gbp - closest);
+  for (var j = 1; j < candidates.length; j++) {
+    var diff = Math.abs(gbp - candidates[j]);
+    if (diff < minDiff) { minDiff = diff; closest = candidates[j]; }
+  }
+  return parseFloat(closest.toFixed(2));
+}
+
+function updateGbpPrice() {
+  var price = parseFloat(document.getElementById('pl-price').value) || 0;
+  var currency = document.getElementById('pl-currency').value;
+  var gbp = convertToGbp(price, currency);
+  document.getElementById('pl-gbp').value = '£' + gbp.toFixed(2);
+}
+
 function checkUrlToken() {
   const params = new URLSearchParams(window.location.search);
   const token = params.get('token');
@@ -450,40 +509,10 @@ function saveGads() {
   navigate('producten');
 }
 
-var COLOR_MAP = {
-  'noir':'black','blanc':'white','rouge':'red','bleu':'blue','vert':'green','rose':'pink',
-  'beige':'beige','creme':'cream','gris':'grey','marron':'brown','orange':'orange',
-  'violet':'purple','jaune':'yellow','marine':'navy','bordeaux':'burgundy',
-  'rouge fonce':'dark red','khaki':'khaki','lila':'lilac','zwart':'black','wit':'white',
-  'blauw':'blue','groen':'green','roze':'pink','grijs':'grey','bruin':'brown',
-  'geel':'yellow','rood':'red','paars':'purple'
-};
-
-var SIZE_MAP = {
-  'XS':'XS (UK6)','S':'S (UK8)','M':'M (UK10)','L':'L (UK12)',
-  'XL':'XL (UK14)','XXL':'XXL (UK16)','2XL':'XXL (UK16)','3XL':'XXXL (UK18)'
-};
-
 function renderProductLister() {
-  document.getElementById('content').innerHTML = '<div style="max-width:800px;"><div class="settings-card"><h2>Product Lister</h2><p class="desc">Plak een productlink en wij genereren automatisch de beschrijving, tags en foto\'s voor Yamira London.</p><div class="field" style="margin-bottom:14px;"><label>Product URL</label><input id="pl-url" type="text" placeholder="https://www.example.com/products/dress" style="padding:10px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:13px;font-family:var(--font);outline:none;width:100%;"></div><button class="btn btn-primary" onclick="scrapeProduct()"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="8" r="6"/><path d="M8 4v4l3 3"/></svg>Product ophalen</button></div><div id="pl-result" style="display:none;"><div class="settings-card"><h2>Productinfo</h2><div class="field-grid" style="margin-bottom:16px;"><div class="field"><label>Productnaam</label><input id="pl-name" type="text" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"></div><div class="field"><label>Type product</label><input id="pl-type" type="text" placeholder="Dress, Maxi Dress, Top..." style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"></div><div class="field"><label>Originele prijs</label><input id="pl-price" type="number" step="0.01" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"></div><div class="field"><label>Valuta</label><select id="pl-currency" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"><option value="EUR">EUR (&euro;)</option><option value="GBP">GBP (&pound;)</option><option value="USD">USD ($)</option></select></div><div class="field"><label>Prijs in GBP (automatisch)</label><input id="pl-gbp" type="text" readonly style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;opacity:0.7;"></div><div class="field"><label>Seizoen</label><select id="pl-season" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"><option value="ALL YEAR">ALL YEAR</option><option value="SUMMER">SUMMER</option><option value="WINTER">WINTER</option></select></div></div><div class="field" style="margin-bottom:14px;"><label>Kleuren (komma gescheiden)</label><input id="pl-colors" type="text" placeholder="black, white, red..." style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"></div><div class="field" style="margin-bottom:14px;"><label>Maten (komma gescheiden)</label><input id="pl-sizes" type="text" value="XS (UK6), S (UK8), M (UK10), L (UK12), XL (UK14), XXL (UK16)" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"></div><div class="field" style="margin-bottom:14px;"><label>Extra tags (optioneel)</label><input id="pl-tags" type="text" placeholder="midi dress, occasion wear..." style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"></div><div id="pl-images-preview" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;"></div><div style="display:flex;gap:10px;flex-wrap:wrap;"><button class="btn btn-primary" id="pl-submit-btn" onclick="submitProduct()">Product aanmaken in Shopify</button><button class="btn" onclick="navigate(\'producten\')">Annuleren</button></div></div></div><div id="pl-status" style="display:none;" class="banner banner-info"><div><h3 id="pl-status-title">Bezig...</h3><p id="pl-status-msg"></p></div></div><div id="pl-success" style="display:none;" class="banner banner-info"><div><h3 id="pl-success-title">&#10003; Product aangemaakt!</h3><p id="pl-success-msg"></p></div></div></div>';
+  document.getElementById('content').innerHTML = '<div style="max-width:800px;"><div class="settings-card"><h2>Product Lister</h2><p class="desc">Plak een productlink en wij genereren automatisch de beschrijving, tags en foto\'s voor Yamira London.</p><div class="field" style="margin-bottom:14px;"><label>Product URL</label><input id="pl-url" type="text" placeholder="https://www.example.com/products/dress" style="padding:10px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:13px;font-family:var(--font);outline:none;width:100%;"></div><button class="btn btn-primary" onclick="scrapeProduct()"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="8" r="6"/><path d="M8 4v4l3 3"/></svg>Product ophalen</button></div><div id="pl-result" style="display:none;"><div class="settings-card"><h2>Productinfo</h2><div class="field-grid" style="margin-bottom:16px;"><div class="field"><label>Productnaam</label><input id="pl-name" type="text" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"></div><div class="field"><label>Type product</label><input id="pl-type" type="text" placeholder="Dress, Maxi Dress, Top..." style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"></div><div class="field"><label>Originele prijs</label><input id="pl-price" type="number" step="0.01" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"></div><div class="field"><label>Valuta</label><select id="pl-currency" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"><option value="EUR">EUR (&euro;)</option><option value="GBP">GBP (&pound;)</option><option value="USD">USD ($)</option></select></div><div class="field"><label>Prijs in GBP (automatisch)</label><input id="pl-gbp" type="text" readonly style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;opacity:0.7;"></div><div class="field"><label>Seizoen</label><select id="pl-season" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"><option value="ALL YEAR">ALL YEAR</option><option value="SUMMER">SUMMER</option><option value="WINTER">WINTER</option></select></div></div><div class="field" style="margin-bottom:14px;"><label>Kleuren (komma gescheiden)</label><input id="pl-colors" type="text" placeholder="White, Black, Pink..." style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"></div><div class="field" style="margin-bottom:14px;"><label>Maten (komma gescheiden)</label><input id="pl-sizes" type="text" value="XS (UK6), S (UK8), M (UK10), L (UK12), XL (UK14), XXL (UK16)" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"></div><div class="field" style="margin-bottom:14px;"><label>Extra tags (optioneel)</label><input id="pl-tags" type="text" placeholder="midi dress, occasion wear..." style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"></div><div id="pl-images-preview" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;"></div><div style="display:flex;gap:10px;flex-wrap:wrap;"><button class="btn btn-primary" id="pl-submit-btn" onclick="submitProduct()">Product aanmaken in Shopify</button><button class="btn" onclick="navigate(\'producten\')">Annuleren</button></div></div></div><div id="pl-status" style="display:none;" class="banner banner-info"><div><h3 id="pl-status-title">Bezig...</h3><p id="pl-status-msg"></p></div></div><div id="pl-success" style="display:none;" class="banner banner-info"><div><h3 id="pl-success-title">&#10003; Product aangemaakt!</h3><p id="pl-success-msg"></p></div></div></div>';
   document.getElementById('pl-price').addEventListener('input', updateGbpPrice);
   document.getElementById('pl-currency').addEventListener('change', updateGbpPrice);
-}
-
-function updateGbpPrice() {
-  var price = parseFloat(document.getElementById('pl-price').value) || 0;
-  var currency = document.getElementById('pl-currency').value;
-  var gbp = convertToGbp(price, currency);
-  document.getElementById('pl-gbp').value = '£' + gbp.toFixed(2);
-}
-
-function convertToGbp(price, currency) {
-  var rates = { EUR: 0.86, USD: 0.79, GBP: 1 };
-  var gbp = price * (rates[currency] || 0.86);
-  var base = Math.floor(gbp);
-  var remainder = base % 10;
-  if (remainder < 5) return Math.floor(base / 10) * 10 + 4.95;
-  return Math.floor(base / 10) * 10 + 9.95;
 }
 
 async function scrapeProduct() {
@@ -501,18 +530,26 @@ async function scrapeProduct() {
     setPlStatus(false);
     document.getElementById('pl-result').style.display = 'block';
     document.getElementById('pl-name').value = data.title || '';
-    if (data.price) { document.getElementById('pl-price').value = data.price; updateGbpPrice(); }
-    if (data.colors && data.colors.length > 0) {
-      var translated = data.colors.map(function(c) {
-        var key = c.toLowerCase().trim().replace(/[èéê]/g,'e').replace(/[àâ]/g,'a');
-        return COLOR_MAP[key] || c.toLowerCase().trim();
-      });
-      document.getElementById('pl-colors').value = translated.join(', ');
+
+    // ✅ Prijs: gebruik de prijs direct van de scraper, converteer correct
+    if (data.price) {
+      document.getElementById('pl-price').value = data.price;
+      updateGbpPrice();
     }
+
+    // ✅ Kleuren: scraper geeft al hoofdletter terug, we doen alleen extra check
+    if (data.colors && data.colors.length > 0) {
+      var translatedColors = data.colors.map(function(c) { return translateColor(c); });
+      document.getElementById('pl-colors').value = translatedColors.join(', ');
+    }
+
+    // Maten
     if (data.sizes && data.sizes.length > 0) {
-      var mapped = data.sizes.map(function(s) { return SIZE_MAP[s.toUpperCase()] || s; });
+      var mapped = data.sizes.map(function(s) { return SIZE_MAP[s.toUpperCase().trim()] || s; });
       document.getElementById('pl-sizes').value = mapped.join(', ');
     }
+
+    // Auto-detect product type
     var titleLower = (data.title || '').toLowerCase();
     var autoType = 'Dress';
     if (titleLower.indexOf('maxi') !== -1) autoType = 'Maxi Dress';
@@ -527,9 +564,11 @@ async function scrapeProduct() {
     else if (titleLower.indexOf('combinaison') !== -1 || titleLower.indexOf('jumpsuit') !== -1) autoType = 'Jumpsuit';
     else if (titleLower.indexOf('ensemble') !== -1 || titleLower.indexOf('set') !== -1) autoType = 'Co-ord Set';
     document.getElementById('pl-type').value = autoType;
+
+    // Foto preview
     if (data.images && data.images.length > 0) {
       var preview = document.getElementById('pl-images-preview');
-      preview.innerHTML = data.images.slice(0, 6).map(function(img) {
+      preview.innerHTML = data.images.slice(0, 8).map(function(img) {
         return '<img src="' + img + '" style="width:80px;height:80px;object-fit:cover;border-radius:6px;border:1px solid var(--border);" onerror="this.style.display=\'none\'">';
       }).join('');
     }
@@ -586,9 +625,8 @@ function setPlStatus(show, title, msg) {
   }
 }
 
-// ✅ UPDATED: Foto Generator met referentiefoto ondersteuning
 function renderFotoGenerator() {
-  document.getElementById('content').innerHTML = '<div style="max-width:700px;"><div class="settings-card"><h2>Foto Generator</h2><p class="desc">Plak een Shopify admin productlink en wij genereren automatisch 8 professionele productfoto\'s. De originele productfoto wordt gebruikt als referentie zodat de jurk exact klopt.</p><div class="field" style="margin-bottom:14px;"><label>Shopify Admin URL</label><input id="fg-url" type="text" placeholder="https://admin.shopify.com/store/yamira-london/products/12345..." style="padding:10px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:13px;font-family:var(--font);outline:none;width:100%;"></div><div class="field" style="margin-bottom:14px;"><label>Kleur (optioneel)</label><input id="fg-color" type="text" placeholder="bijv. black, pink, burgundy..." style="padding:10px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:13px;font-family:var(--font);outline:none;width:100%;"></div><div class="field" style="margin-bottom:16px;"><label>Specifieke referentiefoto URL (optioneel — laat leeg voor automatisch)</label><input id="fg-refimg" type="text" placeholder="https://... (laat leeg, dan pakt die de eerste productfoto)" style="padding:10px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:13px;font-family:var(--font);outline:none;width:100%;"></div><button class="btn btn-primary" id="fg-btn" onclick="startFotoGenerator()">&#128248; Foto\'s genereren</button></div><div id="fg-status" style="display:none;" class="banner banner-info"><div><h3 id="fg-status-title">Bezig...</h3><p id="fg-status-msg"></p></div></div><div id="fg-success" style="display:none;" class="banner banner-info"><div><h3>&#10003; Foto\'s aangemaakt!</h3><p id="fg-success-msg"></p></div></div><div id="fg-images" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;"></div></div>';
+  document.getElementById('content').innerHTML = '<div style="max-width:700px;"><div class="settings-card"><h2>Foto Generator</h2><p class="desc">Plak een Shopify admin productlink en wij genereren automatisch 8 professionele productfoto\'s. De originele productfoto wordt gebruikt als referentie zodat de jurk exact klopt.</p><div class="field" style="margin-bottom:14px;"><label>Shopify Admin URL</label><input id="fg-url" type="text" placeholder="https://admin.shopify.com/store/yamira-london/products/12345..." style="padding:10px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:13px;font-family:var(--font);outline:none;width:100%;"></div><div class="field" style="margin-bottom:14px;"><label>Kleur (optioneel)</label><input id="fg-color" type="text" placeholder="bijv. Black, Pink, Burgundy..." style="padding:10px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:13px;font-family:var(--font);outline:none;width:100%;"></div><div class="field" style="margin-bottom:16px;"><label>Specifieke referentiefoto URL (optioneel)</label><input id="fg-refimg" type="text" placeholder="https://... (laat leeg, dan pakt die de eerste productfoto)" style="padding:10px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:13px;font-family:var(--font);outline:none;width:100%;"></div><button class="btn btn-primary" id="fg-btn" onclick="startFotoGenerator()">&#128248; Foto\'s genereren</button></div><div id="fg-status" style="display:none;" class="banner banner-info"><div><h3 id="fg-status-title">Bezig...</h3><p id="fg-status-msg"></p></div></div><div id="fg-success" style="display:none;" class="banner banner-info"><div><h3>&#10003; Foto\'s aangemaakt!</h3><p id="fg-success-msg"></p></div></div><div id="fg-images" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;"></div></div>';
 }
 
 async function startFotoGenerator() {
