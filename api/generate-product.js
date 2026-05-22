@@ -277,9 +277,13 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   const { productInfo, generatePhotos } = req.body || {};
-  // Gebruik token/store uit request body als aanwezig (voor Store 2), anders env variable
-  const reqToken = productInfo && productInfo.shopifyToken;
-  const reqStore = productInfo && productInfo.shopifyStore;
+  // Gebruik storeId of directe token/store uit request body
+  let reqToken = productInfo && productInfo.shopifyToken;
+  let reqStore = productInfo && productInfo.shopifyStore;
+  if (productInfo && productInfo.storeId === 'store2') {
+    reqToken = process.env.SHOPIFY_TOKEN_2;
+    reqStore = process.env.SHOPIFY_STORE_2 || 'gw5ubt-8p.myshopify.com';
+  }
   if (!productInfo) return res.status(400).json({ error: 'Product info missing' });
 
   console.log('[handler] Product:', productInfo.title);
