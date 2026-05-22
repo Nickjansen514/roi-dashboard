@@ -3,14 +3,20 @@ const SHOPIFY_STORE = process.env.SHOPIFY_STORE;
 const PIAPI_KEY = process.env.PIAPI_KEY;
 const FACE_IMAGE_URL = process.env.FACE_IMAGE_URL;
 
+function resizeShopifyUrl(url) {
+  if (!url.includes('cdn.shopify.com')) return url;
+  return url + (url.includes('?') ? '&' : '?') + 'width=2048&height=2048';
+}
+
 async function submitFaceSwap(targetImageUrl) {
+  const resizedUrl = resizeShopifyUrl(targetImageUrl);
   const r = await fetch('https://api.piapi.ai/api/v1/task', {
     method: 'POST',
     headers: { 'x-api-key': PIAPI_KEY, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       model: 'Qubico/image-toolkit',
       task_type: 'face-swap',
-      input: { target_image: targetImageUrl, swap_image: FACE_IMAGE_URL }
+      input: { target_image: resizedUrl, swap_image: FACE_IMAGE_URL }
     })
   });
   const data = await r.json();
@@ -29,12 +35,12 @@ async function pollFaceSwap(taskId) {
     });
     const data = await r.json();
     const status = data.data && data.data.status;
-    if (status === 'Completed') {
+    if (status && status.toLowerCase() === 'completed') {
       const url = data.data.output && data.data.output.image_url;
       console.log('[FaceSwap] Done:', taskId, url);
       return url || null;
     }
-    if (status === 'Failed') {
+    if (status && status.toLowerCase() === 'failed') {
       const err = data.data && data.data.error;
       throw new Error('FaceSwap failed: ' + JSON.stringify(err));
     }
