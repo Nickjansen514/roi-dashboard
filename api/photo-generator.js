@@ -56,7 +56,7 @@ async function analyzeGarmentFromImages(imageUrls) {
   });
   imageContent.push({
     type: 'text',
-Describe this garment for an AI image generation prompt. Include: silhouette, neckline, straps or sleeves, length, fabric texture, and key design details (ruffles, lace, pleats, embroidery, bow). Write ONLY the garment description, no color, no introduction. Maximum 60 words. Avoid words: bare, exposed, revealing, backless.
+    text: "Describe this garment for an AI image generation prompt. Include: silhouette, neckline, straps or sleeves, length, fabric texture, and key design details (ruffles, lace, pleats, embroidery, bow). Write ONLY the garment description, no color, no introduction. Maximum 60 words. Avoid words: bare, exposed, revealing, backless."
   });
   try {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
