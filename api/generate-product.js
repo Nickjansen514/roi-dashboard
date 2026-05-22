@@ -221,11 +221,12 @@ async function pollKieTask(taskId) {
   throw new Error('Kie.ai timeout: ' + taskId);
 }
 
-async function createShopifyProduct(productData) {
-  const store = SHOPIFY_STORE.replace(/^https?:\/\//, '').replace(/\/$/, '');
+async function createShopifyProduct(productData, token, storeDomain) {
+  const t = token || SHOPIFY_TOKEN;
+  const store = (storeDomain || SHOPIFY_STORE).replace(/^https?:\/\//, '').replace(/\/$/, '');
   const r = await fetch('https://' + store + '/admin/api/2024-01/products.json', {
     method: 'POST',
-    headers: { 'X-Shopify-Access-Token': SHOPIFY_TOKEN, 'Content-Type': 'application/json' },
+    headers: { 'X-Shopify-Access-Token': t, 'Content-Type': 'application/json' },
     body: JSON.stringify({ product: productData })
   });
   if (!r.ok) { const errText = await r.text(); throw new Error('Shopify fout: ' + r.status + ' ' + errText); }
@@ -233,8 +234,9 @@ async function createShopifyProduct(productData) {
 }
 
 // Upload alle images na product aanmaken — één voor één met retry
-async function addExtraImages(productId, imageUrls) {
-  const store = SHOPIFY_STORE.replace(/^https?:\/\//, '').replace(/\/$/, '');
+async function addExtraImages(productId, imageUrls, token, storeDomain) {
+  const t = token || SHOPIFY_TOKEN;
+  const store = (storeDomain || SHOPIFY_STORE).replace(/^https?:\/\//, '').replace(/\/$/, '');
   console.log('[addExtraImages] Uploading', imageUrls.length, 'images to product', productId);
   let success = 0;
   for (let i = 0; i < imageUrls.length; i++) {
@@ -242,7 +244,7 @@ async function addExtraImages(productId, imageUrls) {
       try {
         const r = await fetch('https://' + store + '/admin/api/2024-01/products/' + productId + '/images.json', {
           method: 'POST',
-          headers: { 'X-Shopify-Access-Token': SHOPIFY_TOKEN, 'Content-Type': 'application/json' },
+          headers: { 'X-Shopify-Access-Token': t, 'Content-Type': 'application/json' },
           body: JSON.stringify({ image: { src: imageUrls[i] } })
         });
         if (r.status === 429) {
@@ -275,6 +277,9 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   const { productInfo, generatePhotos } = req.body || {};
+  // Gebruik token/store uit request body als aanwezig (voor Store 2), anders env variable
+  const reqToken = productInfo && productInfo.shopifyToken;
+  const reqStore = productInfo && productInfo.shopifyStore;
   if (!productInfo) return res.status(400).json({ error: 'Product info missing' });
 
   console.log('[handler] Product:', productInfo.title);
@@ -373,7 +378,7 @@ export default async function handler(req, res) {
       images: []
     };
 
-    const result = await createShopifyProduct(shopifyProduct);
+    const result = await createShopifyProduct(shopifyProduct, reqToken, reqStore);
     const productId = result.product && result.product.id;
 
     const allImageUrls = generatedImages.length > 0
@@ -382,7 +387,7 @@ export default async function handler(req, res) {
 
     if (productId && allImageUrls.length > 0) {
       console.log('[handler] Uploading', allImageUrls.length, 'images to product', productId);
-      await addExtraImages(productId, allImageUrls);
+      await addExtraImages(productId, allImageUrls, reqToken, reqStore);
     }
 
     return res.status(200).json({
