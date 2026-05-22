@@ -197,6 +197,19 @@ var COLOR_MAP = {
   'goud':'Gold','zilver':'Silver'
 };
 
+// Engelse kleurnaam -> Poolse kleurnaam
+var COLOR_EN_TO_PL = {
+  'Black':'Czarny','White':'Biały','Red':'Czerwony','Blue':'Niebieski','Green':'Zielony',
+  'Pink':'Różowy','Beige':'Beżowy','Cream':'Kremowy','Grey':'Szary','Brown':'Brązowy',
+  'Orange':'Pomarańczowy','Purple':'Fioletowy','Yellow':'Żółty','Navy':'Granatowy',
+  'Burgundy':'Bordowy','Lilac':'Liliowy','Dark Red':'Ciemnoczerwony','Camel':'Camel',
+  'Tan':'Beżowy','Coral':'Koralowy','Mint':'Miętowy','Olive':'Oliwkowy','Gold':'Złoty',
+  'Silver':'Srebrny','Teal':'Morski','Mustard':'Musztardowy','Rust':'Rdzawy','Khaki':'Khaki',
+  'Nude':'Cielisty','Stone':'Kamienny','Taupe':'Taupe'
+};
+var COLOR_PL_TO_EN = {};
+Object.keys(COLOR_EN_TO_PL).forEach(function(k){ COLOR_PL_TO_EN[COLOR_EN_TO_PL[k].toLowerCase()] = k; });
+
 var SIZE_MAP = {
   'XS':'XS (UK6)','S':'S (UK8)','M':'M (UK10)','L':'L (UK12)',
   'XL':'XL (UK14)','XXL':'XXL (UK16)','2XL':'XXL (UK16)','3XL':'XXXL (UK18)'
@@ -205,6 +218,36 @@ var SIZE_MAP = {
 function translateColor(color) {
   var key = color.toLowerCase().trim();
   return COLOR_MAP[key] || (color.trim().charAt(0).toUpperCase() + color.trim().slice(1).toLowerCase());
+}
+
+// Zet één kleur om naar de gekozen taal (eerst normaliseren naar Engels, dan evt. naar Pools)
+function colorToLang(color, lang) {
+  var c = color.trim();
+  if (!c) return c;
+  var en = COLOR_PL_TO_EN[c.toLowerCase()] || translateColor(c);
+  if (lang === 'polish') return COLOR_EN_TO_PL[en] || en;
+  return en;
+}
+
+// Zet één maat om: Pools = UK eraf, Engels = UK erbij
+function sizeToLang(size, lang) {
+  var base = size.replace(/\s*\(UK\d+\)/i, '').trim();
+  if (lang === 'polish') return base;
+  return SIZE_MAP[base.toUpperCase()] || size;
+}
+
+// Herschrijf de kleur- en maatvelden naar de gekozen taal
+function applyLanguageToFields() {
+  var langEl = document.getElementById('pl-lang');
+  var lang = langEl ? langEl.value : 'polish';
+  var colorsEl = document.getElementById('pl-colors');
+  var sizesEl = document.getElementById('pl-sizes');
+  if (colorsEl && colorsEl.value.trim()) {
+    colorsEl.value = colorsEl.value.split(',').map(function(c){ return colorToLang(c, lang); }).filter(Boolean).join(', ');
+  }
+  if (sizesEl && sizesEl.value.trim()) {
+    sizesEl.value = sizesEl.value.split(',').map(function(s){ return sizeToLang(s, lang); }).filter(Boolean).join(', ');
+  }
 }
 
 // Omrekening naar doelvaluta (PLN voor Store 2)
@@ -411,7 +454,7 @@ function renderDashboard() {
 }
 
 function renderInstellingen() {
-  document.getElementById('content').innerHTML = '<div class="settings-card"><h2>Shopify verbinding — Store 2</h2><p class="desc">Vul je Shopify Access Token in om te verbinden. Je vindt deze in Shopify Admin → Apps → App ontwikkelen → API credentials.</p><div class="field-grid"><div class="field" style="grid-column:1/-1;"><label>Shopify Access Token</label><input id="f-token" type="password" placeholder="shpat_xxxx..." value="' + shopifyToken + '" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;font-family:var(--mono);outline:none;width:100%;"></div></div><div style="margin-top:12px;"><button class="btn btn-primary" onclick="saveToken()">Opslaan</button>' + (shopifyToken ? ' <button class="btn" onclick="logoutShopify()">Uitloggen</button>' : '') + '</div><div class="status-row" style="margin-top:12px;"><span class="dot ' + (shopifyToken ? 'dot-green' : 'dot-orange') + '"></span>' + (shopifyToken ? 'Verbonden met <strong>gw5ubt-8p.myshopify.com</strong>' : 'Niet verbonden — vul token in') + '</div></div>';
+  document.getElementById('content').innerHTML = '<div class="settings-card"><h2>Shopify verbinding — Store 2</h2><p class="desc">Vul je Shopify Access Token in om te verbinden. Je vindt deze in Shopify Admin → Apps → App ontwikkelen → API credentials. De token moet write_products scope hebben om producten te kunnen aanmaken.</p><div class="field-grid"><div class="field" style="grid-column:1/-1;"><label>Shopify Access Token</label><input id="f-token" type="password" placeholder="shpat_xxxx..." value="' + shopifyToken + '" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;font-family:var(--mono);outline:none;width:100%;"></div></div><div style="margin-top:12px;"><button class="btn btn-primary" onclick="saveToken()">Opslaan</button>' + (shopifyToken ? ' <button class="btn" onclick="logoutShopify()">Uitloggen</button>' : '') + '</div><div class="status-row" style="margin-top:12px;"><span class="dot ' + (shopifyToken ? 'dot-green' : 'dot-orange') + '"></span>' + (shopifyToken ? 'Verbonden met <strong>gw5ubt-8p.myshopify.com</strong>' : 'Niet verbonden — vul token in') + '</div></div>';
 }
 
 function saveToken() {
@@ -442,9 +485,11 @@ function logoutShopify() {
 }
 
 function renderProductLister() {
-  document.getElementById('content').innerHTML = '<div style="max-width:800px;"><div class="settings-card"><h2>Product Lister</h2><p class="desc">Plak een productlink en wij genereren automatisch de beschrijving, tags en foto\'s.</p><div class="field" style="margin-bottom:14px;"><label>Product URL</label><input id="pl-url" type="text" placeholder="https://www.example.com/products/dress" style="padding:10px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:13px;font-family:var(--font);outline:none;width:100%;"></div><button class="btn btn-primary" onclick="scrapeProduct()">Product ophalen</button></div><div id="pl-result" style="display:none;"><div class="settings-card"><h2>Productinfo</h2><div class="field-grid" style="margin-bottom:16px;"><div class="field"><label>Productnaam</label><input id="pl-name" type="text" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"></div><div class="field"><label>Type product</label><input id="pl-type" type="text" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"></div><div class="field"><label>Originele prijs</label><input id="pl-price" type="number" step="0.01" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"></div><div class="field"><label>Valuta</label><select id="pl-currency" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"><option value="EUR">EUR (&euro;)</option><option value="PLN">PLN (z&#322;)</option><option value="GBP">GBP (&pound;)</option><option value="USD">USD ($)</option></select></div><div class="field"><label>Prijs in PLN (automatisch)</label><input id="pl-gbp" type="text" readonly style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;opacity:0.7;"></div><div class="field"><label>Taal listing</label><select id="pl-lang" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"><option value="english">Engels</option><option value="polish" selected>Pools</option></select></div><div class="field"><label>Seizoen</label><select id="pl-season" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"><option value="ALL YEAR">ALL YEAR</option><option value="SUMMER">SUMMER</option><option value="WINTER">WINTER</option></select></div></div><div class="field" style="margin-bottom:14px;"><label>Kleuren</label><input id="pl-colors" type="text" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"></div><div class="field" style="margin-bottom:14px;"><label>Maten</label><input id="pl-sizes" type="text" value="XS (UK6), S (UK8), M (UK10), L (UK12), XL (UK14), XXL (UK16)" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"></div><div id="pl-images-preview" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;"></div><div style="display:flex;gap:10px;"><button class="btn btn-primary" id="pl-submit-btn" onclick="submitProduct()">Product aanmaken in Shopify</button><button class="btn" onclick="navigate(\'producten\')">Annuleren</button></div></div></div><div id="pl-status" style="display:none;" class="banner banner-info"><div><h3 id="pl-status-title">Bezig...</h3><p id="pl-status-msg"></p></div></div><div id="pl-success" style="display:none;" class="banner banner-info"><div><h3>&#10003; Product aangemaakt!</h3><p id="pl-success-msg"></p></div></div></div>';
+  document.getElementById('content').innerHTML = '<div style="max-width:800px;"><div class="settings-card"><h2>Product Lister</h2><p class="desc">Plak een productlink en wij genereren automatisch de beschrijving, tags en foto\'s.</p><div class="field" style="margin-bottom:14px;"><label>Product URL</label><input id="pl-url" type="text" placeholder="https://www.example.com/products/dress" style="padding:10px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:13px;font-family:var(--font);outline:none;width:100%;"></div><button class="btn btn-primary" onclick="scrapeProduct()">Product ophalen</button></div><div id="pl-result" style="display:none;"><div class="settings-card"><h2>Productinfo</h2><div class="field-grid" style="margin-bottom:16px;"><div class="field"><label>Productnaam</label><input id="pl-name" type="text" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"></div><div class="field"><label>Type product</label><input id="pl-type" type="text" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"></div><div class="field"><label>Originele prijs</label><input id="pl-price" type="number" step="0.01" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"></div><div class="field"><label>Valuta</label><select id="pl-currency" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"><option value="EUR">EUR (&euro;)</option><option value="PLN">PLN (z&#322;)</option><option value="GBP">GBP (&pound;)</option><option value="USD">USD ($)</option></select></div><div class="field"><label>Prijs in PLN (automatisch)</label><input id="pl-gbp" type="text" readonly style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;opacity:0.7;"></div><div class="field"><label>Taal listing</label><select id="pl-lang" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"><option value="english">Engels</option><option value="polish" selected>Pools</option></select></div><div class="field"><label>Seizoen</label><select id="pl-season" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"><option value="ALL YEAR">ALL YEAR</option><option value="SUMMER">SUMMER</option><option value="WINTER">WINTER</option></select></div></div><div class="field" style="margin-bottom:14px;"><label>Kleuren</label><input id="pl-colors" type="text" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"></div><div class="field" style="margin-bottom:14px;"><label>Maten</label><input id="pl-sizes" type="text" value="XS, S, M, L, XL, XXL" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"></div><div id="pl-images-preview" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;"></div><div style="display:flex;gap:10px;"><button class="btn btn-primary" id="pl-submit-btn" onclick="submitProduct()">Product aanmaken in Shopify</button><button class="btn" onclick="navigate(\'producten\')">Annuleren</button></div></div></div><div id="pl-status" style="display:none;" class="banner banner-info"><div><h3 id="pl-status-title">Bezig...</h3><p id="pl-status-msg"></p></div></div><div id="pl-success" style="display:none;" class="banner banner-info"><div><h3>&#10003; Product aangemaakt!</h3><p id="pl-success-msg"></p></div></div></div>';
   document.getElementById('pl-price').addEventListener('input', updateGbpPrice);
   document.getElementById('pl-currency').addEventListener('change', updateGbpPrice);
+  document.getElementById('pl-lang').addEventListener('change', applyLanguageToFields);
+  applyLanguageToFields();
 }
 
 async function scrapeProduct() {
@@ -466,6 +511,7 @@ async function scrapeProduct() {
       document.getElementById('pl-sizes').value = data.sizes.map(function(s) { return SIZE_MAP[s.toUpperCase().trim()] || s; }).join(', ');
     }
     document.getElementById('pl-type').value = data.productType || 'Dress';
+    applyLanguageToFields();
     if (data.images && data.images.length > 0) {
       document.getElementById('pl-images-preview').innerHTML = data.images.map(function(img) {
         return '<img src="' + img + '" style="width:80px;height:80px;object-fit:cover;border-radius:6px;border:1px solid var(--border);" onerror="this.style.display=\'none\'">';
@@ -497,7 +543,9 @@ async function submitProduct() {
       sizes: document.getElementById('pl-sizes').value.split(',').map(function(s) { return s.trim(); }).filter(Boolean),
       extraTags: [],
       originalImages: Array.from(document.querySelectorAll('#pl-images-preview img')).map(function(img) { return img.src; }).filter(function(src) { return src && src.startsWith('http'); }),
-      storeId: 'store2'
+      storeId: 'store2',
+      shopifyToken: shopifyToken,
+      shopifyStore: shopifyStore
     };
     var r = await fetch('/api/generate-product', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ productInfo: productInfo, generatePhotos: false }) });
     var data = await r.json();
