@@ -294,7 +294,7 @@ function destroyCharts() {
 }
 
 async function fetchShopifyOrders(days) {
-  var r = await fetch('/api/shopify?shop=' + shopifyStore + '&token=' + shopifyToken + '&days=' + days);
+  var r = await fetch('/api/shopify?shop=gw5ubt-8p.myshopify.com&token=' + shopifyToken + '&days=' + days);
   if (!r.ok) throw new Error('Shopify orders fout: ' + r.status);
   return r.json();
 }
@@ -404,7 +404,19 @@ function renderDashboard() {
 }
 
 function renderInstellingen() {
-  document.getElementById('content').innerHTML = '<div class="settings-card"><h2>Shopify verbinding</h2><p class="desc">Verbind je store via Shopify OAuth.</p><div class="field-grid"><div class="field"><label>Store URL</label><input id="f-store" type="text" placeholder="jouwstore.myshopify.com" value="' + (shopifyStore || STORE_DOMAIN) + '"></div></div><div style="margin-top:12px;display:flex;gap:10px;"><button class="btn btn-primary" onclick="shopifyLoginSettings()">Verbinden met Shopify</button>' + (shopifyToken ? '<button class="btn" onclick="logoutShopify()">Uitloggen</button>' : '') + '</div><div class="status-row"><span class="dot ' + (shopifyToken ? 'dot-green' : 'dot-orange') + '"></span>' + (shopifyToken ? 'Verbonden met <strong>' + shopifyStore + '</strong>' : 'Niet verbonden') + '</div></div>';
+  document.getElementById('content').innerHTML = '<div class="settings-card"><h2>Shopify verbinding — Store 2</h2><p class="desc">Vul je Shopify Access Token in om te verbinden. Je vindt deze in Shopify Admin → Apps → App ontwikkelen → API credentials.</p><div class="field-grid"><div class="field" style="grid-column:1/-1;"><label>Shopify Access Token</label><input id="f-token" type="password" placeholder="shpat_xxxx..." value="' + shopifyToken + '" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;font-family:var(--mono);outline:none;width:100%;"></div></div><div style="margin-top:12px;"><button class="btn btn-primary" onclick="saveToken()">Opslaan</button>' + (shopifyToken ? ' <button class="btn" onclick="logoutShopify()">Uitloggen</button>' : '') + '</div><div class="status-row" style="margin-top:12px;"><span class="dot ' + (shopifyToken ? 'dot-green' : 'dot-orange') + '"></span>' + (shopifyToken ? 'Verbonden met <strong>gw5ubt-8p.myshopify.com</strong>' : 'Niet verbonden — vul token in') + '</div></div>';
+}
+
+function saveToken() {
+  var token = document.getElementById('f-token').value.trim();
+  if (!token) return alert('Vul een token in');
+  shopifyToken = token;
+  shopifyStore = STORE_DOMAIN;
+  localStorage.setItem(STORE_KEY + '_shopify_token', token);
+  localStorage.setItem(STORE_KEY + '_shopify_store', STORE_DOMAIN);
+  updateConnStatus();
+  alert('Opgeslagen! Je kunt nu synchroniseren.');
+  renderInstellingen();
 }
 
 function shopifyLoginSettings() {
@@ -470,8 +482,7 @@ async function submitProduct() {
       sizes: document.getElementById('pl-sizes').value.split(',').map(function(s) { return s.trim(); }).filter(Boolean),
       extraTags: [],
       originalImages: Array.from(document.querySelectorAll('#pl-images-preview img')).map(function(img) { return img.src; }).filter(function(src) { return src && src.startsWith('http'); }),
-      shopifyToken: shopifyToken,
-      shopifyStore: shopifyStore
+      storeId: 'store2'
     };
     var r = await fetch('/api/generate-product', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ productInfo: productInfo, generatePhotos: false }) });
     var data = await r.json();
@@ -504,7 +515,7 @@ async function startFotoGenerator() {
   document.getElementById('fg-status-title').textContent = "Foto's genereren...";
   document.getElementById('fg-status-msg').textContent = 'Dit duurt 5-10 minuten. Sluit dit venster niet.';
   try {
-    var r = await fetch('/api/photo-generator', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ adminUrl: url, color: color, shopifyToken: shopifyToken, shopifyStore: shopifyStore }) });
+    var r = await fetch('/api/photo-generator', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ adminUrl: url, color: color, storeId: 'store2' }) });
     var data = await r.json();
     if (data.error) throw new Error(data.error);
     document.getElementById('fg-status').style.display = 'none';
