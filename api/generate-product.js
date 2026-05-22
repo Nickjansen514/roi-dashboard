@@ -113,7 +113,9 @@ async function generateDescription(productInfo) {
       system: `You are the dedicated product listing assistant for Yamira London, a UK-based women's fashion webshop. Create fully compliant Shopify-ready product listings. Follow every rule exactly.
 
 BRAND CONTEXT:
-Store: Yamira London. Market: United Kingdom. Language: Natural UK English. Target: Women aged 18-45. Tone: clean, neutral, refined, factual. Never write hype, never exaggerate.
+Store: Yamira London. Market: Depends on language setting. Tone: clean, neutral, refined, factual. Never write hype, never exaggerate.
+If language is "polish": Write ALL content in natural Polish. Use Polish SEO keywords for fashion (sukienka, spódnica, bluzka, sukienki damskie, etc). Title must end with "dla kobiet". Meta description must end with "– Yamira London".
+If language is "english": Write ALL content in natural UK English as normal.
 
 SEO TITLE RULES:
 - Use high-volume UK search keywords where relevant: dresses for women, summer dresses, maxi dress, midi dress, black dress, white dress, party dresses, wedding guest dresses, bodycon dress, wrap dress, floral dress, linen dress, satin dress, jumpsuits, womens coats, trench coat, bomber jacket, blazer, cardigan, co-ord set, two piece set, midi skirt, mini skirt, maxi skirt, skirt for women
@@ -145,7 +147,7 @@ OUTPUT FORMAT — output ONLY this JSON, no other text, no markdown, no code blo
 {"seoTitle":"...","description":"...","metaDescription":"..."}`,
       messages: [{
         role: 'user',
-        content: 'Create a listing for:\nName: ' + cleanedTitle + '\nType: ' + productInfo.type + '\nColors: ' + (productInfo.colors || []).join(', ') + '\nMaterial: ' + (productInfo.material || 'not specified') + '\nSeason: ' + (productInfo.season || 'not specified') + '\nOriginal description: ' + (productInfo.originalDescription || 'none') + '\n\nIMPORTANT: The product name may be in Dutch or French. Translate EVERYTHING to natural UK English. The SEO title, description and meta description must be 100% English — no Dutch or French words anywhere.'
+        content: 'Create a listing for:\nName: ' + cleanedTitle + '\nType: ' + productInfo.type + '\nColors: ' + (productInfo.colors || []).join(', ') + '\nMaterial: ' + (productInfo.material || 'not specified') + '\nSeason: ' + (productInfo.season || 'not specified') + '\nOriginal description: ' + (productInfo.originalDescription || 'none') + '\nLanguage: ' + (productInfo.language || 'english') + '\n\nIMPORTANT: If language is "polish" — write EVERYTHING in Polish, translate the product name to Polish, use Polish fashion SEO keywords, title must end with "dla kobiet". If language is "english" — translate everything to natural UK English, title must end with "for women". No Dutch or French words in either case.'
       }]
     })
   });
@@ -315,7 +317,10 @@ export default async function handler(req, res) {
     if (mainCategory && mainCategory !== productType) tagSet.push(mainCategory);
     const tags = tagSet.filter(Boolean).join(', ');
 
-    const price = convertPrice(productInfo.originalPrice, productInfo.currency || 'EUR');
+    // Gebruik convertedPrice (PLN) als die meegegeven is, anders bereken zelf
+    const price = productInfo.convertedPrice
+      ? parseFloat(productInfo.convertedPrice)
+      : convertPrice(productInfo.originalPrice, productInfo.currency || 'EUR');
     const sizes = (productInfo.sizes || ['XS (UK6)', 'S (UK8)', 'M (UK10)', 'L (UK12)', 'XL (UK14)', 'XXL (UK16)']).map(function(s) {
       return sizeMap[s.toUpperCase().trim()] || s;
     });
