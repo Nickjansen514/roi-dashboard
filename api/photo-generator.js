@@ -236,9 +236,13 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  const { adminUrl, color, shopifyToken: reqToken, shopifyStore: reqStore } = req.body || {};
-  const activeToken = reqToken || SHOPIFY_TOKEN;
-  const activeStore = reqStore || SHOPIFY_STORE;
+  const { adminUrl, color, shopifyToken: reqToken, shopifyStore: reqStore, storeId } = req.body || {};
+  let activeToken = reqToken || SHOPIFY_TOKEN;
+  let activeStore = reqStore || SHOPIFY_STORE;
+  if (storeId === 'store2') {
+    activeToken = process.env.SHOPIFY_TOKEN_2;
+    activeStore = process.env.SHOPIFY_STORE_2 || 'gw5ubt-8p.myshopify.com';
+  }
   if (!adminUrl) return res.status(400).json({ error: 'Admin URL missing' });
 
   const match = adminUrl.match(/\/products\/(\d+)/);
