@@ -283,14 +283,16 @@ export default async function handler(req, res) {
   let reqToken = productInfo && productInfo.shopifyToken;
   let reqStore = productInfo && productInfo.shopifyStore;
   if (productInfo && productInfo.storeId === 'store2') {
-    reqToken = process.env.SHOPIFY_TOKEN_2;
-    reqStore = process.env.SHOPIFY_STORE_2 || 'gw5ubt-8p.myshopify.com';
+    // env var heeft voorrang, anders de meegestuurde token uit het dashboard
+    reqToken = process.env.SHOPIFY_TOKEN_2 || (productInfo && productInfo.shopifyToken);
+    reqStore = process.env.SHOPIFY_STORE_2 || (productInfo && productInfo.shopifyStore) || 'gw5ubt-8p.myshopify.com';
   }
   if (!productInfo) return res.status(400).json({ error: 'Product info missing' });
 
   console.log('[handler] Product:', productInfo.title);
 
   try {
+    const lang = (productInfo.language || 'english').toLowerCase();
     const generated = await generateDescription(productInfo);
     const description = generated.description || '';
     const seoTitle = generated.seoTitle || productInfo.title;
@@ -301,9 +303,10 @@ export default async function handler(req, res) {
     const rawColors = (productInfo.colors || []).filter(function(c) {
       return !sizeKeywords.includes(c.toLowerCase().trim());
     });
+    // Pools: kleuren laten zoals ze binnenkomen (al Pools). Engels: normaliseren naar Engels.
     const colors = rawColors.length > 0
-      ? rawColors.map(translateColor)
-      : ['One Colour'];
+      ? (lang === 'polish' ? rawColors : rawColors.map(translateColor))
+      : [lang === 'polish' ? 'Jeden kolor' : 'One Colour'];
     const productType = productInfo.type || 'Dress';
     const season = productInfo.season || 'ALL YEAR';
 
@@ -321,8 +324,12 @@ export default async function handler(req, res) {
     const price = productInfo.convertedPrice
       ? parseFloat(productInfo.convertedPrice)
       : convertPrice(productInfo.originalPrice, productInfo.currency || 'EUR');
-    const sizes = (productInfo.sizes || ['XS (UK6)', 'S (UK8)', 'M (UK10)', 'L (UK12)', 'XL (UK14)', 'XXL (UK16)']).map(function(s) {
-      return sizeMap[s.toUpperCase().trim()] || s;
+    // Pools: maten houden zoals binnenkomen (zonder UK). Engels: UK-suffix toevoegen.
+    const defaultSizes = lang === 'polish'
+      ? ['XS', 'S', 'M', 'L', 'XL', 'XXL']
+      : ['XS (UK6)', 'S (UK8)', 'M (UK10)', 'L (UK12)', 'XL (UK14)', 'XXL (UK16)'];
+    const sizes = (productInfo.sizes || defaultSizes).map(function(s) {
+      return lang === 'polish' ? s : (sizeMap[s.toUpperCase().trim()] || s);
     });
 
     const variants = [];
@@ -356,6 +363,10 @@ export default async function handler(req, res) {
       }
     }
 
+    // Optienamen in de gekozen taal
+    const colourLabel = lang === 'polish' ? 'Kolor' : 'Colour';
+    const sizeLabel = lang === 'polish' ? 'Rozmiar' : 'Size';
+
     const shopifyProduct = {
       title: seoTitle,
       handle: urlHandle,
@@ -383,7 +394,7 @@ export default async function handler(req, res) {
       tags: tags,
       status: 'draft',
       variants: variants,
-      options: variants[0] && variants[0].option2 ? [{ name: 'Colour' }, { name: 'Size' }] : [{ name: 'Size' }],
+      options: variants[0] && variants[0].option2 ? [{ name: colourLabel }, { name: sizeLabel }] : [{ name: sizeLabel }],
       images: []
     };
 
