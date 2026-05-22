@@ -1,3 +1,6 @@
+Hier is de volledige code — kopieer alles hieronder en plak het in GitHub als `store2.html`:
+
+```html
 <!DOCTYPE html>
 <html lang="nl">
 <head>
@@ -170,7 +173,7 @@
 <script>
 const BACKEND_URL = window.location.origin;
 const STORE_DOMAIN = 'gw5ubt-8p.myshopify.com';
-const STORE_KEY = 's2'; // aparte localStorage prefix zodat store 1 data gescheiden blijft
+const STORE_KEY = 's2';
 
 let shopifyToken = localStorage.getItem(STORE_KEY + '_shopify_token') || '';
 let shopifyStore = localStorage.getItem(STORE_KEY + '_shopify_store') || STORE_DOMAIN;
@@ -197,7 +200,6 @@ var COLOR_MAP = {
   'goud':'Gold','zilver':'Silver'
 };
 
-// Engelse kleurnaam -> Poolse kleurnaam
 var COLOR_EN_TO_PL = {
   'Black':'Czarny','White':'Biały','Red':'Czerwony','Blue':'Niebieski','Green':'Zielony',
   'Pink':'Różowy','Beige':'Beżowy','Cream':'Kremowy','Grey':'Szary','Brown':'Brązowy',
@@ -220,7 +222,6 @@ function translateColor(color) {
   return COLOR_MAP[key] || (color.trim().charAt(0).toUpperCase() + color.trim().slice(1).toLowerCase());
 }
 
-// Zet één kleur om naar de gekozen taal (eerst normaliseren naar Engels, dan evt. naar Pools)
 function colorToLang(color, lang) {
   var c = color.trim();
   if (!c) return c;
@@ -229,14 +230,12 @@ function colorToLang(color, lang) {
   return en;
 }
 
-// Zet één maat om: Pools = UK eraf, Engels = UK erbij
 function sizeToLang(size, lang) {
   var base = size.replace(/\s*\(UK\d+\)/i, '').trim();
   if (lang === 'polish') return base;
   return SIZE_MAP[base.toUpperCase()] || size;
 }
 
-// Herschrijf de kleur- en maatvelden naar de gekozen taal
 function applyLanguageToFields() {
   var langEl = document.getElementById('pl-lang');
   var lang = langEl ? langEl.value : 'polish';
@@ -250,15 +249,10 @@ function applyLanguageToFields() {
   }
 }
 
-// Omrekening naar doelvaluta (PLN voor Store 2)
 function convertToTargetCurrency(price, fromCurrency) {
-  // Alles eerst naar EUR
   var toEur = { EUR: 1, USD: 0.92, GBP: 1.16, PLN: 0.23 };
   var eur = price * (toEur[fromCurrency] || 1);
-  // Dan naar PLN
   var pln = eur * 4.28;
-
-  // Afronden naar dichtstbijzijnde x4.99 of x9.99 in PLN
   var candidates = [];
   var base = Math.floor(pln);
   for (var i = base - 20; i <= base + 20; i++) {
@@ -529,7 +523,6 @@ async function submitProduct() {
     var originalPrice = parseFloat(document.getElementById('pl-price').value);
     var currency = document.getElementById('pl-currency').value;
     var plnPrice = convertToTargetCurrency(originalPrice, currency);
-
     var productInfo = {
       title: document.getElementById('pl-name').value,
       type: document.getElementById('pl-type').value || 'Dress',
@@ -565,25 +558,31 @@ function setPlStatus(show, title, msg) {
 }
 
 function renderFotoGenerator() {
-  document.getElementById('content').innerHTML = '<div style="max-width:700px;"><div class="settings-card"><h2>Foto Generator</h2><p class="desc">Plak een Shopify admin productlink en genereer automatisch 8 professionele productfoto\'s.</p><div class="field" style="margin-bottom:14px;"><label>Shopify Admin URL</label><input id="fg-url" type="text" placeholder="https://admin.shopify.com/store/.../products/..." style="padding:10px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:13px;font-family:var(--font);outline:none;width:100%;"></div><div class="field" style="margin-bottom:14px;"><label>Kleur (optioneel)</label><input id="fg-color" type="text" placeholder="bijv. Black, Pink..." style="padding:10px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:13px;outline:none;width:100%;"></div><button class="btn btn-primary" id="fg-btn" onclick="startFotoGenerator()">&#128248; Foto\'s genereren</button></div><div id="fg-status" style="display:none;" class="banner banner-info"><div><h3 id="fg-status-title">Bezig...</h3><p id="fg-status-msg"></p></div></div><div id="fg-success" style="display:none;" class="banner banner-info"><div><h3>&#10003; Foto\'s aangemaakt!</h3><p id="fg-success-msg"></p></div></div><div id="fg-images" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;"></div></div>';
+  document.getElementById('content').innerHTML = '<div style="max-width:700px;"><div class="settings-card"><h2>Foto Generator</h2><p class="desc">Plak een Shopify admin productlink en vervang automatisch het modelgezicht op alle productfoto\'s.</p><div class="field" style="margin-bottom:14px;"><label>Shopify Admin URL</label><input id="fg-url" type="text" placeholder="https://admin.shopify.com/store/.../products/..." style="padding:10px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:13px;font-family:var(--font);outline:none;width:100%;"></div><button class="btn btn-primary" id="fg-btn" onclick="startFotoGenerator()">&#128248; Foto\'s genereren</button></div><div id="fg-status" style="display:none;" class="banner banner-info"><div><h3 id="fg-status-title">Bezig...</h3><p id="fg-status-msg"></p></div></div><div id="fg-success" style="display:none;" class="banner banner-info"><div><h3>&#10003; Foto\'s aangemaakt!</h3><p id="fg-success-msg"></p></div></div><div id="fg-images" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;"></div></div>';
 }
 
 async function startFotoGenerator() {
   var url = document.getElementById('fg-url').value.trim();
-  var color = document.getElementById('fg-color').value.trim();
   if (!url) return alert('Vul een Shopify admin URL in');
   var btn = document.getElementById('fg-btn');
   btn.disabled = true; btn.textContent = 'Bezig...';
   document.getElementById('fg-status').style.display = 'block';
-  document.getElementById('fg-status-title').textContent = "Foto's genereren...";
-  document.getElementById('fg-status-msg').textContent = 'Dit duurt 5-10 minuten. Sluit dit venster niet.';
+  document.getElementById('fg-status-title').textContent = "Foto's verwerken via face swap...";
+  document.getElementById('fg-status-msg').textContent = 'Dit duurt 1-3 minuten. Sluit dit venster niet.';
+  document.getElementById('fg-success').style.display = 'none';
+  document.getElementById('fg-images').innerHTML = '';
   try {
-    var r = await fetch('/api/photo-generator', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ adminUrl: url, color: color, storeId: 'store2' }) });
+    var r = await fetch('/api/photo-generator', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ adminUrl: url, storeId: 'store2' }) });
     var data = await r.json();
     if (data.error) throw new Error(data.error);
     document.getElementById('fg-status').style.display = 'none';
     document.getElementById('fg-success').style.display = 'block';
-    document.getElementById('fg-success-msg').textContent = data.imagesGenerated + " foto\'s toegevoegd aan \"" + data.productTitle + "\"!";
+    document.getElementById('fg-success-msg').textContent = data.imagesSwapped + " foto's toegevoegd aan \"" + data.productTitle + "\"!";
+    if (data.imageUrls && data.imageUrls.length > 0) {
+      document.getElementById('fg-images').innerHTML = data.imageUrls.map(function(imgUrl) {
+        return '<img src="' + imgUrl + '" style="width:150px;height:200px;object-fit:cover;border-radius:8px;border:1px solid var(--border);" onerror="this.style.display=\'none\'">';
+      }).join('');
+    }
   } catch(err) { document.getElementById('fg-status').style.display = 'none'; alert('Fout: ' + err.message); }
   finally { btn.disabled = false; btn.textContent = "Foto's genereren"; }
 }
@@ -594,3 +593,4 @@ renderProducten();
 </script>
 </body>
 </html>
+```
