@@ -207,20 +207,26 @@ function translateColor(color) {
   return COLOR_MAP[key] || (color.trim().charAt(0).toUpperCase() + color.trim().slice(1).toLowerCase());
 }
 
-function convertToGbp(price, currency) {
-  var rates = { EUR: 0.86, USD: 0.79, GBP: 1 };
-  var gbp = price * (rates[currency] || 0.86);
+// Omrekening naar doelvaluta (PLN voor Store 2)
+function convertToTargetCurrency(price, fromCurrency) {
+  // Alles eerst naar EUR
+  var toEur = { EUR: 1, USD: 0.92, GBP: 1.16, PLN: 0.23 };
+  var eur = price * (toEur[fromCurrency] || 1);
+  // Dan naar PLN
+  var pln = eur * 4.28;
+
+  // Afronden naar dichtstbijzijnde x4.99 of x9.99 in PLN
   var candidates = [];
-  var base = Math.floor(gbp);
-  for (var i = base - 10; i <= base + 10; i++) {
+  var base = Math.floor(pln);
+  for (var i = base - 20; i <= base + 20; i++) {
     candidates.push(Math.floor(i / 10) * 10 + 4.99);
     candidates.push(Math.floor(i / 10) * 10 + 9.99);
   }
   candidates = candidates.filter(function(c) { return c > 0; });
   var closest = candidates[0];
-  var minDiff = Math.abs(gbp - closest);
+  var minDiff = Math.abs(pln - closest);
   for (var j = 1; j < candidates.length; j++) {
-    var diff = Math.abs(gbp - candidates[j]);
+    var diff = Math.abs(pln - candidates[j]);
     if (diff < minDiff) { minDiff = diff; closest = candidates[j]; }
   }
   return parseFloat(closest.toFixed(2));
@@ -229,7 +235,8 @@ function convertToGbp(price, currency) {
 function updateGbpPrice() {
   var price = parseFloat(document.getElementById('pl-price').value) || 0;
   var currency = document.getElementById('pl-currency').value;
-  document.getElementById('pl-gbp').value = '£' + convertToGbp(price, currency).toFixed(2);
+  var converted = convertToTargetCurrency(price, currency);
+  document.getElementById('pl-gbp').value = 'zł' + converted.toFixed(2);
 }
 
 function checkUrlToken() {
@@ -435,7 +442,7 @@ function logoutShopify() {
 }
 
 function renderProductLister() {
-  document.getElementById('content').innerHTML = '<div style="max-width:800px;"><div class="settings-card"><h2>Product Lister</h2><p class="desc">Plak een productlink en wij genereren automatisch de beschrijving, tags en foto\'s.</p><div class="field" style="margin-bottom:14px;"><label>Product URL</label><input id="pl-url" type="text" placeholder="https://www.example.com/products/dress" style="padding:10px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:13px;font-family:var(--font);outline:none;width:100%;"></div><button class="btn btn-primary" onclick="scrapeProduct()">Product ophalen</button></div><div id="pl-result" style="display:none;"><div class="settings-card"><h2>Productinfo</h2><div class="field-grid" style="margin-bottom:16px;"><div class="field"><label>Productnaam</label><input id="pl-name" type="text" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"></div><div class="field"><label>Type product</label><input id="pl-type" type="text" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"></div><div class="field"><label>Originele prijs</label><input id="pl-price" type="number" step="0.01" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"></div><div class="field"><label>Valuta</label><select id="pl-currency" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"><option value="EUR">EUR (&euro;)</option><option value="GBP">GBP (&pound;)</option><option value="USD">USD ($)</option></select></div><div class="field"><label>Prijs in GBP (automatisch)</label><input id="pl-gbp" type="text" readonly style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;opacity:0.7;"></div><div class="field"><label>Seizoen</label><select id="pl-season" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"><option value="ALL YEAR">ALL YEAR</option><option value="SUMMER">SUMMER</option><option value="WINTER">WINTER</option></select></div></div><div class="field" style="margin-bottom:14px;"><label>Kleuren</label><input id="pl-colors" type="text" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"></div><div class="field" style="margin-bottom:14px;"><label>Maten</label><input id="pl-sizes" type="text" value="XS (UK6), S (UK8), M (UK10), L (UK12), XL (UK14), XXL (UK16)" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"></div><div id="pl-images-preview" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;"></div><div style="display:flex;gap:10px;"><button class="btn btn-primary" id="pl-submit-btn" onclick="submitProduct()">Product aanmaken in Shopify</button><button class="btn" onclick="navigate(\'producten\')">Annuleren</button></div></div></div><div id="pl-status" style="display:none;" class="banner banner-info"><div><h3 id="pl-status-title">Bezig...</h3><p id="pl-status-msg"></p></div></div><div id="pl-success" style="display:none;" class="banner banner-info"><div><h3>&#10003; Product aangemaakt!</h3><p id="pl-success-msg"></p></div></div></div>';
+  document.getElementById('content').innerHTML = '<div style="max-width:800px;"><div class="settings-card"><h2>Product Lister</h2><p class="desc">Plak een productlink en wij genereren automatisch de beschrijving, tags en foto\'s.</p><div class="field" style="margin-bottom:14px;"><label>Product URL</label><input id="pl-url" type="text" placeholder="https://www.example.com/products/dress" style="padding:10px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:13px;font-family:var(--font);outline:none;width:100%;"></div><button class="btn btn-primary" onclick="scrapeProduct()">Product ophalen</button></div><div id="pl-result" style="display:none;"><div class="settings-card"><h2>Productinfo</h2><div class="field-grid" style="margin-bottom:16px;"><div class="field"><label>Productnaam</label><input id="pl-name" type="text" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"></div><div class="field"><label>Type product</label><input id="pl-type" type="text" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"></div><div class="field"><label>Originele prijs</label><input id="pl-price" type="number" step="0.01" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"></div><div class="field"><label>Valuta</label><select id="pl-currency" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"><option value="EUR">EUR (&euro;)</option><option value="PLN">PLN (z&#322;)</option><option value="GBP">GBP (&pound;)</option><option value="USD">USD ($)</option></select></div><div class="field"><label>Prijs in PLN (automatisch)</label><input id="pl-gbp" type="text" readonly style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;opacity:0.7;"></div><div class="field"><label>Taal listing</label><select id="pl-lang" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"><option value="english">Engels</option><option value="polish">Pools</option></select></div><div class="field"><label>Seizoen</label><select id="pl-season" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"><option value="ALL YEAR">ALL YEAR</option><option value="SUMMER">SUMMER</option><option value="WINTER">WINTER</option></select></div></div><div class="field" style="margin-bottom:14px;"><label>Kleuren</label><input id="pl-colors" type="text" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"></div><div class="field" style="margin-bottom:14px;"><label>Maten</label><input id="pl-sizes" type="text" value="XS (UK6), S (UK8), M (UK10), L (UK12), XL (UK14), XXL (UK16)" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"></div><div id="pl-images-preview" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;"></div><div style="display:flex;gap:10px;"><button class="btn btn-primary" id="pl-submit-btn" onclick="submitProduct()">Product aanmaken in Shopify</button><button class="btn" onclick="navigate(\'producten\')">Annuleren</button></div></div></div><div id="pl-status" style="display:none;" class="banner banner-info"><div><h3 id="pl-status-title">Bezig...</h3><p id="pl-status-msg"></p></div></div><div id="pl-success" style="display:none;" class="banner banner-info"><div><h3>&#10003; Product aangemaakt!</h3><p id="pl-success-msg"></p></div></div></div>';
   document.getElementById('pl-price').addEventListener('input', updateGbpPrice);
   document.getElementById('pl-currency').addEventListener('change', updateGbpPrice);
 }
@@ -472,11 +479,19 @@ async function submitProduct() {
   btn.disabled = true; btn.textContent = 'Bezig...';
   setPlStatus(true, 'Product aanmaken...', 'Even geduld...');
   try {
+    var lang = document.getElementById('pl-lang') ? document.getElementById('pl-lang').value : 'english';
+    var originalPrice = parseFloat(document.getElementById('pl-price').value);
+    var currency = document.getElementById('pl-currency').value;
+    var plnPrice = convertToTargetCurrency(originalPrice, currency);
+
     var productInfo = {
       title: document.getElementById('pl-name').value,
       type: document.getElementById('pl-type').value || 'Dress',
-      originalPrice: parseFloat(document.getElementById('pl-price').value),
-      currency: document.getElementById('pl-currency').value,
+      originalPrice: originalPrice,
+      currency: currency,
+      convertedPrice: plnPrice,
+      targetCurrency: 'PLN',
+      language: lang,
       season: document.getElementById('pl-season').value,
       colors: document.getElementById('pl-colors').value.split(',').map(function(s) { return s.trim(); }).filter(Boolean),
       sizes: document.getElementById('pl-sizes').value.split(',').map(function(s) { return s.trim(); }).filter(Boolean),
