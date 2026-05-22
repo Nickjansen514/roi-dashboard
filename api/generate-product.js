@@ -52,6 +52,17 @@ const colorMap = {
   'teal': 'Teal', 'mustard': 'Mustard', 'rust': 'Rust'
 };
 
+const polishTypeMap = {
+  'Dress': 'Sukienka', 'Maxi Dress': 'Sukienka Maxi', 'Mini Dress': 'Sukienka Mini',
+  'Midi Dress': 'Sukienka Midi', 'Bodycon Dress': 'Sukienka Dopasowana',
+  'Wrap Dress': 'Sukienka Kopertowa', 'Skirt': 'Spódnica', 'Midi Skirt': 'Spódnica Midi',
+  'Maxi Skirt': 'Spódnica Maxi', 'Mini Skirt': 'Spódnica Mini', 'Blouse': 'Bluzka',
+  'Top': 'Top', 'Jacket': 'Kurtka', 'Blazer': 'Marynarka', 'Coat': 'Płaszcz',
+  'Jumpsuit': 'Kombinezon', 'Trousers': 'Spodnie', 'Pants': 'Spodnie',
+  'Cardigan': 'Kardigan', 'Sweater': 'Sweter', 'Co-ord Set': 'Komplet',
+  'Two Piece Set': 'Komplet'
+};
+
 function translateColor(color) {
   const lower = color.toLowerCase().trim();
   return colorMap[lower] || (color.charAt(0).toUpperCase() + color.slice(1).toLowerCase());
@@ -89,16 +100,14 @@ function titleToUrlHandle(title) {
     .replace(/^-|-$/g, '');
 }
 
-// ✅ Verwijder brand prefix zoals "Cherie | " of "Nike - " uit producttitel
 function cleanTitle(title) {
-  // Verwijder alles voor | of - als het een brandnaam prefix is
   return title.replace(/^[^|–\-]+[|–\-]\s*/, '').trim() || title.trim();
 }
 
 async function generateDescription(productInfo) {
-  // ✅ Schoon de titel op voor Claude
   const cleanedTitle = cleanTitle(productInfo.title);
-  console.log('[generateDescription] Starting for:', cleanedTitle, '(original:', productInfo.title + ')');
+  const storeName = productInfo.storeId === 'store2' ? 'Lorenzari' : 'Yamira London';
+  console.log('[generateDescription] Starting for:', cleanedTitle, 'store:', storeName);
 
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -110,7 +119,7 @@ async function generateDescription(productInfo) {
     body: JSON.stringify({
       model: 'claude-sonnet-4-6',
       max_tokens: 2000,
-      system: `You are the dedicated product listing assistant for Yamira London, a UK-based women's fashion webshop. Create fully compliant Shopify-ready product listings. Follow every rule exactly.
+      system: `You are the dedicated product listing assistant for ${storeName}, a women's fashion webshop. Create fully compliant Shopify-ready product listings. Follow every rule exactly.
 
 LANGUAGE: The "Language" field decides the language of ALL output (title, description, meta description).
 - english: Write everything in natural UK English. Title MUST end with "for women". Translate any non-English product name to English.
@@ -118,7 +127,7 @@ LANGUAGE: The "Language" field decides the language of ALL output (title, descri
 Never mix languages. No Dutch or French words in either case.
 
 BRAND CONTEXT:
-Store: Yamira London. Tone: clean, neutral, refined, factual. Never write hype, never exaggerate.
+Store: ${storeName}. Tone: clean, neutral, refined, factual. Never write hype, never exaggerate.
 
 SEO TITLE RULES:
 - Descriptive, specific, keyword rich, using high-volume fashion search keywords for the chosen language.
@@ -139,7 +148,7 @@ PRODUCT DESCRIPTION RULES:
 - Write like ASOS product copy: confident, specific, direct — not generic.
 
 META DESCRIPTION RULES:
-- Format: [Product type] + [key design feature] + [occasion/style context] + [call to action] ending with "– Yamira London".
+- Format: [Product type] + [key design feature] + [occasion/style context] + [call to action] ending with "– ${storeName}".
 - Max 160 characters STRICTLY.
 - Direct, punchy, benefit-driven, in the chosen language.
 
@@ -235,7 +244,6 @@ async function createShopifyProduct(productData, token, storeDomain) {
   return r.json();
 }
 
-// Upload alle images na product aanmaken — één voor één met retry
 async function addExtraImages(productId, imageUrls, token, storeDomain) {
   const t = token || SHOPIFY_TOKEN;
   const store = (storeDomain || SHOPIFY_STORE).replace(/^https?:\/\//, '').replace(/\/$/, '');
@@ -279,11 +287,9 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   const { productInfo, generatePhotos } = req.body || {};
-  // Gebruik storeId of directe token/store uit request body
   let reqToken = productInfo && productInfo.shopifyToken;
   let reqStore = productInfo && productInfo.shopifyStore;
   if (productInfo && productInfo.storeId === 'store2') {
-    // env var heeft voorrang, anders de meegestuurde token uit het dashboard
     reqToken = process.env.SHOPIFY_TOKEN_2 || (productInfo && productInfo.shopifyToken);
     reqStore = process.env.SHOPIFY_STORE_2 || (productInfo && productInfo.shopifyStore) || 'gw5ubt-8p.myshopify.com';
   }
@@ -293,38 +299,38 @@ export default async function handler(req, res) {
 
   try {
     const lang = (productInfo.language || 'english').toLowerCase();
+    const storeName = productInfo.storeId === 'store2' ? 'Lorenzari' : 'Yamira London';
     const generated = await generateDescription(productInfo);
     const description = generated.description || '';
     const seoTitle = generated.seoTitle || productInfo.title;
     const metaDescription = generated.metaDescription || '';
     const urlHandle = titleToUrlHandle(seoTitle);
-    // Als kleuren maten bevatten of leeg zijn -> gebruik One Colour
+
     const sizeKeywords = ['xs','s','m','l','xl','xxl','xxxl','xs (uk6)','s (uk8)','m (uk10)','l (uk12)','xl (uk14)','xxl (uk16)'];
     const rawColors = (productInfo.colors || []).filter(function(c) {
       return !sizeKeywords.includes(c.toLowerCase().trim());
     });
-    // Pools: kleuren laten zoals ze binnenkomen (al Pools). Engels: normaliseren naar Engels.
     const colors = rawColors.length > 0
       ? (lang === 'polish' ? rawColors : rawColors.map(translateColor))
       : [lang === 'polish' ? 'Jeden kolor' : 'One Colour'];
+
     const productType = productInfo.type || 'Dress';
+    const displayProductType = lang === 'polish' ? (polishTypeMap[productType] || productType) : productType;
     const season = productInfo.season || 'ALL YEAR';
 
-    // Tags: seizoen + producttype + hoofdcategorie
-    const tagSet = [season, productType];
-    const mainCategory = productType.includes('Dress') ? 'Dress' :
-                         (productType.includes('Skirt')) ? 'Bottoms' :
-                         (productType.includes('Jacket') || productType.includes('Coat') || productType.includes('Blazer')) ? 'Outerwear' :
-                         (productType.includes('Top') || productType.includes('Blouse')) ? 'Tops' :
-                         (productType.includes('Trouser') || productType.includes('Pants')) ? 'Bottoms' : null;
-    if (mainCategory && mainCategory !== productType) tagSet.push(mainCategory);
+    const tagSet = [season, displayProductType];
+    const mainCategory = productType.includes('Dress') ? (lang === 'polish' ? 'Sukienka' : 'Dress') :
+                         productType.includes('Skirt') ? (lang === 'polish' ? 'Spódnica' : 'Bottoms') :
+                         (productType.includes('Jacket') || productType.includes('Coat') || productType.includes('Blazer')) ? (lang === 'polish' ? 'Okrycia' : 'Outerwear') :
+                         (productType.includes('Top') || productType.includes('Blouse')) ? (lang === 'polish' ? 'Bluzki' : 'Tops') :
+                         (productType.includes('Trouser') || productType.includes('Pants')) ? (lang === 'polish' ? 'Spodnie' : 'Bottoms') : null;
+    if (mainCategory && mainCategory !== displayProductType) tagSet.push(mainCategory);
     const tags = tagSet.filter(Boolean).join(', ');
 
-    // Gebruik convertedPrice (PLN) als die meegegeven is, anders bereken zelf
     const price = productInfo.convertedPrice
       ? parseFloat(productInfo.convertedPrice)
       : convertPrice(productInfo.originalPrice, productInfo.currency || 'EUR');
-    // Pools: maten houden zoals binnenkomen (zonder UK). Engels: UK-suffix toevoegen.
+
     const defaultSizes = lang === 'polish'
       ? ['XS', 'S', 'M', 'L', 'XL', 'XXL']
       : ['XS (UK6)', 'S (UK8)', 'M (UK10)', 'L (UK12)', 'XL (UK14)', 'XXL (UK16)'];
@@ -363,7 +369,6 @@ export default async function handler(req, res) {
       }
     }
 
-    // Optienamen in de gekozen taal
     const colourLabel = lang === 'polish' ? 'Kolor' : 'Colour';
     const sizeLabel = lang === 'polish' ? 'Rozmiar' : 'Size';
 
@@ -389,8 +394,8 @@ export default async function handler(req, res) {
         return html;
       })(description) : '',
       metafields: metafields,
-      vendor: 'Yamira London',
-      product_type: productType,
+      vendor: storeName,
+      product_type: displayProductType,
       tags: tags,
       status: 'draft',
       variants: variants,
