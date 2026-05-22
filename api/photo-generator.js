@@ -204,14 +204,15 @@ async function pollKieTask(taskId) {
 }
 
 // ── Shopify afbeeldingen toevoegen ─────────────────────────────────────────
-async function addImagesToShopifyProduct(productId, imageUrls) {
-  const store = SHOPIFY_STORE.replace(/^https?:\/\//, '').replace(/\/$/, '');
+async function addImagesToShopifyProduct(productId, imageUrls, token, storeDomain) {
+  const t = token || SHOPIFY_TOKEN;
+  const store = (storeDomain || SHOPIFY_STORE).replace(/^https?:\/\//, '').replace(/\/$/, '');
   for (let i = 0; i < imageUrls.length; i++) {
     try {
       const r = await fetch('https://' + store + '/admin/api/2024-01/products/' + productId + '/images.json', {
         method: 'POST',
         headers: {
-          'X-Shopify-Access-Token': SHOPIFY_TOKEN,
+          'X-Shopify-Access-Token': t,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ image: { src: imageUrls[i], position: i + 1 } })
@@ -235,7 +236,9 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  const { adminUrl, color } = req.body || {};
+  const { adminUrl, color, shopifyToken: reqToken, shopifyStore: reqStore } = req.body || {};
+  const activeToken = reqToken || SHOPIFY_TOKEN;
+  const activeStore = reqStore || SHOPIFY_STORE;
   if (!adminUrl) return res.status(400).json({ error: 'Admin URL missing' });
 
   const match = adminUrl.match(/\/products\/(\d+)/);
@@ -245,9 +248,9 @@ export default async function handler(req, res) {
   console.log('[photo-generator] Product ID:', productId, '| Color:', color);
 
   try {
-    const store = SHOPIFY_STORE.replace(/^https?:\/\//, '').replace(/\/$/, '');
+    const store = activeStore.replace(/^https?:\/\//, '').replace(/\/$/, '');
     const shopifyR = await fetch('https://' + store + '/admin/api/2024-01/products/' + productId + '.json', {
-      headers: { 'X-Shopify-Access-Token': SHOPIFY_TOKEN }
+      headers: { 'X-Shopify-Access-Token': activeToken }
     });
 
     if (!shopifyR.ok) {
@@ -309,7 +312,7 @@ export default async function handler(req, res) {
     console.log('[photo-generator] Total photos generated:', generatedImageUrls.length);
 
     if (generatedImageUrls.length > 0) {
-      await addImagesToShopifyProduct(productId, generatedImageUrls);
+      await addImagesToShopifyProduct(productId, generatedImageUrls, activeToken, activeStore);
     }
 
     return res.status(200).json({
