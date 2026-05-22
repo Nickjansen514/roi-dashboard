@@ -2,9 +2,9 @@ const KIE_API_KEY = process.env.KIE_API_KEY;
 const SHOPIFY_TOKEN = process.env.SHOPIFY_TOKEN;
 const SHOPIFY_STORE = process.env.SHOPIFY_STORE;
 
-const MODEL = 'a professional fashion model, mid-20s, fair light skin tone, long dark brown wavy hair worn down in loose waves, slim figure, natural makeup, nude lip, relaxed confident expression';
+const MODEL = 'a professional fashion model, mid-20s, fair light skin tone, long dark brown wavy hair worn down in loose waves, slim figure, natural makeup, soft natural lip, relaxed confident expression';
 const BG = 'clean light gray studio background, soft even studio lighting, no harsh shadows, white floor';
-const STYLING = 'simple nude heels';
+const STYLING = 'simple beige heels';
 
 function colorPromptDescription(color) {
   const map = {
@@ -56,7 +56,7 @@ async function analyzeGarmentFromImages(imageUrls) {
   });
   imageContent.push({
     type: 'text',
-    text: 'Describe this garment precisely for an AI image generation prompt. Include: silhouette/cut, neckline style, strap or sleeve details, length, fabric texture/appearance, and any notable design details (ruffles, lace, pleats, embroidery, bow, etc.). Be specific. Write ONLY the garment description, no color mention, no introduction. Maximum 80 words.'
+Describe this garment for an AI image generation prompt. Include: silhouette, neckline, straps or sleeves, length, fabric texture, and key design details (ruffles, lace, pleats, embroidery, bow). Write ONLY the garment description, no color, no introduction. Maximum 60 words. Avoid words: bare, exposed, revealing, backless.
   });
   try {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -155,7 +155,10 @@ async function pollKieTask(taskId) {
       console.log('[Kie.ai] Done! URL:', imgUrl);
       return imgUrl || null;
     }
-    if (state === 'fail') throw new Error('Kie.ai task mislukt: ' + taskId);
+    if (state === 'fail') {
+  const failMsg = result.data && result.data.failMsg;
+  throw new Error('Kie.ai task mislukt: ' + taskId + ' | reden: ' + (failMsg || 'onbekend'));
+}
     console.log('[Kie.ai] State:', state || 'unknown', '— wachten...');
   }
   throw new Error('Kie.ai timeout: ' + taskId);
