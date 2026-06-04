@@ -67,7 +67,7 @@
   .banner-info h3 { color: #1e3d78; } .banner-info p { color: #2a4e8c; line-height: 1.6; }
   .banner-err h3 { color: #7a1e1e; } .banner-err p { color: #8b2222; line-height: 1.6; }
   .banner code { font-family: var(--mono); font-size: 11px; padding: 1px 5px; border-radius: 3px; background: rgba(0,0,0,0.06); }
-  .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 22px; }
+  .kpi-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 22px; }
   .kpi { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; position: relative; overflow: hidden; }
   .kpi::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: var(--kpi-accent, var(--border)); }
   .kpi-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--text3); font-weight: 500; margin-bottom: 8px; }
@@ -189,6 +189,8 @@ let sortCol = 'omzet';
 let sortDir = 'desc';
 let searchQ = '';
 let charts = {};
+let margin = parseFloat(localStorage.getItem('roi-margin')) || 60;
+let costMap = JSON.parse(localStorage.getItem('roi-costmap') || '{}');
 
 // ✅ Kleurenvertaling met hoofdletter — zelfde als scrape.js
 var COLOR_MAP = {
@@ -340,15 +342,15 @@ function processData(shopifyResult, gadsRows) {
     var isRefund = order.financial_status === 'refunded' || order.financial_status === 'partially_refunded';
     (order.line_items || []).forEach(function(item) {
       var id = String(item.product_id);
-      if (!map[id]) map[id] = { id: id, name: item.title, omzet: 0, refunds: 0, spend: 0, kliks: 0, impressions: 0, conversies: 0 };
+      if (!map[id]) map[id] = { id: id, name: item.title, omzet: 0, refunds: 0, spend: 0, kliks: 0, impressions: 0, conversies: 0, qty: 0 };
       var val = parseFloat(item.price) * item.quantity - parseFloat(item.total_discount || 0);
-      if (isRefund) map[id].refunds += val; else map[id].omzet += val;
+      if (isRefund) { map[id].refunds += val; } else { map[id].omzet += val; map[id].qty += (parseInt(item.quantity) || 0); }
     });
   });
   (gadsRows || []).forEach(function(g) {
     var sid = extractShopifyId(g.productItemId);
     var key = sid || ('g_' + g.productItemId);
-    if (!map[key]) map[key] = { id: sid || g.productItemId, name: g.productTitle || g.productItemId, omzet: 0, refunds: 0, spend: 0, kliks: 0, impressions: 0, conversies: 0 };
+    if (!map[key]) map[key] = { id: sid || g.productItemId, name: g.productTitle || g.productItemId, omzet: 0, refunds: 0, spend: 0, kliks: 0, impressions: 0, conversies: 0, qty: 0 };
     map[key].spend += g.spend || 0;
     map[key].kliks += g.clicks || 0;
     map[key].impressions += g.impressions || 0;
@@ -372,6 +374,7 @@ async function syncAll() {
     var gadsResult = [];
     if (shopifyToken) shopifyResult = await fetchShopifyOrders(period);
     try { gadsResult = await fetchGoogleAds(period); } catch(e) { console.log('Google Ads overgeslagen:', e.message); }
+    try { var sheet = await fetchLaunchSheet(); costMap = sheet.costs || {}; localStorage.setItem('roi-costmap', JSON.stringify(costMap)); } catch(e) { console.log('Launch sheet overgeslagen:', e.message); }
     productData = processData(shopifyResult, gadsResult);
     localStorage.setItem('roi-data-' + period, JSON.stringify(productData));
     localStorage.setItem('roi-last-sync', new Date().toISOString());
@@ -404,30 +407,59 @@ function renderLogin() {
   document.getElementById('content').innerHTML = '<div class="login-wrap"><div class="login-card"><h2>Verbind je Shopify store</h2><p>Vul je store URL in en klik op Verbinden.</p><div class="login-field"><label>Store URL</label><input id="login-store" type="text" placeholder="jouwstore.myshopify.com" value="' + shopifyStore + '"></div><button class="btn btn-primary" style="width:100%;justify-content:center;padding:11px;" onclick="shopifyLogin()">Verbinden met Shopify &rarr;</button></div></div>';
 }
 
+async function fetchLaunchSheet() {
+  var r = await fetch('/api/launch-sheet');
+  if (!r.ok) throw new Error('Launch sheet fout: ' + r.status);
+  var data = await r.json();
+  if (data.error) throw new Error(data.error);
+  return data;
+}
+
+function withProfit(arr) {
+  return arr.map(function(p) {
+    var c = costMap[p.id];
+    var hasCost = c && c.costEur > 0;
+    var winst = hasCost
+      ? (p.omzet - p.spend - (c.costEur * (p.qty || 0)))
+      : ((p.omzet * margin / 100) - p.spend);
+    return Object.assign({}, p, { winst: winst, winstReal: !!hasCost });
+  });
+}
+
+function setMargin(v) {
+  margin = parseFloat(v) || 0;
+  localStorage.setItem('roi-margin', margin);
+  if (currentPage === 'producten') renderProducten();
+}
+
 function renderProducten() {
   if (!shopifyToken) { renderLogin(); return; }
   var cached = localStorage.getItem('roi-data-' + period);
   if (productData.length === 0 && cached) productData = JSON.parse(cached);
-  var data = productData.length > 0 ? productData : getDemoData();
   var isDemo = productData.length === 0;
+  var data = withProfit(productData.length > 0 ? productData : getDemoData());
   var totalSpend = data.reduce(function(s,p) { return s + p.spend; }, 0);
   var totalOmzet = data.reduce(function(s,p) { return s + p.omzet; }, 0);
   var totalRefunds = data.reduce(function(s,p) { return s + p.refunds; }, 0);
+  var totalWinst = data.reduce(function(s,p) { return s + p.winst; }, 0);
+  var realCount = data.filter(function(p) { return p.winstReal; }).length;
   var totalRoas = totalSpend > 0 ? totalOmzet / totalSpend : 0;
   var totalKliks = data.reduce(function(s,p) { return s + p.kliks; }, 0);
   var totalImpr = data.reduce(function(s,p) { return s + p.impressions; }, 0);
   var avgCtr = totalImpr > 0 ? (totalKliks / totalImpr * 100) : 0;
   var roasColor = totalRoas >= 3 ? 'var(--green)' : totalRoas >= 2 ? 'var(--amber)' : 'var(--red)';
+  var winstColor = totalWinst >= 0 ? 'var(--green)' : 'var(--red)';
   var html = '';
   if (isDemo) html += '<div class="banner banner-info"><div><h3>Demo data</h3><p>Klik op <strong>Synchroniseren</strong> voor echte data.</p></div></div>';
   html += '<div class="kpi-grid">';
   html += '<div class="kpi" style="--kpi-accent:var(--blue)"><div class="kpi-label">Spend</div><div class="kpi-value">&euro;' + totalSpend.toLocaleString('nl-NL',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</div><div class="kpi-sub">' + period + ' dagen</div></div>';
   html += '<div class="kpi" style="--kpi-accent:var(--green)"><div class="kpi-label">Omzet</div><div class="kpi-value">&euro;' + totalOmzet.toLocaleString('nl-NL',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</div><div class="kpi-sub' + (totalRefunds > 0 ? ' kpi-down' : '') + '">' + (totalRefunds > 0 ? '&minus;&euro;' + totalRefunds.toFixed(2) + ' refunds' : 'geen refunds') + '</div></div>';
+  html += '<div class="kpi" style="--kpi-accent:' + winstColor + '"><div class="kpi-label">Winst (na ads)</div><div class="kpi-value" style="color:' + winstColor + '">' + (totalWinst < 0 ? '&minus;&euro;' : '&euro;') + Math.abs(totalWinst).toLocaleString('nl-NL',{minimumFractionDigits:2,maximumFractionDigits:2}) + '</div><div class="kpi-sub">' + realCount + ' van ' + data.length + ' met echte inkoop</div></div>';
   html += '<div class="kpi" style="--kpi-accent:' + roasColor + '"><div class="kpi-label">ROAS</div><div class="kpi-value" style="color:' + roasColor + '">' + totalRoas.toFixed(2) + 'x</div><div class="kpi-sub">Totaal rendement</div></div>';
   html += '<div class="kpi" style="--kpi-accent:#9b6dc9"><div class="kpi-label">CTR gemiddeld</div><div class="kpi-value">' + avgCtr.toFixed(2) + '%</div><div class="kpi-sub">' + totalKliks.toLocaleString('nl-NL') + ' kliks &middot; ' + (totalImpr/1000).toFixed(1) + 'K impr.</div></div>';
   html += '</div>';
-  html += '<div class="table-wrap"><div class="table-header"><div style="display:flex;align-items:center;gap:8px;"><span class="table-title">Alle producten</span><span class="table-meta" id="prod-count">' + data.length + ' producten</span></div><input class="search" placeholder="Zoek product..." oninput="onSearch(this.value)" value="' + searchQ + '"></div>';
-  html += '<table><thead><tr><th onclick="sortBy(\'name\')" style="text-align:left;" class="' + (sortCol==='name'?'sort-'+sortDir:'') + '">Product</th><th onclick="sortBy(\'spend\')" class="' + (sortCol==='spend'?'sort-'+sortDir:'') + '">Spend</th><th onclick="sortBy(\'kliks\')" class="' + (sortCol==='kliks'?'sort-'+sortDir:'') + '">Kliks</th><th onclick="sortBy(\'impressions\')" class="' + (sortCol==='impressions'?'sort-'+sortDir:'') + '">Impressies</th><th onclick="sortBy(\'ctr\')" class="' + (sortCol==='ctr'?'sort-'+sortDir:'') + '">CTR</th><th onclick="sortBy(\'omzet\')" class="' + (sortCol==='omzet'?'sort-'+sortDir:'') + '">Omzet</th><th onclick="sortBy(\'refunds\')" class="' + (sortCol==='refunds'?'sort-'+sortDir:'') + '">Refunds</th><th onclick="sortBy(\'roas\')" class="' + (sortCol==='roas'?'sort-'+sortDir:'') + '">ROAS</th></tr></thead><tbody id="tbody">' + buildRows(getSortedData(data)) + '</tbody></table></div>';
+  html += '<div class="table-wrap"><div class="table-header"><div style="display:flex;align-items:center;gap:8px;"><span class="table-title">Alle producten</span><span class="table-meta" id="prod-count">' + data.length + ' producten</span></div><div style="display:flex;align-items:center;gap:10px;"><label style="font-size:11px;color:var(--text3);display:flex;align-items:center;gap:6px;white-space:nowrap;">Marge&nbsp;% <input type="number" id="margin-input" value="' + margin + '" onchange="setMargin(this.value)" style="width:64px;padding:6px 8px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;font-family:var(--mono);outline:none;"></label><input class="search" placeholder="Zoek product..." oninput="onSearch(this.value)" value="' + searchQ + '"></div></div>';
+  html += '<table><thead><tr><th onclick="sortBy(\'name\')" style="text-align:left;" class="' + (sortCol==='name'?'sort-'+sortDir:'') + '">Product</th><th onclick="sortBy(\'spend\')" class="' + (sortCol==='spend'?'sort-'+sortDir:'') + '">Spend</th><th onclick="sortBy(\'kliks\')" class="' + (sortCol==='kliks'?'sort-'+sortDir:'') + '">Kliks</th><th onclick="sortBy(\'impressions\')" class="' + (sortCol==='impressions'?'sort-'+sortDir:'') + '">Impressies</th><th onclick="sortBy(\'ctr\')" class="' + (sortCol==='ctr'?'sort-'+sortDir:'') + '">CTR</th><th onclick="sortBy(\'omzet\')" class="' + (sortCol==='omzet'?'sort-'+sortDir:'') + '">Omzet</th><th onclick="sortBy(\'refunds\')" class="' + (sortCol==='refunds'?'sort-'+sortDir:'') + '">Refunds</th><th onclick="sortBy(\'roas\')" class="' + (sortCol==='roas'?'sort-'+sortDir:'') + '">ROAS</th><th onclick="sortBy(\'winst\')" class="' + (sortCol==='winst'?'sort-'+sortDir:'') + '">Winst</th></tr></thead><tbody id="tbody">' + buildRows(getSortedData(data)) + '</tbody></table></div>';
   document.getElementById('content').innerHTML = html;
 }
 
@@ -443,17 +475,20 @@ function getSortedData(data) {
 }
 
 function buildRows(data) {
-  if (!data.length) return '<tr><td colspan="8" style="text-align:center;padding:30px;color:var(--text3)">Geen producten gevonden</td></tr>';
+  if (!data.length) return '<tr><td colspan="9" style="text-align:center;padding:30px;color:var(--text3)">Geen producten gevonden</td></tr>';
   return data.map(function(p) {
     var roasBadge = p.roas === null ? '<span class="badge badge-gray">&mdash;</span>' : p.roas >= 3 ? '<span class="badge badge-green">' + p.roas.toFixed(2) + 'x</span>' : p.roas >= 2 ? '<span class="badge badge-amber">' + p.roas.toFixed(2) + 'x</span>' : '<span class="badge badge-red">' + p.roas.toFixed(2) + 'x</span>';
     var imprFmt = p.impressions >= 10000 ? (p.impressions/1000).toFixed(1) + 'K' : p.impressions.toLocaleString('nl-NL');
-    return '<tr><td><span class="prod-name">' + p.name + '</span><span class="prod-id">#' + p.id + '</span></td><td>&euro;' + p.spend.toFixed(2) + '</td><td>' + p.kliks.toLocaleString('nl-NL') + '</td><td>' + imprFmt + '</td><td>' + p.ctr.toFixed(2) + '%</td><td>&euro;' + p.omzet.toFixed(2) + '</td><td>' + (p.refunds > 0 ? '<span class="refund-neg">&minus;&euro;' + p.refunds.toFixed(2) + '</span>' : '<span class="dash">&mdash;</span>') + '</td><td>' + roasBadge + '</td></tr>';
+    var w = (typeof p.winst === 'number') ? p.winst : ((p.omzet * margin / 100) - p.spend);
+    var est = p.winstReal ? '' : '<span style="color:var(--text3);" title="Geschat met marge% (geen inkoopprijs in sheet)">*</span>';
+    var winstStr = '<span style="color:' + (w >= 0 ? 'var(--green)' : 'var(--red)') + ';font-weight:500;">' + (w < 0 ? '&minus;&euro;' : '&euro;') + Math.abs(w).toFixed(2) + est + '</span>';
+    return '<tr><td><span class="prod-name">' + p.name + '</span><span class="prod-id">#' + p.id + '</span></td><td>&euro;' + p.spend.toFixed(2) + '</td><td>' + p.kliks.toLocaleString('nl-NL') + '</td><td>' + imprFmt + '</td><td>' + p.ctr.toFixed(2) + '%</td><td>&euro;' + p.omzet.toFixed(2) + '</td><td>' + (p.refunds > 0 ? '<span class="refund-neg">&minus;&euro;' + p.refunds.toFixed(2) + '</span>' : '<span class="dash">&mdash;</span>') + '</td><td>' + roasBadge + '</td><td>' + winstStr + '</td></tr>';
   }).join('');
 }
 
 function onSearch(q) {
   searchQ = q;
-  var data = productData.length > 0 ? productData : getDemoData();
+  var data = withProfit(productData.length > 0 ? productData : getDemoData());
   var sorted = getSortedData(data);
   document.getElementById('tbody').innerHTML = buildRows(sorted);
   document.getElementById('prod-count').textContent = sorted.length + ' producten';
