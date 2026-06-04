@@ -191,6 +191,7 @@ let searchQ = '';
 let charts = {};
 let margin = parseFloat(localStorage.getItem('roi-margin')) || 60;
 let costMap = JSON.parse(localStorage.getItem('roi-costmap') || '{}');
+let prodFilter = 'all';
 
 // ✅ Kleurenvertaling met hoofdletter — zelfde als scrape.js
 var COLOR_MAP = {
@@ -432,6 +433,11 @@ function setMargin(v) {
   if (currentPage === 'producten') renderProducten();
 }
 
+function setFilter(f) {
+  prodFilter = f;
+  if (currentPage === 'producten') renderProducten();
+}
+
 function renderProducten() {
   if (!shopifyToken) { renderLogin(); return; }
   var cached = localStorage.getItem('roi-data-' + period);
@@ -458,6 +464,8 @@ function renderProducten() {
   html += '<div class="kpi" style="--kpi-accent:' + roasColor + '"><div class="kpi-label">ROAS</div><div class="kpi-value" style="color:' + roasColor + '">' + totalRoas.toFixed(2) + 'x</div><div class="kpi-sub">Totaal rendement</div></div>';
   html += '<div class="kpi" style="--kpi-accent:#9b6dc9"><div class="kpi-label">CTR gemiddeld</div><div class="kpi-value">' + avgCtr.toFixed(2) + '%</div><div class="kpi-sub">' + totalKliks.toLocaleString('nl-NL') + ' kliks &middot; ' + (totalImpr/1000).toFixed(1) + 'K impr.</div></div>';
   html += '</div>';
+  var filterDefs = [['all','Alle'],['loss','Verliesgevend'],['waste','Spend zonder sales'],['lowroas','Lage ROAS (<2)']];
+  html += '<div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">' + filterDefs.map(function(f){ var a = prodFilter === f[0]; return '<button onclick="setFilter(\'' + f[0] + '\')" style="padding:6px 13px;font-size:12px;font-family:var(--font);border-radius:7px;cursor:pointer;border:1px solid ' + (a?'var(--blue)':'var(--border2)') + ';background:' + (a?'var(--blue)':'var(--surface)') + ';color:' + (a?'#fff':'var(--text)') + ';">' + f[1] + '</button>'; }).join('') + '</div>';
   html += '<div class="table-wrap"><div class="table-header"><div style="display:flex;align-items:center;gap:8px;"><span class="table-title">Alle producten</span><span class="table-meta" id="prod-count">' + data.length + ' producten</span></div><div style="display:flex;align-items:center;gap:10px;"><label style="font-size:11px;color:var(--text3);display:flex;align-items:center;gap:6px;white-space:nowrap;">Marge&nbsp;% <input type="number" id="margin-input" value="' + margin + '" onchange="setMargin(this.value)" style="width:64px;padding:6px 8px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;font-family:var(--mono);outline:none;"></label><input class="search" placeholder="Zoek product..." oninput="onSearch(this.value)" value="' + searchQ + '"></div></div>';
   html += '<table><thead><tr><th onclick="sortBy(\'name\')" style="text-align:left;" class="' + (sortCol==='name'?'sort-'+sortDir:'') + '">Product</th><th onclick="sortBy(\'spend\')" class="' + (sortCol==='spend'?'sort-'+sortDir:'') + '">Spend</th><th onclick="sortBy(\'kliks\')" class="' + (sortCol==='kliks'?'sort-'+sortDir:'') + '">Kliks</th><th onclick="sortBy(\'impressions\')" class="' + (sortCol==='impressions'?'sort-'+sortDir:'') + '">Impressies</th><th onclick="sortBy(\'ctr\')" class="' + (sortCol==='ctr'?'sort-'+sortDir:'') + '">CTR</th><th onclick="sortBy(\'omzet\')" class="' + (sortCol==='omzet'?'sort-'+sortDir:'') + '">Omzet</th><th onclick="sortBy(\'refunds\')" class="' + (sortCol==='refunds'?'sort-'+sortDir:'') + '">Refunds</th><th onclick="sortBy(\'roas\')" class="' + (sortCol==='roas'?'sort-'+sortDir:'') + '">ROAS</th><th onclick="sortBy(\'winst\')" class="' + (sortCol==='winst'?'sort-'+sortDir:'') + '">Winst</th></tr></thead><tbody id="tbody">' + buildRows(getSortedData(data)) + '</tbody></table></div>';
   document.getElementById('content').innerHTML = html;
@@ -466,6 +474,9 @@ function renderProducten() {
 function getSortedData(data) {
   var q = searchQ.toLowerCase();
   var filtered = q ? data.filter(function(p) { return p.name.toLowerCase().indexOf(q) !== -1; }) : data.slice();
+  if (prodFilter === 'loss') filtered = filtered.filter(function(p) { return p.winst < 0; });
+  else if (prodFilter === 'waste') filtered = filtered.filter(function(p) { return p.spend > 0 && p.omzet === 0; });
+  else if (prodFilter === 'lowroas') filtered = filtered.filter(function(p) { return p.spend > 0 && p.roas !== null && p.roas < 2; });
   filtered.sort(function(a,b) {
     var av = a[sortCol] !== undefined && a[sortCol] !== null ? a[sortCol] : -Infinity;
     var bv = b[sortCol] !== undefined && b[sortCol] !== null ? b[sortCol] : -Infinity;
