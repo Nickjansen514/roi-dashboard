@@ -302,10 +302,7 @@ function setPeriod(p, el) {
   period = p;
   document.querySelectorAll('.ptab').forEach(function(b) { b.classList.remove('active'); });
   el.classList.add('active');
-  var cached = localStorage.getItem('roi-data-' + period);
-  if (cached) productData = JSON.parse(cached);
-  if (currentPage === 'producten') renderProducten();
-  else if (currentPage === 'dashboard') renderDashboard();
+  syncAll();
 }
 
 function destroyCharts() {
