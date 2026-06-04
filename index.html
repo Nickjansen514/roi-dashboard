@@ -341,17 +341,18 @@ function processData(shopifyResult, gadsRows) {
   var map = {};
   (shopifyResult.orders || []).forEach(function(order) {
     var isRefund = order.financial_status === 'refunded' || order.financial_status === 'partially_refunded';
+    var seen = {};
     (order.line_items || []).forEach(function(item) {
       var id = String(item.product_id);
-      if (!map[id]) map[id] = { id: id, name: item.title, omzet: 0, refunds: 0, spend: 0, kliks: 0, impressions: 0, conversies: 0, qty: 0 };
+      if (!map[id]) map[id] = { id: id, name: item.title, omzet: 0, refunds: 0, spend: 0, kliks: 0, impressions: 0, conversies: 0, qty: 0, orders: 0 };
       var val = parseFloat(item.price) * item.quantity - parseFloat(item.total_discount || 0);
-      if (isRefund) { map[id].refunds += val; } else { map[id].omzet += val; map[id].qty += (parseInt(item.quantity) || 0); }
+      if (isRefund) { map[id].refunds += val; } else { map[id].omzet += val; map[id].qty += (parseInt(item.quantity) || 0); if (!seen[id]) { map[id].orders += 1; seen[id] = true; } }
     });
   });
   (gadsRows || []).forEach(function(g) {
     var sid = extractShopifyId(g.productItemId);
     var key = sid || ('g_' + g.productItemId);
-    if (!map[key]) map[key] = { id: sid || g.productItemId, name: g.productTitle || g.productItemId, omzet: 0, refunds: 0, spend: 0, kliks: 0, impressions: 0, conversies: 0, qty: 0 };
+    if (!map[key]) map[key] = { id: sid || g.productItemId, name: g.productTitle || g.productItemId, omzet: 0, refunds: 0, spend: 0, kliks: 0, impressions: 0, conversies: 0, qty: 0, orders: 0 };
     map[key].spend += g.spend || 0;
     map[key].kliks += g.clicks || 0;
     map[key].impressions += g.impressions || 0;
@@ -420,10 +421,10 @@ function withProfit(arr) {
   return arr.map(function(p) {
     var c = costMap[p.id];
     var hasCost = c && c.costEur > 0;
-    var winst = hasCost
-      ? (p.omzet - p.spend - (c.costEur * (p.qty || 0)))
-      : ((p.omzet * margin / 100) - p.spend);
-    return Object.assign({}, p, { winst: winst, winstReal: !!hasCost });
+    var cogs = hasCost ? (c.costEur * (p.qty || 0)) : (p.omzet * (1 - margin / 100));
+    var winst = p.omzet - p.spend - cogs;
+    var margePct = p.omzet > 0 ? ((p.omzet - cogs) / p.omzet * 100) : 0;
+    return Object.assign({}, p, { winst: winst, margePct: margePct, winstReal: !!hasCost });
   });
 }
 
@@ -467,7 +468,7 @@ function renderProducten() {
   var filterDefs = [['all','Alle'],['loss','Verliesgevend'],['waste','Spend zonder sales'],['lowroas','Lage ROAS (<2)']];
   html += '<div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">' + filterDefs.map(function(f){ var a = prodFilter === f[0]; return '<button onclick="setFilter(\'' + f[0] + '\')" style="padding:6px 13px;font-size:12px;font-family:var(--font);border-radius:7px;cursor:pointer;border:1px solid ' + (a?'var(--blue)':'var(--border2)') + ';background:' + (a?'var(--blue)':'var(--surface)') + ';color:' + (a?'#fff':'var(--text)') + ';">' + f[1] + '</button>'; }).join('') + '</div>';
   html += '<div class="table-wrap"><div class="table-header"><div style="display:flex;align-items:center;gap:8px;"><span class="table-title">Alle producten</span><span class="table-meta" id="prod-count">' + data.length + ' producten</span></div><div style="display:flex;align-items:center;gap:10px;"><label style="font-size:11px;color:var(--text3);display:flex;align-items:center;gap:6px;white-space:nowrap;">Marge&nbsp;% <input type="number" id="margin-input" value="' + margin + '" onchange="setMargin(this.value)" style="width:64px;padding:6px 8px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;font-family:var(--mono);outline:none;"></label><input class="search" placeholder="Zoek product..." oninput="onSearch(this.value)" value="' + searchQ + '"></div></div>';
-  html += '<table><thead><tr><th onclick="sortBy(\'name\')" style="text-align:left;" class="' + (sortCol==='name'?'sort-'+sortDir:'') + '">Product</th><th onclick="sortBy(\'spend\')" class="' + (sortCol==='spend'?'sort-'+sortDir:'') + '">Spend</th><th onclick="sortBy(\'kliks\')" class="' + (sortCol==='kliks'?'sort-'+sortDir:'') + '">Kliks</th><th onclick="sortBy(\'impressions\')" class="' + (sortCol==='impressions'?'sort-'+sortDir:'') + '">Impressies</th><th onclick="sortBy(\'ctr\')" class="' + (sortCol==='ctr'?'sort-'+sortDir:'') + '">CTR</th><th onclick="sortBy(\'omzet\')" class="' + (sortCol==='omzet'?'sort-'+sortDir:'') + '">Omzet</th><th onclick="sortBy(\'refunds\')" class="' + (sortCol==='refunds'?'sort-'+sortDir:'') + '">Refunds</th><th onclick="sortBy(\'roas\')" class="' + (sortCol==='roas'?'sort-'+sortDir:'') + '">ROAS</th><th onclick="sortBy(\'winst\')" class="' + (sortCol==='winst'?'sort-'+sortDir:'') + '">Winst</th></tr></thead><tbody id="tbody">' + buildRows(getSortedData(data)) + '</tbody></table></div>';
+  html += '<table><thead><tr><th onclick="sortBy(\'name\')" style="text-align:left;" class="' + (sortCol==='name'?'sort-'+sortDir:'') + '">Product</th><th onclick="sortBy(\'spend\')" class="' + (sortCol==='spend'?'sort-'+sortDir:'') + '">Spend</th><th onclick="sortBy(\'kliks\')" class="' + (sortCol==='kliks'?'sort-'+sortDir:'') + '">Kliks</th><th onclick="sortBy(\'impressions\')" class="' + (sortCol==='impressions'?'sort-'+sortDir:'') + '">Impressies</th><th onclick="sortBy(\'ctr\')" class="' + (sortCol==='ctr'?'sort-'+sortDir:'') + '">CTR</th><th onclick="sortBy(\'omzet\')" class="' + (sortCol==='omzet'?'sort-'+sortDir:'') + '">Omzet</th><th onclick="sortBy(\'orders\')" class="' + (sortCol==='orders'?'sort-'+sortDir:'') + '">Orders</th><th onclick="sortBy(\'refunds\')" class="' + (sortCol==='refunds'?'sort-'+sortDir:'') + '">Refunds</th><th onclick="sortBy(\'margePct\')" class="' + (sortCol==='margePct'?'sort-'+sortDir:'') + '">Marge %</th><th onclick="sortBy(\'roas\')" class="' + (sortCol==='roas'?'sort-'+sortDir:'') + '">ROAS</th><th onclick="sortBy(\'winst\')" class="' + (sortCol==='winst'?'sort-'+sortDir:'') + '">Winst</th></tr></thead><tbody id="tbody">' + buildRows(getSortedData(data)) + '</tbody></table></div>';
   document.getElementById('content').innerHTML = html;
 }
 
@@ -486,14 +487,16 @@ function getSortedData(data) {
 }
 
 function buildRows(data) {
-  if (!data.length) return '<tr><td colspan="9" style="text-align:center;padding:30px;color:var(--text3)">Geen producten gevonden</td></tr>';
+  if (!data.length) return '<tr><td colspan="11" style="text-align:center;padding:30px;color:var(--text3)">Geen producten gevonden</td></tr>';
   return data.map(function(p) {
     var roasBadge = p.roas === null ? '<span class="badge badge-gray">&mdash;</span>' : p.roas >= 3 ? '<span class="badge badge-green">' + p.roas.toFixed(2) + 'x</span>' : p.roas >= 2 ? '<span class="badge badge-amber">' + p.roas.toFixed(2) + 'x</span>' : '<span class="badge badge-red">' + p.roas.toFixed(2) + 'x</span>';
     var imprFmt = p.impressions >= 10000 ? (p.impressions/1000).toFixed(1) + 'K' : p.impressions.toLocaleString('nl-NL');
     var w = (typeof p.winst === 'number') ? p.winst : ((p.omzet * margin / 100) - p.spend);
     var est = p.winstReal ? '' : '<span style="color:var(--text3);" title="Geschat met marge% (geen inkoopprijs in sheet)">*</span>';
     var winstStr = '<span style="color:' + (w >= 0 ? 'var(--green)' : 'var(--red)') + ';font-weight:500;">' + (w < 0 ? '&minus;&euro;' : '&euro;') + Math.abs(w).toFixed(2) + est + '</span>';
-    return '<tr><td><span class="prod-name">' + p.name + '</span><span class="prod-id">#' + p.id + '</span></td><td>&euro;' + p.spend.toFixed(2) + '</td><td>' + p.kliks.toLocaleString('nl-NL') + '</td><td>' + imprFmt + '</td><td>' + p.ctr.toFixed(2) + '%</td><td>&euro;' + p.omzet.toFixed(2) + '</td><td>' + (p.refunds > 0 ? '<span class="refund-neg">&minus;&euro;' + p.refunds.toFixed(2) + '</span>' : '<span class="dash">&mdash;</span>') + '</td><td>' + roasBadge + '</td><td>' + winstStr + '</td></tr>';
+    var mp = (typeof p.margePct === 'number') ? p.margePct : 0;
+    var margeStr = '<span style="color:' + (mp < 0 ? 'var(--red)' : 'var(--text2)') + ';">' + mp.toFixed(1) + '%' + (p.winstReal ? '' : '*') + '</span>';
+    return '<tr><td><span class="prod-name">' + p.name + '</span><span class="prod-id">#' + p.id + '</span></td><td>&euro;' + p.spend.toFixed(2) + '</td><td>' + p.kliks.toLocaleString('nl-NL') + '</td><td>' + imprFmt + '</td><td>' + p.ctr.toFixed(2) + '%</td><td>&euro;' + p.omzet.toFixed(2) + '</td><td>' + (p.orders || 0) + '</td><td>' + (p.refunds > 0 ? '<span class="refund-neg">&minus;&euro;' + p.refunds.toFixed(2) + '</span>' : '<span class="dash">&mdash;</span>') + '</td><td>' + margeStr + '</td><td>' + roasBadge + '</td><td>' + winstStr + '</td></tr>';
   }).join('');
 }
 
