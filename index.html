@@ -272,7 +272,7 @@ function shopifyLogin() {
 
 function updateConnStatus() {
   const hasS = shopifyStore && shopifyToken;
-  const hasG = googleAdsToken && googleAdsCid;
+  const hasG = true; // Google Ads is nu server-side verbonden
   document.getElementById('dot-shopify').className = 'dot ' + (hasS ? 'dot-green' : 'dot-orange');
   document.getElementById('lbl-shopify').textContent = 'Shopify: ' + (hasS ? shopifyStore : 'niet verbonden');
   document.getElementById('dot-gads').className = 'dot ' + (hasG ? 'dot-green' : 'dot-orange');
@@ -320,19 +320,21 @@ async function fetchShopifyOrders(days) {
 }
 
 async function fetchGoogleAds(days) {
-  var cid = googleAdsCid.replace(/-/g, '');
-  var since = new Date(Date.now() - days * 86400000).toISOString().split('T')[0];
-  var today = new Date().toISOString().split('T')[0];
-  var query = 'SELECT ad_group_criterion.listing_group.case_value.product_item_id.value, metrics.cost_micros, metrics.clicks, metrics.impressions, metrics.ctr, metrics.conversions FROM shopping_performance_view WHERE segments.date BETWEEN \'' + since.replace(/-/g,'') + '\' AND \'' + today.replace(/-/g,'') + '\'';
-  var r = await fetch('https://googleads.googleapis.com/v17/customers/' + cid + '/googleAds:searchStream', {
-    method: 'POST',
-    headers: { 'Authorization': 'Bearer ' + googleAdsToken, 'developer-token': googleAdsDevToken, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query: query })
-  });
+  var r = await fetch('/api/google-ads?level=product&days=' + days);
   if (!r.ok) throw new Error('Google Ads fout: ' + r.status);
-  var text = await r.text();
-  if (!text.trim()) return [];
-  try { return JSON.parse('[' + text.replace(/\]\s*\[/g, ',') + ']'); } catch(e) { return []; }
+  var data = await r.json();
+  if (data.error) throw new Error(data.error);
+  return data.products || [];
+}
+
+function extractShopifyId(itemId) {
+  if (!itemId) return null;
+  var s = String(itemId);
+  var m = s.match(/shopify_[A-Za-z0-9]+_(\d+)_/);   // bv. shopify_GB_1234567890_999
+  if (m) return m[1];
+  m = s.match(/(\d{6,})/);                          // anders: langste getallenreeks
+  if (m) return m[1];
+  return null;
 }
 
 function processData(shopifyResult, gadsRows) {
@@ -346,15 +348,14 @@ function processData(shopifyResult, gadsRows) {
       if (isRefund) map[id].refunds += val; else map[id].omzet += val;
     });
   });
-  (gadsRows || []).forEach(function(batch) {
-    (batch.results || []).forEach(function(row) {
-      var pid = (row.adGroupCriterion && row.adGroupCriterion.listingGroup && row.adGroupCriterion.listingGroup.caseValue && row.adGroupCriterion.listingGroup.caseValue.productItemId && row.adGroupCriterion.listingGroup.caseValue.productItemId.value) || '_unknown';
-      if (!map[pid]) map[pid] = { id: pid, name: pid, omzet: 0, refunds: 0, spend: 0, kliks: 0, impressions: 0, conversies: 0 };
-      map[pid].spend += ((row.metrics && row.metrics.costMicros) || 0) / 1e6;
-      map[pid].kliks += parseInt((row.metrics && row.metrics.clicks) || 0);
-      map[pid].impressions += parseInt((row.metrics && row.metrics.impressions) || 0);
-      map[pid].conversies += parseFloat((row.metrics && row.metrics.conversions) || 0);
-    });
+  (gadsRows || []).forEach(function(g) {
+    var sid = extractShopifyId(g.productItemId);
+    var key = sid || ('g_' + g.productItemId);
+    if (!map[key]) map[key] = { id: sid || g.productItemId, name: g.productTitle || g.productItemId, omzet: 0, refunds: 0, spend: 0, kliks: 0, impressions: 0, conversies: 0 };
+    map[key].spend += g.spend || 0;
+    map[key].kliks += g.clicks || 0;
+    map[key].impressions += g.impressions || 0;
+    map[key].conversies += g.conversions || 0;
   });
   return Object.values(map).map(function(p) {
     return Object.assign({}, p, {
@@ -373,9 +374,7 @@ async function syncAll() {
     var shopifyResult = { orders: [] };
     var gadsResult = [];
     if (shopifyToken) shopifyResult = await fetchShopifyOrders(period);
-    if (googleAdsToken) {
-      try { gadsResult = await fetchGoogleAds(period); } catch(e) { console.log('Google Ads overgeslagen:', e.message); }
-    }
+    try { gadsResult = await fetchGoogleAds(period); } catch(e) { console.log('Google Ads overgeslagen:', e.message); }
     productData = processData(shopifyResult, gadsResult);
     localStorage.setItem('roi-data-' + period, JSON.stringify(productData));
     localStorage.setItem('roi-last-sync', new Date().toISOString());
