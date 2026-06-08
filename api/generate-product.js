@@ -305,6 +305,43 @@ async function addExtraImages(productId, imageUrls, token, storeDomain) {
   console.log('[addExtraImages] Done:', success, '/', imageUrls.length, 'uploaded');
 }
 
+// Upload foto's, en koppel ze aan variant-id's als die meegegeven zijn.
+// items = [{ src, variant_ids: [..] }]  (variant_ids leeg = algemene productfoto)
+async function addImagesWithVariants(productId, items, token, storeDomain) {
+  const t = token || SHOPIFY_TOKEN;
+  const store = (storeDomain || SHOPIFY_STORE).replace(/^https?:\/\//, '').replace(/\/$/, '');
+  console.log('[addImagesWithVariants] Uploading', items.length, 'images to product', productId);
+  let success = 0;
+  for (let i = 0; i < items.length; i++) {
+    const image = { src: items[i].src };
+    if (items[i].variant_ids && items[i].variant_ids.length) image.variant_ids = items[i].variant_ids;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const r = await fetch('https://' + store + '/admin/api/2024-01/products/' + productId + '/images.json', {
+          method: 'POST',
+          headers: { 'X-Shopify-Access-Token': t, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ image: image })
+        });
+        if (r.status === 429) { await new Promise(function(res) { setTimeout(res, 2000); }); continue; }
+        if (r.ok) {
+          success++;
+          console.log('[addImagesWithVariants] Image ' + (i + 1) + '/' + items.length + ' uploaded (' + (image.variant_ids ? image.variant_ids.length + ' varianten' : 'algemeen') + ')');
+          break;
+        } else {
+          const err = await r.text();
+          console.error('[addImagesWithVariants] Image ' + (i + 1) + ' failed:', r.status, err.substring(0, 100));
+          break;
+        }
+      } catch (e) {
+        console.error('[addImagesWithVariants] Image ' + (i + 1) + ' error:', e.message);
+        break;
+      }
+    }
+    await new Promise(function(res) { setTimeout(res, 500); });
+  }
+  console.log('[addImagesWithVariants] Done:', success, '/', items.length, 'uploaded');
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -431,13 +468,58 @@ export default async function handler(req, res) {
     const result = await createShopifyProduct(shopifyProduct, reqToken, reqStore);
     const productId = result.product && result.product.id;
 
-    const allImageUrls = generatedImages.length > 0
+    // ── Foto's koppelen ───────────────────────────────────────────────
+    // Bij AI-foto's: gewoon uploaden (geen kleurkoppeling).
+    // Bij concurrent-foto's: koppel elke foto aan de juiste kleur-variant
+    // op basis van imagesByColor uit de scraper.
+    const createdVariants = (result.product && result.product.variants) || [];
+    const hasColorOption = !!(variants[0] && variants[0].option2); // option1 = kleur, option2 = maat
+
+    // kleur (lowercase) -> [variantId] in ONS net aangemaakte product
+    const colorToVariantIds = {};
+    if (hasColorOption) {
+      createdVariants.forEach(function(v) {
+        const key = String(v.option1 || '').toLowerCase().trim();
+        if (!colorToVariantIds[key]) colorToVariantIds[key] = [];
+        colorToVariantIds[key].push(v.id);
+      });
+    }
+
+    // Welke foto's heeft de gebruiker behouden (preview)? Alleen die uploaden.
+    const keptSet = new Set((productInfo.originalImages || []).map(function(s) { return String(s).split('?')[0]; }));
+    function isKept(src) { return keptSet.size === 0 ? true : keptSet.has(String(src).split('?')[0]); }
+
+    const imageItems = [];
+    const usedSrc = new Set();
+    const ibc = (!generatePhotos && productInfo.imagesByColor) ? productInfo.imagesByColor : null;
+
+    // 1) Foto's met een kleurkoppeling -> aan de juiste kleur-variant.
+    if (ibc && hasColorOption) {
+      Object.keys(ibc).forEach(function(color) {
+        const vids = colorToVariantIds[String(color).toLowerCase().trim()] || [];
+        (ibc[color] || []).forEach(function(src) {
+          const norm = String(src).split('?')[0];
+          if (!isKept(src) || usedSrc.has(norm)) return;
+          usedSrc.add(norm);
+          imageItems.push({ src: src, variant_ids: vids });
+        });
+      });
+    }
+
+    // 2) Overige foto's (AI-foto's, of foto's zonder kleurkoppeling) -> algemeen.
+    const restSrc = generatedImages.length > 0
       ? generatedImages.map(function(i) { return i.src; })
       : (productInfo.originalImages || []);
+    restSrc.forEach(function(src) {
+      const norm = String(src).split('?')[0];
+      if (usedSrc.has(norm)) return;
+      usedSrc.add(norm);
+      imageItems.push({ src: src, variant_ids: [] });
+    });
 
-    if (productId && allImageUrls.length > 0) {
-      console.log('[handler] Uploading', allImageUrls.length, 'images to product', productId);
-      await addExtraImages(productId, allImageUrls, reqToken, reqStore);
+    if (productId && imageItems.length > 0) {
+      console.log('[handler] Uploading', imageItems.length, 'images to product', productId);
+      await addImagesWithVariants(productId, imageItems, reqToken, reqStore);
     }
 
     return res.status(200).json({
