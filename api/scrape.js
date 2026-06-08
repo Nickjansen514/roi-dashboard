@@ -59,6 +59,22 @@ function translateAndCapitalizeColor(color) {
 // Detecteer producttype uit titel
 function detectProductType(title) {
   const t = (title || '').toLowerCase();
+  // Schoeisel (eerst checken, vóór kleding). Specifieke types vóór het losse woord "heel".
+  if (t.includes('espadrille')) return 'Espadrilles';
+  if (t.includes('slingback')) return 'Slingbacks';
+  if (t.includes('ballet') || t.includes('ballerina')) return 'Ballet Flats';
+  if (t.includes('sandal') || t.includes('sandaal') || t.includes('sandalen') || t.includes('sandale')) return 'Sandals';
+  if (t.includes('loafer') || t.includes('moccasin') || t.includes('mocassin') || t.includes('instapper')) return 'Loafers';
+  if (t.includes('sneaker') || t.includes('trainer') || t.includes('basket')) return 'Sneakers';
+  if ((t.includes('boot') && !t.includes('bootcut')) || t.includes('laars') || t.includes('laarzen') || t.includes('botte')) return 'Boots';
+  if (t.includes('mule')) return 'Mules';
+  if (t.includes('wedge') || t.includes('sleehak')) return 'Wedges';
+  if (t.includes('brogue') || t.includes('oxford') || t.includes('derby')) return 'Brogues';
+  if (t.includes('slipper') || t.includes('pantoffel') || t.includes('chausson')) return 'Slippers';
+  if (t.includes('kitten heel')) return 'Kitten Heels';
+  if (t.includes('heel') || t.includes('stiletto') || t.includes('pump') || t.includes('escarpin') || t.includes('talon') || t.includes('hak')) return 'Heels';
+  if (t.includes('flat shoe') || t.includes(' flats') || t.includes('flats ')) return 'Flats';
+  if (t.includes('shoe') || t.includes('schoen') || t.includes('footwear') || t.includes('chaussure')) return 'Shoes';
   // Engels
   if (t.includes('maxi dress') || t.includes('long dress')) return 'Maxi Dress';
   if (t.includes('midi dress')) return 'Midi Dress';
