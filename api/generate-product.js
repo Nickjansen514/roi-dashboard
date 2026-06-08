@@ -159,6 +159,7 @@ SEO TITLE RULES:
 - English title MUST end with "for women". Polish title MUST end with "dla kobiet".
 - NEVER use (in any language): luxury, elegant, perfect, flattering, shaping, slimming, premium quality, comfort fit.
 - Structure: Primary keyword + secondary keyword + descriptive detail + ending phrase.
+- UNIQUENESS (critical): The title MUST be unique and specific to THIS exact product. NEVER produce a generic title that could fit other products, and NEVER reuse a product name. Always weave in at least one distinctive detail of THIS item (e.g. print, neckline, sleeve, hem, length, heel type, fabric, closure) so that no two products ever end up with the same title.
 
 PRODUCT DESCRIPTION RULES:
 - Structure EXACTLY: Intro paragraph (2 sentences) + 5 bullet points + Closing sentence (1 sentence).
@@ -169,6 +170,7 @@ PRODUCT DESCRIPTION RULES:
 - NEVER mention: comfort, support, posture, pain relief, healing, anti-slip, breathable, slimming, shaping, luxury, elegant, perfect, flattering.
 - Refer to the product by its type in the chosen language (English type if english, Polish type if polish).
 - Write like ASOS product copy: confident, specific, direct — not generic.
+- UNIQUENESS (critical): The description MUST be unique to THIS product. NEVER reuse sentences, phrasing, or bullet wording that could apply to another product — build every sentence on this item's own specific visible features so no two listings read the same.
 
 META DESCRIPTION RULES:
 - Format: [Product type] + [key design feature] + [occasion/style context] + [call to action] ending with "– ${storeName}".
