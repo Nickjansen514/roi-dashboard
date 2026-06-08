@@ -45,13 +45,35 @@ const shoeSizeMap = {
 // Zet een ruwe maat om naar het juiste label.
 // Schoen (UK-getal zoals 3 of 5.5) -> "UK 3 (EU 36)" (Engels) of "EU 36" (Pools).
 // Kleding -> bestaande kledingmaat-omzetting.
-function mapSizeLabel(s, lang) {
+// Herkent of een producttype schoeisel is.
+function isFootwearType(type) {
+  var t = String(type || '').toLowerCase();
+  return /espadrille|slingback|kitten|heel|stiletto|pump|sandal|ballet|ballerina|loafer|moccasin|sneaker|trainer|boot|mule|wedge|brogue|oxford|derby|slipper|flat|shoe|footwear|schoen|laars|sandaal|hak|pantoffel|instapper|sleehak/.test(t);
+}
+
+// Zet een ruwe maat om naar het juiste label.
+// - UK-schoenmaat (klein getal zoals 3 of 5.5): altijd "UK 3 (EU 36)".
+// - EU-schoenmaat (34-48): alleen bij schoeisel -> "UK 3 (EU 36)" (anders is het een kledingmaat).
+// - Kleding: bestaande kledingmaat-omzetting.
+function mapSizeLabel(s, lang, isFootwear) {
   var key = String(s).toUpperCase().trim();
   var shoeKey = key.replace(',', '.').replace(/\.0$/, '');
-  if (shoeSizeMap[shoeKey]) {
-    var eu = shoeSizeMap[shoeKey];
-    return lang === 'polish' ? ('EU ' + eu) : ('UK ' + shoeKey + ' (EU ' + eu + ')');
+  var num = parseFloat(shoeKey);
+
+  // UK-schoenmaat (klein getal) -> altijd als schoen behandelen.
+  if (!isNaN(num) && num < 30 && shoeSizeMap[shoeKey]) {
+    var euU = shoeSizeMap[shoeKey];
+    return lang === 'polish' ? ('EU ' + euU) : ('UK ' + shoeKey + ' (EU ' + euU + ')');
   }
+
+  // EU-schoenmaat (34-48) -> alleen omzetten als het product schoeisel is.
+  if (isFootwear && !isNaN(num) && num >= 30) {
+    var eu = Math.round(num);
+    var ukE = eu - 33; // damesmaat: EU - 33 = UK (UK 3 = EU 36)
+    return lang === 'polish' ? ('EU ' + eu) : ('UK ' + ukE + ' (EU ' + eu + ')');
+  }
+
+  // Kleding.
   if (lang === 'polish') return s;
   return sizeMap[key] || s;
 }
@@ -396,8 +418,9 @@ export default async function handler(req, res) {
     const defaultSizes = lang === 'polish'
       ? ['XS', 'S', 'M', 'L', 'XL', 'XXL']
       : ['XS (UK6)', 'S (UK8)', 'M (UK10)', 'L (UK12)', 'XL (UK14)', 'XXL (UK16)'];
+    const footwear = isFootwearType(productType);
     const sizes = (productInfo.sizes || defaultSizes).map(function(s) {
-      return mapSizeLabel(s, lang);
+      return mapSizeLabel(s, lang, footwear);
     });
 
     const variants = [];
