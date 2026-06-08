@@ -100,6 +100,58 @@ function detectProductType(title) {
   return 'Dress';
 }
 
+// Bouwt een map { kleur: [foto-urls] } uit de Shopify-data van de concurrent.
+// Gebruikt de koppeling foto -> variant (image.variant_ids) en de featured_image per variant.
+function buildImagesByColor(sj) {
+  const byColor = {};
+  if (!sj) return byColor;
+
+  // Welke optie is de kleur? (option1 / option2 / option3)
+  let colorIdx = -1;
+  (sj.options || []).forEach(function(opt, i) {
+    const n = (opt.name || '').toLowerCase();
+    if (n.includes('coul') || n.includes('color') || n.includes('colour') || n.includes('kleur')) colorIdx = i;
+  });
+
+  const sizeWords = ['xs', 's', 'm', 'l', 'xl', 'xxl', 'xxxl'];
+  function colorOfVariant(v) {
+    if (colorIdx >= 0) return v['option' + (colorIdx + 1)];
+    const cands = [v.option1, v.option2, v.option3].filter(Boolean);
+    for (const c of cands) {
+      const lc = String(c).toLowerCase().trim();
+      if (!sizeWords.includes(lc) && !/^\d/.test(lc) && !/^uk\s*\d/.test(lc)) return c;
+    }
+    return cands[0] || null;
+  }
+
+  // variantId -> vertaalde kleurnaam
+  const variantColor = {};
+  (sj.variants || []).forEach(function(v) {
+    const raw = colorOfVariant(v);
+    if (raw) variantColor[v.id] = translateAndCapitalizeColor(raw);
+  });
+
+  function add(color, src) {
+    if (!color || !src) return;
+    if (!byColor[color]) byColor[color] = [];
+    if (byColor[color].indexOf(src) === -1) byColor[color].push(src);
+  }
+
+  // 1) Foto's die expliciet aan varianten hangen (image.variant_ids).
+  (sj.images || []).forEach(function(img) {
+    (img.variant_ids || []).forEach(function(vid) { add(variantColor[vid], img.src); });
+  });
+
+  // 2) Aanvulling: de hoofd-foto per variant (featured_image).
+  (sj.variants || []).forEach(function(v) {
+    const color = variantColor[v.id];
+    const src = v.featured_image && v.featured_image.src;
+    if (color && src) add(color, src);
+  });
+
+  return byColor;
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -140,6 +192,7 @@ export default async function handler(req, res) {
     let colors = [];
     let sizes = [];
     let images = [];
+    let imagesByColor = {};
     let title = '';
     let price = null;
     let description = '';
@@ -195,7 +248,9 @@ export default async function handler(req, res) {
       }
       
       images = [...imageSet];
+      imagesByColor = buildImagesByColor(shopifyJson);
       console.log('[scrape] Shopify images found:', images.length);
+      console.log('[scrape] imagesByColor kleuren:', Object.keys(imagesByColor));
       console.log('[scrape] Image IDs:', (shopifyJson.images || []).map(function(i) { return i.id; }));
       console.log('[scrape] Image URLs:', images.slice(0,5));
     }
@@ -214,14 +269,17 @@ export default async function handler(req, res) {
                src.length > 30;
       });
 
-    // Voeg HTML afbeeldingen toe die nog niet in de set zitten
-    // Normaliseer door query params te verwijderen voor deduplicatie check
-    const normalizedSet = new Set(images.map(function(i) { return i.split('?')[0]; }));
-    for (const img of htmlImages) {
-      const normalized = img.split('?')[0];
-      if (!normalizedSet.has(normalized)) {
-        normalizedSet.add(normalized);
-        images.push(img);
+    // Alleen terugvallen op HTML-foto's als Shopify GEEN productfoto's gaf.
+    // Anders trek je rommel binnen: andere producten en aanbevelingen die op
+    // dezelfde pagina staan. De Shopify-data bevat alleen de echte productfoto's.
+    if (images.length === 0) {
+      const normalizedSet = new Set();
+      for (const img of htmlImages) {
+        const normalized = img.split('?')[0];
+        if (!normalizedSet.has(normalized)) {
+          normalizedSet.add(normalized);
+          images.push(img);
+        }
       }
     }
 
@@ -300,6 +358,7 @@ export default async function handler(req, res) {
       colors,
       sizes,
       images,
+      imagesByColor,
       productType,
       shopifyJson: shopifyJson || null,
       rawHtmlLength: html.length
