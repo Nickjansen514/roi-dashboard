@@ -33,6 +33,29 @@ const sizeMap = {
   '40': 'L (UK12)', '42': 'XL (UK14)', '44': 'XXL (UK16)'
 };
 
+// Schoenmaten: UK -> EU (damesmaten, anker UK 3 = EU 36).
+// Halve UK-maten ronden af naar de EU-maat van de hele UK-maat eronder (EU kent minder maten).
+const shoeSizeMap = {
+  '2': '35', '2.5': '35', '3': '36', '3.5': '36',
+  '4': '37', '4.5': '37', '5': '38', '5.5': '38',
+  '6': '39', '6.5': '39', '7': '40', '7.5': '40',
+  '8': '41', '8.5': '41', '9': '42'
+};
+
+// Zet een ruwe maat om naar het juiste label.
+// Schoen (UK-getal zoals 3 of 5.5) -> "UK 3 (EU 36)" (Engels) of "EU 36" (Pools).
+// Kleding -> bestaande kledingmaat-omzetting.
+function mapSizeLabel(s, lang) {
+  var key = String(s).toUpperCase().trim();
+  var shoeKey = key.replace(',', '.').replace(/\.0$/, '');
+  if (shoeSizeMap[shoeKey]) {
+    var eu = shoeSizeMap[shoeKey];
+    return lang === 'polish' ? ('EU ' + eu) : ('UK ' + shoeKey + ' (EU ' + eu + ')');
+  }
+  if (lang === 'polish') return s;
+  return sizeMap[key] || s;
+}
+
 const colorMap = {
   'noir': 'Black', 'blanc': 'White', 'rouge': 'Red', 'bleu': 'Blue',
   'vert': 'Green', 'rose': 'Pink', 'beige': 'Beige', 'creme': 'Cream',
@@ -335,7 +358,7 @@ export default async function handler(req, res) {
       ? ['XS', 'S', 'M', 'L', 'XL', 'XXL']
       : ['XS (UK6)', 'S (UK8)', 'M (UK10)', 'L (UK12)', 'XL (UK14)', 'XXL (UK16)'];
     const sizes = (productInfo.sizes || defaultSizes).map(function(s) {
-      return lang === 'polish' ? s : (sizeMap[s.toUpperCase().trim()] || s);
+      return mapSizeLabel(s, lang);
     });
 
     const variants = [];
