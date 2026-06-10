@@ -436,9 +436,12 @@ export default async function handler(req, res) {
       }
     }
 
-    const metafields = metaDescription ? [
-      { namespace: 'global', key: 'description_tag', value: metaDescription, type: 'single_line_text_field' }
-    ] : [];
+    const metafields = [
+      { namespace: 'global', key: 'title_tag', value: seoTitle, type: 'single_line_text_field' }
+    ];
+    if (metaDescription) {
+      metafields.push({ namespace: 'global', key: 'description_tag', value: metaDescription, type: 'single_line_text_field' });
+    }
 
     let generatedImages = [];
     if (generatePhotos) {
