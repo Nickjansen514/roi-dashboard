@@ -94,6 +94,7 @@ export default async function handler(req, res) {
   if (!FACE_IMAGE_URL) return res.status(500).json({ error: 'FACE_IMAGE_URL not configured' });
 
   console.log('[photo-generator] Product ID:', productId);
+  console.log('[photo-generator] FACE_IMAGE_URL in gebruik:', FACE_IMAGE_URL);
 
   try {
     const store = activeStore.replace(/^https?:\/\//, '').replace(/\/$/, '');
@@ -141,6 +142,8 @@ export default async function handler(req, res) {
 
     return res.status(200).json({
       success: true,
+      via: 'piapi-faceswap',
+      faceImageUrl: FACE_IMAGE_URL,
       productId: productId,
       productTitle: product.title,
       originalImages: existingImageUrls.length,
