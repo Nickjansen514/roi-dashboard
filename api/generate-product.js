@@ -151,7 +151,7 @@ function cleanTitle(title) {
 
 async function generateDescription(productInfo) {
   const cleanedTitle = cleanTitle(productInfo.title);
-  const storeName = productInfo.storeId === 'store2' ? 'Lorenzari' : 'Yamira London';
+  const storeName = productInfo.storeId === 'store2' ? 'Lorenzari' : (productInfo.storeName || 'Yamira London');
   console.log('[generateDescription] Starting for:', cleanedTitle, 'store:', storeName);
 
   const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -383,7 +383,7 @@ export default async function handler(req, res) {
 
   try {
     const lang = (productInfo.language || 'english').toLowerCase();
-    const storeName = productInfo.storeId === 'store2' ? 'Lorenzari' : 'Yamira London';
+    const storeName = productInfo.storeId === 'store2' ? 'Lorenzari' : (productInfo.storeName || 'Yamira London');
     const generated = await generateDescription(productInfo);
     const description = generated.description || '';
     const seoTitle = generated.seoTitle || productInfo.title;
