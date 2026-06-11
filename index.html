@@ -978,7 +978,7 @@ function setPlStatus(show, title, msg) {
 }
 
 function renderFotoGenerator() {
-  document.getElementById('content').innerHTML = '<div style="max-width:700px;"><div class="settings-card"><h2>Foto Generator</h2><p class="desc">Plak een Shopify admin productlink. Wij vervangen op elke bestaande productfoto het gezicht door jouw vaste model (de referentiefoto die in Vercel staat ingesteld) en zetten de nieuwe foto\'s automatisch terug in Shopify.</p><div style="margin-bottom:14px;">' + storeRowHtml('fg') + '</div><div class="field" style="margin-bottom:14px;"><label>Shopify Admin URL</label><input id="fg-url" type="text" placeholder="https://admin.shopify.com/store/yamira-london/products/12345..." style="padding:10px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:13px;font-family:var(--font);outline:none;width:100%;"></div><button class="btn btn-primary" id="fg-btn" onclick="startFotoGenerator()">&#128248; Foto\'s genereren</button></div><div class="settings-card"><h2>Of: meerdere tegelijk (batch)</h2><p class="desc">Plak meerdere Shopify admin productlinks (&eacute;&eacute;n per regel). We doen ze stuk voor stuk: per product worden de gezichten op alle bestaande foto\'s vervangen. Tip: verlaag eerst het aantal foto\'s per product, dan gaat het sneller. De winkel hierboven geldt voor de hele batch.</p><div class="field" style="margin-bottom:14px;"><label>Admin links (&eacute;&eacute;n per regel)</label><textarea id="fgb-urls" rows="6" placeholder="https://admin.shopify.com/store/.../products/123&#10;https://admin.shopify.com/store/.../products/456" style="padding:10px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;font-family:var(--font);outline:none;width:100%;resize:vertical;box-sizing:border-box;"></textarea></div><button class="btn btn-primary" id="fgb-btn" onclick="startFotoBatch()">Alles verwerken</button><div id="fgb-summary" style="margin-top:12px;font-size:13px;font-weight:600;"></div><div id="fgb-results" style="margin-top:8px;"></div></div><div id="fg-status" style="display:none;" class="banner banner-info"><div><h3 id="fg-status-title">Bezig...</h3><p id="fg-status-msg"></p></div></div><div id="fg-success" style="display:none;" class="banner banner-info"><div><h3>&#10003; Foto\'s aangemaakt!</h3><p id="fg-success-msg"></p></div></div><div id="fg-images" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;"></div></div>';
+  document.getElementById('content').innerHTML = '<div style="max-width:700px;"><div class="settings-card"><h2>Foto Generator</h2><p class="desc">Plak een Shopify admin productlink. Wij vervangen op elke bestaande productfoto het gezicht door jouw vaste model (de referentiefoto die in Vercel staat ingesteld) en zetten de nieuwe foto\'s automatisch terug in Shopify.</p><div style="margin-bottom:14px;">' + storeRowHtml('fg') + '</div><div class="field" style="margin-bottom:14px;"><label>Shopify Admin URL</label><input id="fg-url" type="text" placeholder="https://admin.shopify.com/store/yamira-london/products/12345..." style="padding:10px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:13px;font-family:var(--font);outline:none;width:100%;"></div><button class="btn btn-primary" id="fg-btn" onclick="startFotoGenerator()">&#128248; Foto\'s genereren</button></div><div class="settings-card"><h2>Of: meerdere tegelijk (batch)</h2><p class="desc">Plak meerdere Shopify admin productlinks (&eacute;&eacute;n per regel). We doen ze stuk voor stuk: per product worden de gezichten op alle bestaande foto\'s vervangen. Tip: verlaag eerst het aantal foto\'s per product, dan gaat het sneller. De winkel hierboven geldt voor de hele batch.</p><div class="field" style="margin-bottom:14px;"><label>Admin links (&eacute;&eacute;n per regel)</label><textarea id="fgb-urls" rows="6" placeholder="https://admin.shopify.com/store/.../products/123&#10;https://admin.shopify.com/store/.../products/456" style="padding:10px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;font-family:var(--font);outline:none;width:100%;resize:vertical;box-sizing:border-box;"></textarea></div><button class="btn btn-primary" id="fgb-btn" onclick="startFotoBatch()">Alles verwerken</button><div id="fgb-summary" style="margin-top:12px;font-size:13px;font-weight:600;"></div><div id="fgb-results" style="margin-top:8px;"></div></div><div class="settings-card"><h2>Achtergrond &#8594; #e8e8e8 (bestaande producten)</h2><p class="desc">Vervang de achtergrond van bestaande producten naar #e8e8e8 &mdash; z&oacute;nder face-swap, dus sneller. We knippen per foto het onderwerp uit en zetten er een egale #e8e8e8 achter. De originele foto\'s worden vervangen (en verwijderd). <b>Test eerst op 1 product</b> voordat je de hele winkel doet.</p><div class="field" style="margin-bottom:14px;"><label>1 product testen (admin link)</label><input id="bgr-url" type="text" placeholder="https://admin.shopify.com/store/.../products/123" style="padding:10px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:13px;font-family:var(--font);outline:none;width:100%;box-sizing:border-box;"></div><div style="display:flex;gap:10px;flex-wrap:wrap;"><button class="btn" id="bgr-one-btn" onclick="startBgReplaceOne()">Test dit ene product</button><button class="btn btn-primary" id="bgr-all-btn" onclick="startBgReplaceAll()">Alle producten van deze winkel</button></div><div id="bgr-summary" style="margin-top:12px;font-size:13px;font-weight:600;"></div><div id="bgr-results" style="margin-top:8px;"></div></div><div id="fg-status" style="display:none;" class="banner banner-info"><div><h3 id="fg-status-title">Bezig...</h3><p id="fg-status-msg"></p></div></div><div id="fg-success" style="display:none;" class="banner banner-info"><div><h3>&#10003; Foto\'s aangemaakt!</h3><p id="fg-success-msg"></p></div></div><div id="fg-images" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;"></div></div>';
 }
 
 async function startFotoGenerator() {
@@ -1073,6 +1073,79 @@ async function startFotoBatch() {
 
   btn.disabled = false;
   btn.textContent = 'Alles verwerken';
+}
+
+function setBgRow(idx, state, msg) {
+  var st = document.getElementById('bgr-st-' + idx);
+  if (!st) return;
+  var colors = { wachtrij: 'var(--muted)', bezig: 'var(--text)', klaar: '#3a9d5d', fout: '#c0392b' };
+  st.style.color = colors[state] || 'var(--muted)';
+  st.textContent = msg;
+}
+
+async function runBgReplace(items) {
+  var storeId = document.getElementById('fg-store') ? document.getElementById('fg-store').value : 'store1';
+  var _store = findStore(storeId);
+  var allBtn = document.getElementById('bgr-all-btn');
+  var oneBtn = document.getElementById('bgr-one-btn');
+  allBtn.disabled = true; oneBtn.disabled = true;
+  document.getElementById('bgr-summary').textContent = '';
+  document.getElementById('bgr-results').innerHTML = items.map(function(it, idx) {
+    return '<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border);font-size:12px;">' +
+      '<span style="flex:1;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + (idx + 1) + '. ' + (it.title || it.id) + '</span>' +
+      '<span id="bgr-st-' + idx + '" style="color:var(--muted);white-space:nowrap;">wachtrij</span></div>';
+  }).join('');
+
+  var ok = 0, fail = 0;
+  for (var i = 0; i < items.length; i++) {
+    try {
+      setBgRow(i, 'bezig', 'achtergrond vervangen...');
+      var payload = { storeId: storeId };
+      if (items[i].id) payload.productId = items[i].id; else payload.adminUrl = items[i].adminUrl;
+      if (_store && !_store.builtin) { payload.shopifyToken = _store.token; payload.shopifyStore = _store.domain; }
+      var r = await fetch('/api/bg-replace', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      var data = await r.json();
+      if (data.error) throw new Error(data.error);
+      if (data.success === false) throw new Error(data.error || 'mislukt');
+      ok++;
+      setBgRow(i, 'klaar', '\u2713 ' + (data.replaced || 0) + ' foto\'s vervangen \u2014 ' + (data.productTitle || ''));
+    } catch (e) {
+      fail++;
+      setBgRow(i, 'fout', '\u2717 ' + e.message);
+    }
+    document.getElementById('bgr-summary').textContent = (ok + fail) + '/' + items.length + ' verwerkt \u2014 ' + ok + ' gelukt, ' + fail + ' mislukt';
+  }
+  allBtn.disabled = false; oneBtn.disabled = false;
+}
+
+async function startBgReplaceOne() {
+  var url = document.getElementById('bgr-url').value.trim();
+  if (!url) return alert('Plak een admin product-link om te testen.');
+  await runBgReplace([{ adminUrl: url, title: 'testproduct' }]);
+}
+
+async function startBgReplaceAll() {
+  var storeId = document.getElementById('fg-store') ? document.getElementById('fg-store').value : 'store1';
+  var _store = findStore(storeId);
+  if (!confirm('Heb je het al op 1 product getest?\n\nDit vervangt de achtergrond op ALLE producten van deze winkel naar #e8e8e8 en VERWIJDERT de originele foto\'s. Dit kan niet ongedaan worden gemaakt.\n\nDoorgaan?')) return;
+
+  var allBtn = document.getElementById('bgr-all-btn');
+  allBtn.disabled = true; allBtn.textContent = 'Producten ophalen...';
+  try {
+    var payload = { storeId: storeId };
+    if (_store && !_store.builtin) { payload.shopifyToken = _store.token; payload.shopifyStore = _store.domain; }
+    var r = await fetch('/api/list-products', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    var data = await r.json();
+    if (data.error) throw new Error(data.error);
+    var items = (data.products || []).filter(function(p) { return p.imageCount > 0; }).map(function(p) { return { id: p.id, title: p.title }; });
+    allBtn.textContent = 'Alle producten van deze winkel';
+    if (!items.length) { alert('Geen producten met foto\'s gevonden.'); allBtn.disabled = false; return; }
+    if (!confirm(items.length + ' producten worden verwerkt. Dit duurt een tijd \u2014 laat dit tabblad open staan.\n\nDoorgaan?')) { allBtn.disabled = false; return; }
+    await runBgReplace(items);
+  } catch (e) {
+    alert('Fout: ' + e.message);
+  }
+  allBtn.disabled = false; allBtn.textContent = 'Alle producten van deze winkel';
 }
 
 var DASH_EMAIL = 'jansensalesenmarketing@gmail.com';
