@@ -93,7 +93,7 @@ function buildSwapPrompt() {
     '',
     'HARD RULES (in priority order):',
     '1. PRESERVE THE GARMENT PIXEL-FOR-PIXEL. The garment in IMAGE 1 must stay 100% identical: same exact colour and shade, fabric, sheen, drape, folds, ruching, seams, straps, neckline shape and depth, sleeves, length and hemline. Never restyle, recolour, lengthen or shorten it.',
-    '2. PRESERVE THE BODY AND COMPOSITION. Keep the same body, pose, proportions, hands, arms, legs, feet, and the exact same camera crop and framing.',
+    '2. PRESERVE THE BODY, PROPORTIONS AND COMPOSITION. Keep the exact same body, pose, hands, arms, legs, feet, and the exact same camera crop and framing. Keep correct, natural human anatomy and proportions: a normally sized head relative to the body, natural neck and shoulder width, natural arm and torso length. Do NOT enlarge the head, do NOT stretch, elongate, slim or warp the body. Do NOT add, remove or move any object, bag, belt, jewellery or prop — keep only what is clearly in IMAGE 1.',
     '3. REPLACE ONLY THE IDENTITY. Give the model the face and hairstyle of the woman in IMAGE 2. Recomposite the head and hair so they sit completely naturally on the existing body: correct neck connection, realistic hairline, hair falling naturally over the shoulders. Match the lighting direction, contrast and white balance of IMAGE 1 so the face blends seamlessly with the body — no pasted, cut-out or sticker look, no skin-tone mismatch at the neck.',
     '',
     'RESULT QUALITY:',
