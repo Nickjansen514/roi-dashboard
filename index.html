@@ -1155,7 +1155,7 @@ async function runModelSwap(items) {
       var payload = { storeId: storeId, faceImageUrl: face };
       if (items[i].id) payload.productId = items[i].id; else payload.adminUrl = items[i].adminUrl;
       if (_store && !_store.builtin) { payload.shopifyToken = _store.token; payload.shopifyStore = _store.domain; }
-      var r = await fetch('/api/model-swap', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      payload.mode = 'model'; var r = await fetch('/api/photo-ops', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       var data = await r.json();
       if (data.error) throw new Error(data.error);
       if (data.success === false) throw new Error(data.error || 'mislukt');
@@ -1185,7 +1185,7 @@ async function startModelSwapAll() {
   try {
     var payload = { storeId: storeId };
     if (_store && !_store.builtin) { payload.shopifyToken = _store.token; payload.shopifyStore = _store.domain; }
-    var r = await fetch('/api/list-products', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    payload.mode = 'list'; var r = await fetch('/api/photo-ops', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
     var data = await r.json();
     if (data.error) throw new Error(data.error);
     var items = (data.products || []).filter(function(p) { return p.imageCount > 0; }).map(function(p) { return { id: p.id, title: p.title }; });
@@ -1219,7 +1219,7 @@ async function runBgReplace(items) {
       var payload = { storeId: storeId };
       if (items[i].id) payload.productId = items[i].id; else payload.adminUrl = items[i].adminUrl;
       if (_store && !_store.builtin) { payload.shopifyToken = _store.token; payload.shopifyStore = _store.domain; }
-      var r = await fetch('/api/bg-replace', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      payload.mode = 'bg'; var r = await fetch('/api/photo-ops', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       var data = await r.json();
       if (data.error) throw new Error(data.error);
       if (data.success === false) throw new Error(data.error || 'mislukt');
@@ -1250,7 +1250,7 @@ async function startBgReplaceAll() {
   try {
     var payload = { storeId: storeId };
     if (_store && !_store.builtin) { payload.shopifyToken = _store.token; payload.shopifyStore = _store.domain; }
-    var r = await fetch('/api/list-products', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    payload.mode = 'list'; var r = await fetch('/api/photo-ops', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
     var data = await r.json();
     if (data.error) throw new Error(data.error);
     var items = (data.products || []).filter(function(p) { return p.imageCount > 0; }).map(function(p) { return { id: p.id, title: p.title }; });
