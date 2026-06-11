@@ -267,6 +267,8 @@ function saveCustomStore(prefix) {
   var token = (document.getElementById(prefix + '-cs-token').value || '').trim();
   var langSel = document.getElementById(prefix + '-cs-lang');
   var language = langSel ? langSel.value : 'english';
+  var faceEl = document.getElementById(prefix + '-cs-face');
+  var faceUrl = faceEl ? faceEl.value.trim() : '';
   if (!name || !url || !token) { alert('Vul naam, store-URL en token in.'); return; }
   if (url.indexOf('.myshopify.com') === -1) { alert('De store-URL moet eindigen op .myshopify.com'); return; }
   if (token.indexOf('shpss_') === 0) {
@@ -278,13 +280,13 @@ function saveCustomStore(prefix) {
   }
   var list = getCustomStores();
   var id = 'custom_' + Date.now();
-  list.push({ id: id, name: name, domain: url, token: token, language: language, builtin: false });
+  list.push({ id: id, name: name, domain: url, token: token, language: language, faceUrl: faceUrl, builtin: false });
   saveCustomStores(list);
   populateStoreSelects();
   var sel = document.getElementById(prefix + '-store');
   if (sel) { sel.value = id; if (prefix === 'pl') onStoreChange(); }
   toggleStoreForm(prefix);
-  ['name', 'url', 'token'].forEach(function(k) { var el = document.getElementById(prefix + '-cs-' + k); if (el) el.value = ''; });
+  ['name', 'url', 'token', 'face'].forEach(function(k) { var el = document.getElementById(prefix + '-cs-' + k); if (el) el.value = ''; });
 }
 function connectViaOAuth(prefix) {
   var name = (document.getElementById(prefix + '-cs-name').value || '').trim();
@@ -293,10 +295,12 @@ function connectViaOAuth(prefix) {
   var clientSecret = (document.getElementById(prefix + '-cs-secret').value || '').trim();
   var langSel = document.getElementById(prefix + '-cs-lang');
   var language = langSel ? langSel.value : 'english';
+  var faceEl = document.getElementById(prefix + '-cs-face');
+  var faceUrl = faceEl ? faceEl.value.trim() : '';
   if (!name || !url || !clientId || !clientSecret) { alert('Vul winkelnaam, store-URL, Klant-ID en Geheim in.'); return; }
   if (url.indexOf('.myshopify.com') === -1) { alert('De store-URL moet eindigen op .myshopify.com'); return; }
   var redirectUri = window.location.origin + '/';
-  localStorage.setItem('pending_oauth_store', JSON.stringify({ name: name, domain: url, language: language, clientId: clientId, clientSecret: clientSecret }));
+  localStorage.setItem('pending_oauth_store', JSON.stringify({ name: name, domain: url, language: language, clientId: clientId, clientSecret: clientSecret, faceUrl: faceUrl }));
   var scopes = 'write_products,read_products';
   var state = 'oauth_' + Date.now();
   var authUrl = 'https://' + url + '/admin/oauth/authorize?client_id=' + encodeURIComponent(clientId)
@@ -324,7 +328,7 @@ async function checkOAuthReturn() {
     var data = await r.json();
     if (data.error || !data.access_token) throw new Error(data.error || 'Geen token ontvangen');
     var list = getCustomStores();
-    list.push({ id: 'custom_' + Date.now(), name: pending.name, domain: pending.domain, token: data.access_token, language: pending.language, builtin: false });
+    list.push({ id: 'custom_' + Date.now(), name: pending.name, domain: pending.domain, token: data.access_token, language: pending.language, faceUrl: pending.faceUrl || '', builtin: false });
     saveCustomStores(list);
     localStorage.removeItem('pending_oauth_store');
     window.history.replaceState({}, document.title, window.location.pathname);
@@ -352,6 +356,7 @@ function storeRowHtml(prefix) {
     + '<div class="field"><label>Klant-ID</label><input id="' + prefix + '-cs-cid" type="text" placeholder="bijv. 2f489f..." style="' + inp + '"></div>'
     + '<div class="field"><label>Geheim (shpss_)</label><input id="' + prefix + '-cs-secret" type="password" placeholder="shpss_..." style="' + inp + '"></div>'
     + '<div class="field"><label>Taal listing</label><select id="' + prefix + '-cs-lang" style="' + inp + '"><option value="english">Engels</option><option value="polish">Pools</option></select></div>'
+    + '<div class="field"><label>Gezicht-URL (face-swap, optioneel)</label><input id="' + prefix + '-cs-face" type="text" placeholder="https://.../gezicht.jpg" style="' + inp + '"></div>'
     + '</div>'
     + '<button type="button" class="btn btn-primary" onclick="connectViaOAuth(\'' + prefix + '\')">Verbind via Shopify</button>'
     + '<p style="font-size:11px;color:var(--text3);margin-top:8px;line-height:1.5;">Met je Klant-ID en Geheim haalt het systeem zelf het token op. <strong>Eenmalig nodig:</strong> voeg in je Shopify-app deze redirect-URL toe bij de toegestane redirect-URLs: <code id="' + prefix + '-redir" style="font-family:var(--mono);background:rgba(0,0,0,0.06);padding:1px 4px;border-radius:3px;"></code></p>'
@@ -997,7 +1002,7 @@ async function startFotoGenerator() {
     var fgStoreId = document.getElementById('fg-store') ? document.getElementById('fg-store').value : 'store1';
     var fgStore = findStore(fgStoreId);
     var fgPayload = { adminUrl: url, storeId: fgStoreId };
-    if (fgStore && !fgStore.builtin) { fgPayload.shopifyToken = fgStore.token; fgPayload.shopifyStore = fgStore.domain; }
+    if (fgStore && !fgStore.builtin) { fgPayload.shopifyToken = fgStore.token; fgPayload.shopifyStore = fgStore.domain; if (fgStore.faceUrl) fgPayload.faceImageUrl = fgStore.faceUrl; }
     var r = await fetch('/api/photo-generator', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1057,7 +1062,7 @@ async function startFotoBatch() {
     try {
       setFotoBatchRow(i, 'bezig', 'bezig met face-swap...');
       var payload = { adminUrl: urls[i], storeId: storeId };
-      if (_store && !_store.builtin) { payload.shopifyToken = _store.token; payload.shopifyStore = _store.domain; }
+      if (_store && !_store.builtin) { payload.shopifyToken = _store.token; payload.shopifyStore = _store.domain; if (_store.faceUrl) payload.faceImageUrl = _store.faceUrl; }
       var r = await fetch('/api/photo-generator', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       var data = await r.json();
       if (data.error) throw new Error(data.error);
