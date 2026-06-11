@@ -87,24 +87,27 @@ async function flattenToBase64(transparentUrl) {
 // ---------- MODEL (kie.ai Nano Banana edit) ----------
 function buildSwapPrompt() {
   return [
-    'You are an expert fashion e-commerce photo editor. You receive two images.',
-    'IMAGE 1: a product photo of a garment. It may be worn by a model, or it may be a close-up, a back view, or a flat detail shot.',
-    'IMAGE 2: a reference portrait of a woman.',
+    'You are an expert fashion retoucher creating premium e-commerce imagery. You receive two images.',
+    'IMAGE 1: the product photo — a garment that must be preserved exactly.',
+    'IMAGE 2: the face reference — the woman whose face and hair must appear on the model.',
     '',
-    'TASK:',
-    '- If IMAGE 1 clearly shows a woman\'s face, replace ONLY the model\'s identity with the woman from IMAGE 2: copy her exact facial features, skin tone, hair colour and hairstyle. Blend the new head naturally onto the existing body with seamless, photorealistic skin and matching lighting. No visible seams, no mismatched skin tone at the neck, no double chin or distortion.',
-    '- Keep the GARMENT from IMAGE 1 EXACTLY as it is: identical design, colour, fabric, texture, folds, ruching, straps, neckline shape and depth, length and hem. Do NOT redesign, recolour, lengthen, shorten or restyle the garment in any way.',
-    '- Keep the exact same body pose, proportions, hands, arms, legs and feet, and the exact same camera framing and crop.',
-    '- Show exactly ONE woman. No duplicated or extra limbs, no second person, no mannequin, no floating parts.',
-    '- If IMAGE 1 does NOT clearly show a face (close-up, fabric detail, back view or flat lay), leave the garment and composition completely unchanged and ONLY replace the background as described below.',
+    'HARD RULES (in priority order):',
+    '1. PRESERVE THE GARMENT PIXEL-FOR-PIXEL. The garment in IMAGE 1 must stay 100% identical: same exact colour and shade, fabric, sheen, drape, folds, ruching, seams, straps, neckline shape and depth, sleeves, length and hemline. Never restyle, recolour, lengthen or shorten it.',
+    '2. PRESERVE THE BODY AND COMPOSITION. Keep the same body, pose, proportions, hands, arms, legs, feet, and the exact same camera crop and framing.',
+    '3. REPLACE ONLY THE IDENTITY. Give the model the face and hairstyle of the woman in IMAGE 2. Recomposite the head and hair so they sit completely naturally on the existing body: correct neck connection, realistic hairline, hair falling naturally over the shoulders. Match the lighting direction, contrast and white balance of IMAGE 1 so the face blends seamlessly with the body — no pasted, cut-out or sticker look, no skin-tone mismatch at the neck.',
+    '',
+    'RESULT QUALITY:',
+    '- Exactly one woman. No duplicated limbs, no extra people, no mannequin.',
+    '- The face must look like a genuine photograph of a real human being: natural skin texture and visible pores, subtle natural asymmetry, realistic eyes with catchlights, fine flyaway hairs, a relaxed natural expression. Strictly AVOID a smooth, glossy, overly symmetric, doll-like or AI-generated look.',
+    '- Natural realistic skin. No plastic or over-smoothed skin, no waxy or uncanny face, no beauty-filter effect.',
+    '- Premium, true-to-life fashion photograph, sharp focus, soft even studio lighting.',
     '',
     'BACKGROUND:',
-    '- Replace the entire background with a clean, even, solid light gray (#' + BG_COLOR + ') studio backdrop, edge to edge.',
-    '- Remove every trace of the original background. No coloured patches, no green or blue fringe, no leftover shadows from the old background, no halo or outline around the body and hair.',
+    '- Replace the whole background with a clean, even, solid light gray #' + BG_COLOR + ', edge to edge.',
+    '- Remove every trace of the old background: no coloured patches or fringe, no green or blue edges, no halo or outline around the body and hair, no leftover shadows.',
     '',
-    'STYLE:',
-    '- Photorealistic, sharp, high-end fashion e-commerce photography with soft, even studio lighting.',
-    '- No text, no logos, no watermark, no added jewellery or accessories.'
+    'If IMAGE 1 is a close-up, fabric detail, back view or flat lay with no clear face, change nothing except the background (set it to a solid #' + BG_COLOR + ').',
+    'No text, no logos, no watermark, no added jewellery or accessories.'
   ].join('\n');
 }
 
