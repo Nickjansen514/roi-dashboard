@@ -380,6 +380,64 @@ async function addImagesWithVariants(productId, items, token, storeDomain) {
   console.log('[addImagesWithVariants] Done:', success, '/', items.length, 'uploaded');
 }
 
+// --- Optie: unieke voornaam vooraan de titel (stijl: "Mila – mini sukienka z warstwowymi falbanami") ---
+const TITLE_NAMES = [
+  'Mila','Lena','Maja','Nina','Lara','Nora','Zoe','Luna','Iris','Alma',
+  'Vera','Emma','Olivia','Sofia','Hania','Zofia','Liwia','Pola','Gaja','Kaja',
+  'Ada','Tola','Ola','Ewa','Nela','Mia','Lia','Aria','Stella','Bella',
+  'Cara','Elena','Flora','Greta','Ida','Julia','Kira','Lila','Nadia','Petra',
+  'Rita','Sara','Tessa','Uma','Yara','Amelia','Klara','Marta','Roza','Ines',
+  'Alba','Talia','Vita','Selin','Dalia','Mira','Noa','Elsa','Cora','Frida',
+  'Hela','Inga','Juno','Lotta','Maya','Otylia','Sela','Tara','Wiktoria','Diana',
+  'Ania','Basia','Celia','Daria','Eliza','Fela','Gosia','Helena','Ilona','Jagoda',
+  'Kalina','Lidia','Magda','Natalia','Oliwia','Patrycja','Renata','Sandra','Tamara','Urszula',
+  'Wanda','Zaria','Adela','Blanka','Cyntia','Dominika','Estera','Felicja','Gabi','Hortensja'
+];
+
+function styledPhrase(seoTitle) {
+  var p = String(seoTitle || '').trim();
+  p = p.replace(/\s*,?\s*(dla kobiet|for women)\s*$/i, '').trim();      // taal-suffix weg
+  p = p.replace(/^[^–\-|]{1,20}\s*[–\-|]\s*/, '').trim();               // eventuele bestaande "Naam – " weg
+  p = p.replace(/\s{2,}/g, ' ').trim();
+  if (p) p = p.charAt(0).toLowerCase() + p.slice(1);                    // beginhoofdletter klein (stijl)
+  return p;
+}
+
+async function pickUniqueName(token, storeDomain) {
+  var t = token || SHOPIFY_TOKEN;
+  var store = (storeDomain || SHOPIFY_STORE).replace(/^https?:\/\//, '').replace(/\/$/, '');
+  var used = {};
+  try {
+    var url = 'https://' + store + '/admin/api/2024-01/products.json?fields=title&limit=250';
+    for (var page = 0; page < 4 && url; page++) {
+      var r = await fetch(url, { headers: { 'X-Shopify-Access-Token': t } });
+      if (!r.ok) break;
+      var data = await r.json();
+      (data.products || []).forEach(function(p) {
+        var parts = String(p.title || '').split(/\s[–\-|]\s/);
+        if (parts.length > 1) {
+          var nm = parts[0].trim().toLowerCase();
+          if (nm) used[nm] = true;
+        }
+      });
+      var link = r.headers.get('link') || r.headers.get('Link') || '';
+      var next = link.match(/<([^>]+)>;\s*rel="next"/);
+      url = next ? next[1] : null;
+    }
+  } catch (e) {
+    console.error('[pickUniqueName] kon bestaande titels niet ophalen:', e.message);
+  }
+  var pool = TITLE_NAMES.slice();
+  for (var i = pool.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var tmp = pool[i]; pool[i] = pool[j]; pool[j] = tmp;
+  }
+  for (var k = 0; k < pool.length; k++) {
+    if (!used[pool[k].toLowerCase()]) return pool[k];
+  }
+  return pool[0]; // namenlijst uitgeput (zeldzaam)
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -404,7 +462,14 @@ export default async function handler(req, res) {
     const description = generated.description || '';
     const seoTitle = generated.seoTitle || productInfo.title;
     const metaDescription = generated.metaDescription || '';
-    const urlHandle = titleToUrlHandle(seoTitle);
+    let displayTitle = seoTitle;
+    if (productInfo.useNameTitle) {
+      const uniqueName = await pickUniqueName(reqToken, reqStore);
+      const phrase = styledPhrase(seoTitle);
+      displayTitle = uniqueName + ' – ' + (phrase || seoTitle);
+      console.log('[handler] Naam-titel optie aan ->', displayTitle);
+    }
+    const urlHandle = titleToUrlHandle(displayTitle);
 
     const sizeKeywords = ['xs','s','m','l','xl','xxl','xxxl','xs (uk6)','s (uk8)','m (uk10)','l (uk12)','xl (uk14)','xxl (uk16)'];
     const rawColors = (productInfo.colors || []).filter(function(c) {
@@ -476,7 +541,7 @@ export default async function handler(req, res) {
     const sizeLabel = lang === 'polish' ? 'Rozmiar' : 'Size';
 
     const shopifyProduct = {
-      title: seoTitle,
+      title: displayTitle,
       handle: urlHandle,
       body_html: description ? (function(d) {
         var parts = d.split('\n');
@@ -566,6 +631,7 @@ export default async function handler(req, res) {
     return res.status(200).json({
       success: true,
       product: result.product,
+      productTitle: displayTitle,
       seoTitle: seoTitle,
       urlHandle: urlHandle,
       description: description,
