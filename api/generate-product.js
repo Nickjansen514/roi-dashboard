@@ -33,6 +33,15 @@ const sizeMap = {
   '40': 'L (UK12)', '42': 'XL (UK14)', '44': 'XXL (UK16)'
 };
 
+// Canadese (US) kledingmaten. US = UK - 4.
+const caSizeMap = {
+  'XS': 'XS (US 2)', 'S': 'S (US 4)', 'M': 'M (US 6)',
+  'L': 'L (US 8)', 'XL': 'XL (US 10)', 'XXL': 'XXL (US 12)',
+  '2XL': 'XXL (US 12)', '3XL': 'XXXL (US 14)', 'XXXL': 'XXXL (US 14)',
+  '34': 'XS (US 2)', '36': 'S (US 4)', '38': 'M (US 6)',
+  '40': 'L (US 8)', '42': 'XL (US 10)', '44': 'XXL (US 12)'
+};
+
 // Schoenmaten: UK -> EU (damesmaten, anker UK 3 = EU 36).
 // Halve UK-maten ronden af naar de EU-maat van de hele UK-maat eronder (EU kent minder maten).
 const shoeSizeMap = {
@@ -55,27 +64,34 @@ function isFootwearType(type) {
 // - UK-schoenmaat (klein getal zoals 3 of 5.5): altijd "UK 3 (EU 36)".
 // - EU-schoenmaat (34-48): alleen bij schoeisel -> "UK 3 (EU 36)" (anders is het een kledingmaat).
 // - Kleding: bestaande kledingmaat-omzetting.
-function mapSizeLabel(s, lang, isFootwear) {
+function mapSizeLabel(s, lang, isFootwear, market) {
+  market = (market || 'uk').toLowerCase();
   var key = String(s).toUpperCase().trim();
-  var shoeKey = key.replace(',', '.').replace(/\.0$/, '');
+  var base = key.replace(/\s*\([^)]*\)\s*$/, '').trim(); // "XS (UK6)" -> "XS"
+  var euInLabel = key.match(/EU\s*([\d.]+)/);
+  var shoeKey = base.replace(/^UK\s*/, '').replace(/^US\s*/, '').replace(/^EU\s*/, '').replace(',', '.').replace(/\.0$/, '').trim();
   var num = parseFloat(shoeKey);
 
-  // UK-schoenmaat (klein getal) -> altijd als schoen behandelen.
-  if (!isNaN(num) && num < 30 && shoeSizeMap[shoeKey]) {
-    var euU = shoeSizeMap[shoeKey];
-    return lang === 'polish' ? ('EU ' + euU) : ('UK ' + shoeKey + ' (EU ' + euU + ')');
+  // SCHOEISEL.
+  if (isFootwear) {
+    var eu = null, uk = null;
+    if (euInLabel) eu = Math.round(parseFloat(euInLabel[1]));
+    if (/^UK/.test(base) && !isNaN(num)) uk = num;
+    else if (/^US/.test(base) && !isNaN(num)) uk = num - 2;     // US -> UK
+    else if (!isNaN(num) && num < 30) uk = num;                  // kaal klein getal = UK
+    else if (!isNaN(num) && num >= 30 && eu === null) eu = Math.round(num); // kaal getal = EU
+    if (uk !== null && eu === null) eu = shoeSizeMap[String(uk)] ? parseInt(shoeSizeMap[String(uk)], 10) : (Math.round(uk) + 33);
+    if (eu !== null && uk === null) uk = eu - 33;
+    if (eu === null && uk === null) return s; // bv. "One Size"
+    if (lang === 'polish') return 'EU ' + eu;
+    if (market === 'canada') return 'US ' + (eu - 31) + ' (EU ' + eu + ')';
+    return 'UK ' + uk + ' (EU ' + eu + ')';
   }
 
-  // EU-schoenmaat (34-48) -> alleen omzetten als het product schoeisel is.
-  if (isFootwear && !isNaN(num) && num >= 30) {
-    var eu = Math.round(num);
-    var ukE = eu - 33; // damesmaat: EU - 33 = UK (UK 3 = EU 36)
-    return lang === 'polish' ? ('EU ' + eu) : ('UK ' + ukE + ' (EU ' + eu + ')');
-  }
-
-  // Kleding.
+  // KLEDING.
   if (lang === 'polish') return s;
-  return sizeMap[key] || s;
+  var cmap = market === 'canada' ? caSizeMap : sizeMap;
+  return cmap[base] || s;
 }
 
 const colorMap = {
@@ -415,12 +431,11 @@ export default async function handler(req, res) {
       ? parseFloat(productInfo.convertedPrice)
       : convertPrice(productInfo.originalPrice, productInfo.currency || 'EUR');
 
-    const defaultSizes = lang === 'polish'
-      ? ['XS', 'S', 'M', 'L', 'XL', 'XXL']
-      : ['XS (UK6)', 'S (UK8)', 'M (UK10)', 'L (UK12)', 'XL (UK14)', 'XXL (UK16)'];
+    const defaultSizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
     const footwear = isFootwearType(productType);
+    const market = (productInfo.market || 'uk').toLowerCase();
     const sizes = (productInfo.sizes || defaultSizes).map(function(s) {
-      return mapSizeLabel(s, lang, footwear);
+      return mapSizeLabel(s, lang, footwear, market);
     });
 
     const variants = [];
