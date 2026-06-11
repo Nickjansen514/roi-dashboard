@@ -101,10 +101,11 @@ function buildSwapPrompt() {
     '- The face must look like a genuine photograph of a real human being: natural skin texture and visible pores, subtle natural asymmetry, realistic eyes with catchlights, fine flyaway hairs, a relaxed natural expression. Strictly AVOID a smooth, glossy, overly symmetric, doll-like or AI-generated look.',
     '- Natural realistic skin. No plastic or over-smoothed skin, no waxy or uncanny face, no beauty-filter effect.',
     '- Premium, true-to-life fashion photograph, sharp focus, soft even studio lighting.',
+    '- Make the whole image feel natural and candid, like a real professional fashion shoot: gentle lifelike lighting with soft, subtle shadows for depth, natural colour grading and skin tones, and a believable connection between the model and the floor. Avoid a stiff, flat, cut-out or composited look.',
     '',
     'BACKGROUND:',
-    '- Replace the whole background with a clean, even, solid light gray #' + BG_COLOR + ', edge to edge.',
-    '- Remove every trace of the old background: no coloured patches or fringe, no green or blue edges, no halo or outline around the body and hair, no leftover shadows.',
+    '- Replace the whole background with a clean, light gray #' + BG_COLOR + ' studio backdrop. A very subtle natural gradient and a soft, realistic contact shadow under the model are welcome for depth — keep it tasteful and even, never busy.',
+    '- Remove every trace of the old background: no coloured patches or fringe, no green or blue edges, no hard halo or outline around the body and hair.',
     '',
     'If IMAGE 1 is a close-up, fabric detail, back view or flat lay with no clear face, change nothing except the background (set it to a solid #' + BG_COLOR + ').',
     'No text, no logos, no watermark, no added jewellery or accessories.'
