@@ -217,7 +217,34 @@ function onStoreChange() {
 }
 function toggleStoreForm(prefix) {
   var f = document.getElementById(prefix + '-store-form');
-  if (f) f.style.display = (f.style.display === 'none' || !f.style.display) ? 'block' : 'none';
+  if (!f) return;
+  var show = (f.style.display === 'none' || !f.style.display);
+  f.style.display = show ? 'block' : 'none';
+  if (show) renderStoreList(prefix);
+}
+function renderStoreList(prefix) {
+  var el = document.getElementById(prefix + '-store-list');
+  if (!el) return;
+  var custom = getCustomStores();
+  if (!custom.length) { el.innerHTML = '<p style="font-size:11px;color:var(--text3);">Nog geen gekoppelde winkels.</p>'; return; }
+  el.innerHTML = '<div style="font-size:11px;color:var(--text3);margin-bottom:6px;">Gekoppelde winkels</div>'
+    + custom.map(function(s) {
+      return '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface);margin-bottom:6px;">'
+        + '<span style="font-size:12px;">' + s.name + ' <span style="color:var(--text3);">(' + s.domain + ')</span></span>'
+        + '<button type="button" class="btn" onclick="removeCustomStore(\'' + prefix + '\',\'' + s.id + '\')" style="padding:3px 9px;font-size:11px;color:var(--red);border-color:var(--border2);">Verwijderen</button>'
+        + '</div>';
+    }).join('');
+}
+function removeCustomStore(prefix, id) {
+  if (!confirm('Deze gekoppelde winkel verwijderen?')) return;
+  var list = getCustomStores().filter(function(s) { return s.id !== id; });
+  saveCustomStores(list);
+  populateStoreSelects();
+  ['pl-store', 'fg-store'].forEach(function(sid) {
+    var sel = document.getElementById(sid);
+    if (sel && sel.value === id) { sel.value = 'store1'; if (sid === 'pl-store') onStoreChange(); }
+  });
+  renderStoreList(prefix);
 }
 function saveCustomStore(prefix) {
   var name = (document.getElementById(prefix + '-cs-name').value || '').trim();
@@ -227,6 +254,13 @@ function saveCustomStore(prefix) {
   var language = langSel ? langSel.value : 'english';
   if (!name || !url || !token) { alert('Vul naam, store-URL en token in.'); return; }
   if (url.indexOf('.myshopify.com') === -1) { alert('De store-URL moet eindigen op .myshopify.com'); return; }
+  if (token.indexOf('shpss_') === 0) {
+    alert('Dit is de API secret key (begint met "shpss_") — die werkt NIET als token en geeft een 401.\n\nJe hebt het Admin API access token nodig, dat met "shpat_" begint. Dat staat op dezelfde pagina als de secret key, onder "Admin API access token".');
+    return;
+  }
+  if (token.indexOf('shpat_') !== 0) {
+    if (!confirm('Dit lijkt geen standaard Admin API-token (begint normaal met "shpat_"). Toch opslaan?')) return;
+  }
   var list = getCustomStores();
   var id = 'custom_' + Date.now();
   list.push({ id: id, name: name, domain: url, token: token, language: language, builtin: false });
@@ -243,6 +277,7 @@ function storeRowHtml(prefix) {
     + '<button type="button" class="btn" onclick="toggleStoreForm(\'' + prefix + '\')" style="white-space:nowrap;">+ Winkel koppelen</button>'
     + '</div>'
     + '<div id="' + prefix + '-store-form" style="display:none;margin-top:12px;padding:14px;border:1px dashed var(--border2);border-radius:8px;background:var(--surface2);">'
+    + '<div id="' + prefix + '-store-list" style="margin-bottom:12px;"></div>'
     + '<div class="field-grid" style="margin-bottom:10px;">'
     + '<div class="field"><label>Winkelnaam</label><input id="' + prefix + '-cs-name" type="text" placeholder="bijv. Mijn Nieuwe Winkel" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface);color:var(--text);font-size:12px;outline:none;"></div>'
     + '<div class="field"><label>Store-URL (.myshopify.com)</label><input id="' + prefix + '-cs-url" type="text" placeholder="winkel.myshopify.com" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface);color:var(--text);font-size:12px;outline:none;"></div>'
