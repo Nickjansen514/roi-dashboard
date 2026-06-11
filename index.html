@@ -909,7 +909,11 @@ async function startFotoGenerator() {
     if (data.error) throw new Error(data.error);
     statusEl.style.display = 'none';
     document.getElementById('fg-success').style.display = 'block';
-    document.getElementById('fg-success-msg').textContent = data.imagesSwapped + " foto\'s met face-swap toegevoegd aan \"" + data.productTitle + "\" in Shopify!";
+    if (!data.via) {
+      alert('LET OP: Vercel draait nog oude code (geen face-swap-respons). Deploy de nieuwste photo-generator.js opnieuw.');
+    }
+    var faceNote = data.faceImageUrl ? (' — gebruikt gezicht: ' + data.faceImageUrl) : '';
+    document.getElementById('fg-success-msg').textContent = data.imagesSwapped + " foto's met face-swap toegevoegd aan \"" + data.productTitle + "\"" + faceNote;
     if (data.imageUrls && data.imageUrls.length > 0) {
       document.getElementById('fg-images').innerHTML = data.imageUrls.map(function(imgUrl) {
         return '<img src="' + imgUrl + '" style="width:150px;height:200px;object-fit:cover;border-radius:8px;border:1px solid var(--border);" onerror="this.style.display=\'none\'">';
