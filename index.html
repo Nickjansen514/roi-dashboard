@@ -978,7 +978,7 @@ function setPlStatus(show, title, msg) {
 }
 
 function renderFotoGenerator() {
-  document.getElementById('content').innerHTML = '<div style="max-width:700px;"><div class="settings-card"><h2>Foto Generator</h2><p class="desc">Plak een Shopify admin productlink. Wij vervangen op elke bestaande productfoto het gezicht door jouw vaste model (de referentiefoto die in Vercel staat ingesteld) en zetten de nieuwe foto\'s automatisch terug in Shopify.</p><div style="margin-bottom:14px;">' + storeRowHtml('fg') + '</div><div class="field" style="margin-bottom:14px;"><label>Shopify Admin URL</label><input id="fg-url" type="text" placeholder="https://admin.shopify.com/store/yamira-london/products/12345..." style="padding:10px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:13px;font-family:var(--font);outline:none;width:100%;"></div><button class="btn btn-primary" id="fg-btn" onclick="startFotoGenerator()">&#128248; Foto\'s genereren</button></div><div id="fg-status" style="display:none;" class="banner banner-info"><div><h3 id="fg-status-title">Bezig...</h3><p id="fg-status-msg"></p></div></div><div id="fg-success" style="display:none;" class="banner banner-info"><div><h3>&#10003; Foto\'s aangemaakt!</h3><p id="fg-success-msg"></p></div></div><div id="fg-images" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;"></div></div>';
+  document.getElementById('content').innerHTML = '<div style="max-width:700px;"><div class="settings-card"><h2>Foto Generator</h2><p class="desc">Plak een Shopify admin productlink. Wij vervangen op elke bestaande productfoto het gezicht door jouw vaste model (de referentiefoto die in Vercel staat ingesteld) en zetten de nieuwe foto\'s automatisch terug in Shopify.</p><div style="margin-bottom:14px;">' + storeRowHtml('fg') + '</div><div class="field" style="margin-bottom:14px;"><label>Shopify Admin URL</label><input id="fg-url" type="text" placeholder="https://admin.shopify.com/store/yamira-london/products/12345..." style="padding:10px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:13px;font-family:var(--font);outline:none;width:100%;"></div><button class="btn btn-primary" id="fg-btn" onclick="startFotoGenerator()">&#128248; Foto\'s genereren</button></div><div class="settings-card"><h2>Of: meerdere tegelijk (batch)</h2><p class="desc">Plak meerdere Shopify admin productlinks (&eacute;&eacute;n per regel). We doen ze stuk voor stuk: per product worden de gezichten op alle bestaande foto\'s vervangen. Tip: verlaag eerst het aantal foto\'s per product, dan gaat het sneller. De winkel hierboven geldt voor de hele batch.</p><div class="field" style="margin-bottom:14px;"><label>Admin links (&eacute;&eacute;n per regel)</label><textarea id="fgb-urls" rows="6" placeholder="https://admin.shopify.com/store/.../products/123&#10;https://admin.shopify.com/store/.../products/456" style="padding:10px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;font-family:var(--font);outline:none;width:100%;resize:vertical;box-sizing:border-box;"></textarea></div><button class="btn btn-primary" id="fgb-btn" onclick="startFotoBatch()">Alles verwerken</button><div id="fgb-summary" style="margin-top:12px;font-size:13px;font-weight:600;"></div><div id="fgb-results" style="margin-top:8px;"></div></div><div id="fg-status" style="display:none;" class="banner banner-info"><div><h3 id="fg-status-title">Bezig...</h3><p id="fg-status-msg"></p></div></div><div id="fg-success" style="display:none;" class="banner banner-info"><div><h3>&#10003; Foto\'s aangemaakt!</h3><p id="fg-success-msg"></p></div></div><div id="fg-images" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;"></div></div>';
 }
 
 async function startFotoGenerator() {
@@ -1024,6 +1024,55 @@ async function startFotoGenerator() {
     btn.disabled = false;
     btn.textContent = "Foto's genereren";
   }
+}
+
+function setFotoBatchRow(idx, state, msg) {
+  var st = document.getElementById('fgb-st-' + idx);
+  if (!st) return;
+  var colors = { wachtrij: 'var(--muted)', bezig: 'var(--text)', klaar: '#3a9d5d', fout: '#c0392b' };
+  st.style.color = colors[state] || 'var(--muted)';
+  st.textContent = msg;
+}
+
+async function startFotoBatch() {
+  var raw = document.getElementById('fgb-urls').value || '';
+  var urls = raw.split(/\r?\n/).map(function(s) { return s.trim(); }).filter(Boolean);
+  if (!urls.length) return alert('Plak minstens \u00e9\u00e9n admin-link (\u00e9\u00e9n per regel).');
+
+  var storeId = document.getElementById('fg-store') ? document.getElementById('fg-store').value : 'store1';
+  var _store = findStore(storeId);
+
+  var btn = document.getElementById('fgb-btn');
+  btn.disabled = true;
+  btn.textContent = 'Bezig... (' + urls.length + ')';
+  document.getElementById('fgb-summary').textContent = '';
+  document.getElementById('fgb-results').innerHTML = urls.map(function(u, idx) {
+    return '<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border);font-size:12px;">' +
+      '<span style="flex:1;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + (idx + 1) + '. ' + u + '</span>' +
+      '<span id="fgb-st-' + idx + '" style="color:var(--muted);white-space:nowrap;">wachtrij</span></div>';
+  }).join('');
+
+  var ok = 0, fail = 0;
+  for (var i = 0; i < urls.length; i++) {
+    try {
+      setFotoBatchRow(i, 'bezig', 'bezig met face-swap...');
+      var payload = { adminUrl: urls[i], storeId: storeId };
+      if (_store && !_store.builtin) { payload.shopifyToken = _store.token; payload.shopifyStore = _store.domain; }
+      var r = await fetch('/api/photo-generator', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      var data = await r.json();
+      if (data.error) throw new Error(data.error);
+      if (!data.via) throw new Error('oude code op Vercel (geen face-swap) \u2014 deploy photo-generator.js opnieuw');
+      ok++;
+      setFotoBatchRow(i, 'klaar', '\u2713 ' + (data.imagesSwapped || 0) + ' foto\'s \u2014 ' + (data.productTitle || ''));
+    } catch (e) {
+      fail++;
+      setFotoBatchRow(i, 'fout', '\u2717 ' + e.message);
+    }
+    document.getElementById('fgb-summary').textContent = (ok + fail) + '/' + urls.length + ' verwerkt \u2014 ' + ok + ' gelukt, ' + fail + ' mislukt';
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Alles verwerken';
 }
 
 var DASH_EMAIL = 'jansensalesenmarketing@gmail.com';
