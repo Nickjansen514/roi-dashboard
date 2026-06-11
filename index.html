@@ -120,6 +120,16 @@
 </style>
 </head>
 <body>
+<div id="auth-gate" style="display:flex;position:fixed;inset:0;z-index:2000;background:var(--bg);align-items:center;justify-content:center;">
+  <div class="login-card" style="width:380px;">
+    <h2>Inloggen</h2>
+    <p>Log in om je dashboard te bekijken.</p>
+    <div class="login-field"><label>E-mail</label><input id="auth-email" type="email" placeholder="naam@voorbeeld.nl" autocomplete="username"></div>
+    <div class="login-field"><label>Wachtwoord</label><input id="auth-pass" type="password" placeholder="Wachtwoord" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"></div>
+    <div id="auth-err" style="display:none;color:var(--red);font-size:12px;margin-bottom:12px;">Onjuiste e-mail of wachtwoord.</div>
+    <button class="btn btn-primary" style="width:100%;justify-content:center;padding:11px;" onclick="doLogin()">Inloggen &rarr;</button>
+  </div>
+</div>
 <div class="app">
   <aside class="sidebar">
     <div class="logo">
@@ -153,6 +163,7 @@
       <div class="conn-row"><span class="dot dot-orange" id="dot-shopify"></span><span id="lbl-shopify">Shopify: niet verbonden</span></div>
       <div class="conn-row" style="margin-top:2px;"><span class="dot dot-orange" id="dot-gads"></span><span id="lbl-gads">Google Ads: niet verbonden</span></div>
       <div class="conn-row" style="margin-top:6px;font-size:10px;color:var(--text3);"><span id="lbl-sync">Nog niet gesynchroniseerd</span></div>
+      <div class="conn-row" style="margin-top:8px;"><a onclick="logoutDash()" style="font-size:11px;color:var(--text2);cursor:pointer;text-decoration:underline;">Uitloggen</a></div>
     </div>
   </aside>
   <main class="main">
@@ -286,7 +297,7 @@ function connectViaOAuth(prefix) {
   if (url.indexOf('.myshopify.com') === -1) { alert('De store-URL moet eindigen op .myshopify.com'); return; }
   var redirectUri = window.location.origin + '/';
   localStorage.setItem('pending_oauth_store', JSON.stringify({ name: name, domain: url, language: language, clientId: clientId, clientSecret: clientSecret }));
-  var scopes = 'write_products,read_products,read_orders';
+  var scopes = 'write_products,read_products';
   var state = 'oauth_' + Date.now();
   var authUrl = 'https://' + url + '/admin/oauth/authorize?client_id=' + encodeURIComponent(clientId)
     + '&scope=' + encodeURIComponent(scopes)
@@ -896,10 +907,35 @@ async function startFotoGenerator() {
   }
 }
 
-checkUrlToken();
-checkOAuthReturn();
-updateConnStatus();
-renderProducten();
+var DASH_EMAIL = 'jansensalesenmarketing@gmail.com';
+var DASH_PASS = 'W@chtw00rd!';
+function isAuthed() { return localStorage.getItem('dash_auth') === 'ok'; }
+function doLogin() {
+  var e = (document.getElementById('auth-email').value || '').trim().toLowerCase();
+  var p = document.getElementById('auth-pass').value || '';
+  if (e === DASH_EMAIL && p === DASH_PASS) {
+    localStorage.setItem('dash_auth', 'ok');
+    document.getElementById('auth-gate').style.display = 'none';
+    startApp();
+  } else {
+    document.getElementById('auth-err').style.display = 'block';
+  }
+}
+function logoutDash() {
+  localStorage.removeItem('dash_auth');
+  window.location.reload();
+}
+function startApp() {
+  checkUrlToken();
+  checkOAuthReturn();
+  updateConnStatus();
+  renderProducten();
+}
+
+if (isAuthed()) {
+  document.getElementById('auth-gate').style.display = 'none';
+  startApp();
+}
 </script>
 </body>
 </html>
