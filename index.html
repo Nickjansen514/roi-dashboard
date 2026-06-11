@@ -220,7 +220,11 @@ function toggleStoreForm(prefix) {
   if (!f) return;
   var show = (f.style.display === 'none' || !f.style.display);
   f.style.display = show ? 'block' : 'none';
-  if (show) renderStoreList(prefix);
+  if (show) {
+    renderStoreList(prefix);
+    var redir = document.getElementById(prefix + '-redir');
+    if (redir) redir.textContent = window.location.origin + '/';
+  }
 }
 function renderStoreList(prefix) {
   var el = document.getElementById(prefix + '-store-list');
@@ -271,21 +275,80 @@ function saveCustomStore(prefix) {
   toggleStoreForm(prefix);
   ['name', 'url', 'token'].forEach(function(k) { var el = document.getElementById(prefix + '-cs-' + k); if (el) el.value = ''; });
 }
+function connectViaOAuth(prefix) {
+  var name = (document.getElementById(prefix + '-cs-name').value || '').trim();
+  var url = (document.getElementById(prefix + '-cs-url').value || '').trim().replace(/^https?:\/\//, '').replace(/\/$/, '');
+  var clientId = (document.getElementById(prefix + '-cs-cid').value || '').trim();
+  var clientSecret = (document.getElementById(prefix + '-cs-secret').value || '').trim();
+  var langSel = document.getElementById(prefix + '-cs-lang');
+  var language = langSel ? langSel.value : 'english';
+  if (!name || !url || !clientId || !clientSecret) { alert('Vul winkelnaam, store-URL, Klant-ID en Geheim in.'); return; }
+  if (url.indexOf('.myshopify.com') === -1) { alert('De store-URL moet eindigen op .myshopify.com'); return; }
+  var redirectUri = window.location.origin + '/';
+  localStorage.setItem('pending_oauth_store', JSON.stringify({ name: name, domain: url, language: language, clientId: clientId, clientSecret: clientSecret }));
+  var scopes = 'write_products,read_products,read_orders';
+  var state = 'oauth_' + Date.now();
+  var authUrl = 'https://' + url + '/admin/oauth/authorize?client_id=' + encodeURIComponent(clientId)
+    + '&scope=' + encodeURIComponent(scopes)
+    + '&redirect_uri=' + encodeURIComponent(redirectUri)
+    + '&state=' + encodeURIComponent(state);
+  window.location.href = authUrl;
+}
+
+async function checkOAuthReturn() {
+  var params = new URLSearchParams(window.location.search);
+  var code = params.get('code');
+  var shop = params.get('shop');
+  var pendingRaw = localStorage.getItem('pending_oauth_store');
+  if (!code || !shop || !pendingRaw) return;
+  var pending;
+  try { pending = JSON.parse(pendingRaw); } catch (e) { localStorage.removeItem('pending_oauth_store'); return; }
+  var cleanShop = shop.replace(/^https?:\/\//, '').replace(/\/$/, '');
+  try {
+    var r = await fetch('/api/oauth-exchange', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ shop: cleanShop, code: code, clientId: pending.clientId, clientSecret: pending.clientSecret })
+    });
+    var data = await r.json();
+    if (data.error || !data.access_token) throw new Error(data.error || 'Geen token ontvangen');
+    var list = getCustomStores();
+    list.push({ id: 'custom_' + Date.now(), name: pending.name, domain: pending.domain, token: data.access_token, language: pending.language, builtin: false });
+    saveCustomStores(list);
+    localStorage.removeItem('pending_oauth_store');
+    window.history.replaceState({}, document.title, window.location.pathname);
+    alert('Winkel "' + pending.name + '" is gekoppeld!');
+    navigate('lister');
+  } catch (e) {
+    localStorage.removeItem('pending_oauth_store');
+    window.history.replaceState({}, document.title, window.location.pathname);
+    alert('Koppelen mislukt: ' + e.message);
+  }
+}
+
 function storeRowHtml(prefix) {
+  var inp = 'padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface);color:var(--text);font-size:12px;outline:none;';
   return '<div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;">'
-    + '<div class="field" style="flex:1;min-width:180px;"><label>Winkel</label><select id="' + prefix + '-store"' + (prefix === 'pl' ? ' onchange="onStoreChange()"' : '') + ' style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;width:100%;">' + storeOptions() + '</select></div>'
+    + '<div class="field" style="flex:1;min-width:180px;"><label>Winkel</label><select id="' + prefix + '-store"' + (prefix === 'pl' ? ' onchange="onStoreChange()"' : '') + ' style="' + inp + 'background:var(--surface2);width:100%;">' + storeOptions() + '</select></div>'
     + '<button type="button" class="btn" onclick="toggleStoreForm(\'' + prefix + '\')" style="white-space:nowrap;">+ Winkel koppelen</button>'
     + '</div>'
     + '<div id="' + prefix + '-store-form" style="display:none;margin-top:12px;padding:14px;border:1px dashed var(--border2);border-radius:8px;background:var(--surface2);">'
     + '<div id="' + prefix + '-store-list" style="margin-bottom:12px;"></div>'
+    + '<div style="font-size:12px;font-weight:500;margin-bottom:8px;">Nieuwe winkel koppelen</div>'
     + '<div class="field-grid" style="margin-bottom:10px;">'
-    + '<div class="field"><label>Winkelnaam</label><input id="' + prefix + '-cs-name" type="text" placeholder="bijv. Mijn Nieuwe Winkel" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface);color:var(--text);font-size:12px;outline:none;"></div>'
-    + '<div class="field"><label>Store-URL (.myshopify.com)</label><input id="' + prefix + '-cs-url" type="text" placeholder="winkel.myshopify.com" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface);color:var(--text);font-size:12px;outline:none;"></div>'
-    + '<div class="field"><label>Admin API token</label><input id="' + prefix + '-cs-token" type="password" placeholder="shpat_..." style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface);color:var(--text);font-size:12px;outline:none;"></div>'
-    + '<div class="field"><label>Taal listing</label><select id="' + prefix + '-cs-lang" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface);color:var(--text);font-size:12px;outline:none;"><option value="english">Engels</option><option value="polish">Pools</option></select></div>'
+    + '<div class="field"><label>Winkelnaam</label><input id="' + prefix + '-cs-name" type="text" placeholder="bijv. Kaizo" style="' + inp + '"></div>'
+    + '<div class="field"><label>Store-URL (.myshopify.com)</label><input id="' + prefix + '-cs-url" type="text" placeholder="winkel.myshopify.com" style="' + inp + '"></div>'
+    + '<div class="field"><label>Klant-ID</label><input id="' + prefix + '-cs-cid" type="text" placeholder="bijv. 2f489f..." style="' + inp + '"></div>'
+    + '<div class="field"><label>Geheim (shpss_)</label><input id="' + prefix + '-cs-secret" type="password" placeholder="shpss_..." style="' + inp + '"></div>'
+    + '<div class="field"><label>Taal listing</label><select id="' + prefix + '-cs-lang" style="' + inp + '"><option value="english">Engels</option><option value="polish">Pools</option></select></div>'
     + '</div>'
-    + '<button type="button" class="btn btn-primary" onclick="saveCustomStore(\'' + prefix + '\')">Winkel opslaan</button>'
-    + '<p style="font-size:11px;color:var(--text3);margin-top:8px;">Wordt onthouden in deze browser. De token wordt lokaal opgeslagen (zoals je Shopify-login).</p>'
+    + '<button type="button" class="btn btn-primary" onclick="connectViaOAuth(\'' + prefix + '\')">Verbind via Shopify</button>'
+    + '<p style="font-size:11px;color:var(--text3);margin-top:8px;line-height:1.5;">Met je Klant-ID en Geheim haalt het systeem zelf het token op. <strong>Eenmalig nodig:</strong> voeg in je Shopify-app deze redirect-URL toe bij de toegestane redirect-URLs: <code id="' + prefix + '-redir" style="font-family:var(--mono);background:rgba(0,0,0,0.06);padding:1px 4px;border-radius:3px;"></code></p>'
+    + '<details style="margin-top:10px;"><summary style="font-size:11px;color:var(--text3);cursor:pointer;">Heb je wél een Admin API-token (shpat_)? Klik hier</summary>'
+    + '<div style="margin-top:8px;display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;">'
+    + '<div class="field" style="flex:1;min-width:200px;"><label>Admin API token (shpat_)</label><input id="' + prefix + '-cs-token" type="password" placeholder="shpat_..." style="' + inp + '"></div>'
+    + '<button type="button" class="btn" onclick="saveCustomStore(\'' + prefix + '\')">Token opslaan</button>'
+    + '</div></details>'
     + '</div>';
 }
 let googleAdsToken = localStorage.getItem('gads_token') || '';
@@ -834,6 +897,7 @@ async function startFotoGenerator() {
 }
 
 checkUrlToken();
+checkOAuthReturn();
 updateConnStatus();
 renderProducten();
 </script>
