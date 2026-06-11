@@ -179,6 +179,80 @@
 const BACKEND_URL = window.location.origin;
 let shopifyToken = localStorage.getItem('shopify_token') || '';
 let shopifyStore = localStorage.getItem('shopify_store') || '';
+
+// ── Winkels (Yamira + Lorenzari vast; extra winkels koppel je zelf) ─────
+// Vaste winkels blijven server-side werken (env-vars). Gekoppelde winkels
+// worden in de browser onthouden (localStorage), net als je Shopify-login.
+var BUILTIN_STORES = [
+  { id: 'store1', name: 'Yamira London', builtin: true, language: 'english' },
+  { id: 'store2', name: 'Lorenzari', builtin: true, language: 'polish' }
+];
+function getCustomStores() {
+  try { return JSON.parse(localStorage.getItem('custom_stores') || '[]'); } catch (e) { return []; }
+}
+function saveCustomStores(list) {
+  localStorage.setItem('custom_stores', JSON.stringify(list));
+}
+function allStores() {
+  return BUILTIN_STORES.concat(getCustomStores());
+}
+function findStore(id) {
+  return allStores().find(function(s) { return s.id === id; }) || BUILTIN_STORES[0];
+}
+function storeOptions() {
+  return allStores().map(function(s) { return '<option value="' + s.id + '">' + s.name + (s.builtin ? '' : ' (gekoppeld)') + '</option>'; }).join('');
+}
+function populateStoreSelects() {
+  ['pl-store', 'fg-store'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) { var cur = el.value; el.innerHTML = storeOptions(); if (cur) el.value = cur; }
+  });
+}
+function onStoreChange() {
+  var sel = document.getElementById('pl-store');
+  var lang = document.getElementById('pl-lang');
+  if (!sel || !lang) return;
+  var st = findStore(sel.value);
+  if (st && st.language) lang.value = st.language;
+}
+function toggleStoreForm(prefix) {
+  var f = document.getElementById(prefix + '-store-form');
+  if (f) f.style.display = (f.style.display === 'none' || !f.style.display) ? 'block' : 'none';
+}
+function saveCustomStore(prefix) {
+  var name = (document.getElementById(prefix + '-cs-name').value || '').trim();
+  var url = (document.getElementById(prefix + '-cs-url').value || '').trim().replace(/^https?:\/\//, '').replace(/\/$/, '');
+  var token = (document.getElementById(prefix + '-cs-token').value || '').trim();
+  var langSel = document.getElementById(prefix + '-cs-lang');
+  var language = langSel ? langSel.value : 'english';
+  if (!name || !url || !token) { alert('Vul naam, store-URL en token in.'); return; }
+  if (url.indexOf('.myshopify.com') === -1) { alert('De store-URL moet eindigen op .myshopify.com'); return; }
+  var list = getCustomStores();
+  var id = 'custom_' + Date.now();
+  list.push({ id: id, name: name, domain: url, token: token, language: language, builtin: false });
+  saveCustomStores(list);
+  populateStoreSelects();
+  var sel = document.getElementById(prefix + '-store');
+  if (sel) { sel.value = id; if (prefix === 'pl') onStoreChange(); }
+  toggleStoreForm(prefix);
+  ['name', 'url', 'token'].forEach(function(k) { var el = document.getElementById(prefix + '-cs-' + k); if (el) el.value = ''; });
+}
+function storeRowHtml(prefix) {
+  return '<div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;">'
+    + '<div class="field" style="flex:1;min-width:180px;"><label>Winkel</label><select id="' + prefix + '-store"' + (prefix === 'pl' ? ' onchange="onStoreChange()"' : '') + ' style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;width:100%;">' + storeOptions() + '</select></div>'
+    + '<button type="button" class="btn" onclick="toggleStoreForm(\'' + prefix + '\')" style="white-space:nowrap;">+ Winkel koppelen</button>'
+    + '</div>'
+    + '<div id="' + prefix + '-store-form" style="display:none;margin-top:12px;padding:14px;border:1px dashed var(--border2);border-radius:8px;background:var(--surface2);">'
+    + '<div class="field-grid" style="margin-bottom:10px;">'
+    + '<div class="field"><label>Winkelnaam</label><input id="' + prefix + '-cs-name" type="text" placeholder="bijv. Mijn Nieuwe Winkel" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface);color:var(--text);font-size:12px;outline:none;"></div>'
+    + '<div class="field"><label>Store-URL (.myshopify.com)</label><input id="' + prefix + '-cs-url" type="text" placeholder="winkel.myshopify.com" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface);color:var(--text);font-size:12px;outline:none;"></div>'
+    + '<div class="field"><label>Admin API token</label><input id="' + prefix + '-cs-token" type="password" placeholder="shpat_..." style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface);color:var(--text);font-size:12px;outline:none;"></div>'
+    + '<div class="field"><label>Taal listing</label><select id="' + prefix + '-cs-lang" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface);color:var(--text);font-size:12px;outline:none;"><option value="english">Engels</option><option value="polish">Pools</option></select></div>'
+    + '</div>'
+    + '<button type="button" class="btn btn-primary" onclick="saveCustomStore(\'' + prefix + '\')">Winkel opslaan</button>'
+    + '<p style="font-size:11px;color:var(--text3);margin-top:8px;">Wordt onthouden in deze browser. De token wordt lokaal opgeslagen (zoals je Shopify-login).</p>'
+    + '</div>';
+}
 let googleAdsToken = localStorage.getItem('gads_token') || '';
 let googleAdsCid = localStorage.getItem('gads_cid') || '';
 let googleAdsDevToken = localStorage.getItem('gads_dev') || '';
@@ -555,7 +629,7 @@ function saveGads() {
 }
 
 function renderProductLister() {
-  document.getElementById('content').innerHTML = '<div style="max-width:800px;"><div class="settings-card"><h2>Product Lister</h2><p class="desc">Plak een productlink en wij genereren automatisch de beschrijving, tags en foto\'s voor Yamira London.</p><div class="field" style="margin-bottom:14px;"><label>Product URL</label><input id="pl-url" type="text" placeholder="https://www.example.com/products/dress" style="padding:10px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:13px;font-family:var(--font);outline:none;width:100%;"></div><button class="btn btn-primary" onclick="scrapeProduct()"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="8" r="6"/><path d="M8 4v4l3 3"/></svg>Product ophalen</button></div><div id="pl-result" style="display:none;"><div class="settings-card"><h2>Productinfo</h2><div class="field-grid" style="margin-bottom:16px;"><div class="field"><label>Productnaam</label><input id="pl-name" type="text" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"></div><div class="field"><label>Type product</label><input id="pl-type" type="text" placeholder="Dress, Maxi Dress, Top..." style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"></div><div class="field"><label>Originele prijs</label><input id="pl-price" type="number" step="0.01" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"></div><div class="field"><label>Valuta</label><select id="pl-currency" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"><option value="EUR">EUR (&euro;)</option><option value="GBP">GBP (&pound;)</option><option value="USD">USD ($)</option></select></div><div class="field"><label>Prijs in GBP (automatisch)</label><input id="pl-gbp" type="text" readonly style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;opacity:0.7;"></div><div class="field"><label>Taal listing</label><select id="pl-lang" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"><option value="english" selected>Engels</option><option value="polish">Pools</option></select></div><div class="field"><label>Seizoen</label><select id="pl-season" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"><option value="ALL YEAR">ALL YEAR</option><option value="SUMMER">SUMMER</option><option value="WINTER">WINTER</option></select></div></div><div class="field" style="margin-bottom:14px;"><label>Kleuren (komma gescheiden)</label><input id="pl-colors" type="text" placeholder="White, Black, Pink..." style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"></div><div class="field" style="margin-bottom:14px;"><label>Maten (komma gescheiden)</label><input id="pl-sizes" type="text" value="XS (UK6), S (UK8), M (UK10), L (UK12), XL (UK14), XXL (UK16)" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"></div><div class="field" style="margin-bottom:14px;"><label>Extra tags (optioneel)</label><input id="pl-tags" type="text" placeholder="midi dress, occasion wear..." style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"></div><div id="pl-images-preview" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;"></div><div style="display:flex;gap:10px;flex-wrap:wrap;"><button class="btn btn-primary" id="pl-submit-btn" onclick="submitProduct()">Product aanmaken in Shopify</button><button class="btn" onclick="navigate(\'producten\')">Annuleren</button></div></div></div><div id="pl-status" style="display:none;" class="banner banner-info"><div><h3 id="pl-status-title">Bezig...</h3><p id="pl-status-msg"></p></div></div><div id="pl-success" style="display:none;" class="banner banner-info"><div><h3 id="pl-success-title">&#10003; Product aangemaakt!</h3><p id="pl-success-msg"></p></div></div></div>';
+  document.getElementById('content').innerHTML = '<div style="max-width:800px;"><div class="settings-card"><h2>Product Lister</h2><p class="desc">Plak een productlink en wij genereren automatisch de beschrijving, tags en foto\'s voor de gekozen winkel.</p><div class="field" style="margin-bottom:14px;"><label>Product URL</label><input id="pl-url" type="text" placeholder="https://www.example.com/products/dress" style="padding:10px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:13px;font-family:var(--font);outline:none;width:100%;"></div><button class="btn btn-primary" onclick="scrapeProduct()"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="8" r="6"/><path d="M8 4v4l3 3"/></svg>Product ophalen</button></div><div id="pl-result" style="display:none;"><div class="settings-card"><h2>Productinfo</h2><div style="margin-bottom:14px;">' + storeRowHtml('pl') + '</div><div class="field-grid" style="margin-bottom:16px;"><div class="field"><label>Productnaam</label><input id="pl-name" type="text" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"></div><div class="field"><label>Type product</label><input id="pl-type" type="text" placeholder="Dress, Maxi Dress, Top..." style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"></div><div class="field"><label>Originele prijs</label><input id="pl-price" type="number" step="0.01" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"></div><div class="field"><label>Valuta</label><select id="pl-currency" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"><option value="EUR">EUR (&euro;)</option><option value="GBP">GBP (&pound;)</option><option value="USD">USD ($)</option></select></div><div class="field"><label>Prijs in GBP (automatisch)</label><input id="pl-gbp" type="text" readonly style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;opacity:0.7;"></div><div class="field"><label>Taal listing</label><select id="pl-lang" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"><option value="english" selected>Engels</option><option value="polish">Pools</option></select></div><div class="field"><label>Seizoen</label><select id="pl-season" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"><option value="ALL YEAR">ALL YEAR</option><option value="SUMMER">SUMMER</option><option value="WINTER">WINTER</option></select></div></div><div class="field" style="margin-bottom:14px;"><label>Kleuren (komma gescheiden)</label><input id="pl-colors" type="text" placeholder="White, Black, Pink..." style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"></div><div class="field" style="margin-bottom:14px;"><label>Maten (komma gescheiden)</label><input id="pl-sizes" type="text" value="XS (UK6), S (UK8), M (UK10), L (UK12), XL (UK14), XXL (UK16)" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"></div><div class="field" style="margin-bottom:14px;"><label>Extra tags (optioneel)</label><input id="pl-tags" type="text" placeholder="midi dress, occasion wear..." style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"></div><div id="pl-images-preview" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;"></div><div style="display:flex;gap:10px;flex-wrap:wrap;"><button class="btn btn-primary" id="pl-submit-btn" onclick="submitProduct()">Product aanmaken in Shopify</button><button class="btn" onclick="navigate(\'producten\')">Annuleren</button></div></div></div><div id="pl-status" style="display:none;" class="banner banner-info"><div><h3 id="pl-status-title">Bezig...</h3><p id="pl-status-msg"></p></div></div><div id="pl-success" style="display:none;" class="banner banner-info"><div><h3 id="pl-success-title">&#10003; Product aangemaakt!</h3><p id="pl-success-msg"></p></div></div></div>';
   document.getElementById('pl-price').addEventListener('input', updateGbpPrice);
   document.getElementById('pl-currency').addEventListener('change', updateGbpPrice);
 }
@@ -637,8 +711,15 @@ async function submitProduct() {
       sizes: document.getElementById('pl-sizes').value.split(',').map(function(s) { return s.trim(); }).filter(Boolean),
       extraTags: document.getElementById('pl-tags').value.split(',').map(function(s) { return s.trim(); }).filter(Boolean),
       originalImages: Array.from(document.querySelectorAll('#pl-images-preview img')).map(function(img) { return img.src; }).filter(function(src) { return src && src.startsWith('http'); }),
-      imagesByColor: window.plImagesByColor || {}
+      imagesByColor: window.plImagesByColor || {},
+      storeId: document.getElementById('pl-store') ? document.getElementById('pl-store').value : 'store1'
     };
+    var _store = findStore(productInfo.storeId);
+    if (_store && !_store.builtin) {
+      productInfo.shopifyToken = _store.token;
+      productInfo.shopifyStore = _store.domain;
+      productInfo.storeName = _store.name;
+    }
     var r = await fetch('/api/generate-product', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -670,7 +751,7 @@ function setPlStatus(show, title, msg) {
 }
 
 function renderFotoGenerator() {
-  document.getElementById('content').innerHTML = '<div style="max-width:700px;"><div class="settings-card"><h2>Foto Generator</h2><p class="desc">Plak een Shopify admin productlink en wij genereren automatisch 8 professionele productfoto\'s. De originele productfoto wordt gebruikt als referentie zodat de jurk exact klopt.</p><div class="field" style="margin-bottom:14px;"><label>Shopify Admin URL</label><input id="fg-url" type="text" placeholder="https://admin.shopify.com/store/yamira-london/products/12345..." style="padding:10px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:13px;font-family:var(--font);outline:none;width:100%;"></div><div class="field" style="margin-bottom:14px;"><label>Kleur (optioneel)</label><input id="fg-color" type="text" placeholder="bijv. Black, Pink, Burgundy..." style="padding:10px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:13px;font-family:var(--font);outline:none;width:100%;"></div><div class="field" style="margin-bottom:16px;"><label>Specifieke referentiefoto URL (optioneel)</label><input id="fg-refimg" type="text" placeholder="https://... (laat leeg, dan pakt die de eerste productfoto)" style="padding:10px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:13px;font-family:var(--font);outline:none;width:100%;"></div><button class="btn btn-primary" id="fg-btn" onclick="startFotoGenerator()">&#128248; Foto\'s genereren</button></div><div id="fg-status" style="display:none;" class="banner banner-info"><div><h3 id="fg-status-title">Bezig...</h3><p id="fg-status-msg"></p></div></div><div id="fg-success" style="display:none;" class="banner banner-info"><div><h3>&#10003; Foto\'s aangemaakt!</h3><p id="fg-success-msg"></p></div></div><div id="fg-images" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;"></div></div>';
+  document.getElementById('content').innerHTML = '<div style="max-width:700px;"><div class="settings-card"><h2>Foto Generator</h2><p class="desc">Plak een Shopify admin productlink en wij genereren automatisch 8 professionele productfoto\'s. De originele productfoto wordt gebruikt als referentie zodat de jurk exact klopt.</p><div style="margin-bottom:14px;">' + storeRowHtml('fg') + '</div><div class="field" style="margin-bottom:14px;"><label>Shopify Admin URL</label><input id="fg-url" type="text" placeholder="https://admin.shopify.com/store/yamira-london/products/12345..." style="padding:10px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:13px;font-family:var(--font);outline:none;width:100%;"></div><div class="field" style="margin-bottom:14px;"><label>Kleur (optioneel)</label><input id="fg-color" type="text" placeholder="bijv. Black, Pink, Burgundy..." style="padding:10px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:13px;font-family:var(--font);outline:none;width:100%;"></div><div class="field" style="margin-bottom:16px;"><label>Specifieke referentiefoto URL (optioneel)</label><input id="fg-refimg" type="text" placeholder="https://... (laat leeg, dan pakt die de eerste productfoto)" style="padding:10px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:13px;font-family:var(--font);outline:none;width:100%;"></div><button class="btn btn-primary" id="fg-btn" onclick="startFotoGenerator()">&#128248; Foto\'s genereren</button></div><div id="fg-status" style="display:none;" class="banner banner-info"><div><h3 id="fg-status-title">Bezig...</h3><p id="fg-status-msg"></p></div></div><div id="fg-success" style="display:none;" class="banner banner-info"><div><h3>&#10003; Foto\'s aangemaakt!</h3><p id="fg-success-msg"></p></div></div><div id="fg-images" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;"></div></div>';
 }
 
 async function startFotoGenerator() {
@@ -688,10 +769,14 @@ async function startFotoGenerator() {
   document.getElementById('fg-success').style.display = 'none';
   document.getElementById('fg-images').innerHTML = '';
   try {
+    var fgStoreId = document.getElementById('fg-store') ? document.getElementById('fg-store').value : 'store1';
+    var fgStore = findStore(fgStoreId);
+    var fgPayload = { adminUrl: url, color: color, referenceImageUrl: refImg || null, storeId: fgStoreId };
+    if (fgStore && !fgStore.builtin) { fgPayload.shopifyToken = fgStore.token; fgPayload.shopifyStore = fgStore.domain; }
     var r = await fetch('/api/photo-generator', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ adminUrl: url, color: color, referenceImageUrl: refImg || null })
+      body: JSON.stringify(fgPayload)
     });
     var data = await r.json();
     if (data.error) throw new Error(data.error);
