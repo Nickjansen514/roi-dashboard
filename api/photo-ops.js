@@ -62,8 +62,8 @@ async function submitBgRemove(imageUrl) {
 }
 
 async function pollBgRemove(taskId) {
-  for (let i = 0; i < 30; i++) {
-    await new Promise(function(r) { setTimeout(r, 5000); });
+  for (let i = 0; i < 40; i++) {
+    await new Promise(function(r) { setTimeout(r, 4000); });
     const r = await fetch('https://api.piapi.ai/api/v1/task/' + taskId, { headers: { 'x-api-key': PIAPI_KEY } });
     const data = await r.json();
     const status = data.data && data.data.status;
@@ -86,12 +86,26 @@ async function flattenToBase64(transparentUrl) {
 
 // ---------- MODEL (kie.ai Nano Banana edit) ----------
 function buildSwapPrompt() {
-  return 'You are given two images. IMAGE 1 is a fashion e-commerce photo of a woman modelling a garment. ' +
-    'IMAGE 2 is a reference portrait of a different woman. Re-render IMAGE 1 so the model becomes the woman from IMAGE 2: ' +
-    'copy her exact face, her hair colour and her hairstyle. Keep the garment from IMAGE 1 completely unchanged — same design, ' +
-    'colour, fabric, fit, length, neckline and every detail. Keep the same body pose, proportions and framing. ' +
-    'Replace the background with a clean, even, solid light gray (#' + BG_COLOR + ') studio backdrop. ' +
-    'Photorealistic high-end fashion e-commerce photography, soft even studio lighting. No text, no watermark, no extra people.';
+  return [
+    'You are an expert fashion e-commerce photo editor. You receive two images.',
+    'IMAGE 1: a product photo of a garment. It may be worn by a model, or it may be a close-up, a back view, or a flat detail shot.',
+    'IMAGE 2: a reference portrait of a woman.',
+    '',
+    'TASK:',
+    '- If IMAGE 1 clearly shows a woman\'s face, replace ONLY the model\'s identity with the woman from IMAGE 2: copy her exact facial features, skin tone, hair colour and hairstyle. Blend the new head naturally onto the existing body with seamless, photorealistic skin and matching lighting. No visible seams, no mismatched skin tone at the neck, no double chin or distortion.',
+    '- Keep the GARMENT from IMAGE 1 EXACTLY as it is: identical design, colour, fabric, texture, folds, ruching, straps, neckline shape and depth, length and hem. Do NOT redesign, recolour, lengthen, shorten or restyle the garment in any way.',
+    '- Keep the exact same body pose, proportions, hands, arms, legs and feet, and the exact same camera framing and crop.',
+    '- Show exactly ONE woman. No duplicated or extra limbs, no second person, no mannequin, no floating parts.',
+    '- If IMAGE 1 does NOT clearly show a face (close-up, fabric detail, back view or flat lay), leave the garment and composition completely unchanged and ONLY replace the background as described below.',
+    '',
+    'BACKGROUND:',
+    '- Replace the entire background with a clean, even, solid light gray (#' + BG_COLOR + ') studio backdrop, edge to edge.',
+    '- Remove every trace of the original background. No coloured patches, no green or blue fringe, no leftover shadows from the old background, no halo or outline around the body and hair.',
+    '',
+    'STYLE:',
+    '- Photorealistic, sharp, high-end fashion e-commerce photography with soft, even studio lighting.',
+    '- No text, no logos, no watermark, no added jewellery or accessories.'
+  ].join('\n');
 }
 
 async function submitKieEdit(imageUrls) {
@@ -110,8 +124,8 @@ async function submitKieEdit(imageUrls) {
 }
 
 async function pollKieTask(taskId) {
-  for (let i = 0; i < 40; i++) {
-    await new Promise(function(r) { setTimeout(r, 5000); });
+  for (let i = 0; i < 60; i++) {
+    await new Promise(function(r) { setTimeout(r, 4000); });
     const poll = await fetch('https://api.kie.ai/api/v1/jobs/recordInfo?taskId=' + taskId, { headers: { 'Authorization': 'Bearer ' + KIE_API_KEY } });
     const pollText = await poll.text();
     let result;
@@ -193,28 +207,30 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, via: via, productId: productId, productTitle: product.title, total: 0, recolored: 0, replaced: 0, note: 'geen foto\'s' });
     }
 
-    // Per foto bewerken (parallel).
-    const processed = await Promise.all(images.map(async function(img) {
+    // Per foto bewerken - een voor een (betrouwbaarder; kie.ai knijpt parallelle calls af).
+    const processed = [];
+    for (const img of images) {
       try {
         if (mode === 'bg') {
           const tid = await submitBgRemove(resizeShopifyUrl(img.src));
           const turl = await pollBgRemove(tid);
-          if (!turl) return null;
+          if (!turl) { processed.push({ error: 'achtergrond verwijderen gaf niets terug' }); continue; }
           const b64 = await flattenToBase64(turl);
-          return { base64: b64, position: img.position };
+          processed.push({ base64: b64, position: img.position });
         } else {
           const taskId = await submitKieEdit([img.src, faceUrl]);
           const outUrl = await pollKieTask(taskId);
-          if (!outUrl) return null;
+          if (!outUrl) { processed.push({ error: 'Nano Banana gaf geen afbeelding terug' }); continue; }
           const b64 = await fetchToBase64(outUrl);
-          return { base64: b64, position: img.position };
+          processed.push({ base64: b64, position: img.position });
         }
       } catch (e) {
         console.error('[photo-ops/' + mode + '] foto mislukt:', e.message);
-        return null;
+        processed.push({ error: e.message });
       }
-    }));
-    const ok = processed.filter(Boolean);
+    }
+    const ok = processed.filter(function(x) { return x && x.base64; });
+    const firstErr = (processed.find(function(x) { return x && x.error; }) || {}).error;
 
     // Nieuwe foto's toevoegen.
     const newIds = [];
@@ -233,7 +249,7 @@ export default async function handler(req, res) {
       return res.status(200).json(resp);
     } else {
       for (const id of newIds) { await deleteImage(store, token, productId, id); }
-      return res.status(200).json({ success: false, via: via, productId: productId, productTitle: product.title, total: images.length, recolored: 0, replaced: 0, error: 'Niet alle foto\'s gelukt (' + ok.length + '/' + images.length + ') — product onveranderd gelaten' });
+      return res.status(200).json({ success: false, via: via, productId: productId, productTitle: product.title, total: images.length, recolored: 0, replaced: 0, error: 'Niet alle foto\'s gelukt (' + ok.length + '/' + images.length + ') — product onveranderd gelaten' + (firstErr ? ' | reden: ' + firstErr : '') });
     }
   } catch (err) {
     console.error('[photo-ops/' + mode + '] Fatal:', err.message);
