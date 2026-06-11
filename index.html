@@ -755,7 +755,7 @@ function saveGads() {
 }
 
 function renderProductLister() {
-  document.getElementById('content').innerHTML = '<div style="max-width:800px;"><div class="settings-card"><h2>Product Lister</h2><p class="desc">Plak een productlink en wij genereren automatisch de beschrijving, tags en foto\'s voor de gekozen winkel.</p><div style="margin-bottom:14px;">' + storeRowHtml('pl') + '</div><div class="field" style="margin-bottom:14px;"><label>Product URL</label><input id="pl-url" type="text" placeholder="https://www.example.com/products/dress" style="padding:10px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:13px;font-family:var(--font);outline:none;width:100%;"></div><button class="btn btn-primary" onclick="scrapeProduct()"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="8" r="6"/><path d="M8 4v4l3 3"/></svg>Product ophalen</button></div><div id="pl-result" style="display:none;"><div class="settings-card"><h2>Productinfo</h2><div class="field-grid" style="margin-bottom:16px;"><div class="field"><label>Productnaam</label><input id="pl-name" type="text" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"></div><div class="field"><label>Type product</label><input id="pl-type" type="text" placeholder="Dress, Maxi Dress, Top..." style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"></div><div class="field"><label>Originele prijs</label><input id="pl-price" type="number" step="0.01" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"></div><div class="field"><label>Valuta</label><select id="pl-currency" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"><option value="EUR">EUR (&euro;)</option><option value="GBP">GBP (&pound;)</option><option value="USD">USD ($)</option></select></div><div class="field"><label>Prijs in GBP (automatisch)</label><input id="pl-gbp" type="text" readonly style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;opacity:0.7;"></div><div class="field"><label>Taal listing</label><select id="pl-lang" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"><option value="english" selected>Engels</option><option value="polish">Pools</option></select></div><div class="field"><label>Land</label><select id="pl-market" onchange="onMarketChange()" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"><option value="uk" selected>Verenigd Koninkrijk</option><option value="canada">Canada</option></select></div><div class="field"><label>Seizoen</label><select id="pl-season" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"><option value="ALL YEAR">ALL YEAR</option><option value="SUMMER">SUMMER</option><option value="WINTER">WINTER</option></select></div></div><div class="field" style="margin-bottom:14px;"><label>Kleuren (komma gescheiden)</label><input id="pl-colors" type="text" placeholder="White, Black, Pink..." style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"></div><div class="field" style="margin-bottom:14px;"><label>Maten (komma gescheiden)</label><input id="pl-sizes" type="text" value="XS (UK6), S (UK8), M (UK10), L (UK12), XL (UK14), XXL (UK16)" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"></div><div class="field" style="margin-bottom:14px;"><label>Extra tags (optioneel)</label><input id="pl-tags" type="text" placeholder="midi dress, occasion wear..." style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"></div><div class="field" style="margin-bottom:14px;"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:normal;"><input id="pl-nametitle" type="checkbox" style="width:auto;margin:0;"> Unieke voornaam vooraan de titel (bijv. &quot;Mila &#8211; mini sukienka...&quot;)</label></div><div id="pl-images-preview" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;"></div><div style="display:flex;gap:10px;flex-wrap:wrap;"><button class="btn btn-primary" id="pl-submit-btn" onclick="submitProduct()">Product aanmaken in Shopify</button><button class="btn" onclick="navigate(\'producten\')">Annuleren</button></div></div></div><div id="pl-status" style="display:none;" class="banner banner-info"><div><h3 id="pl-status-title">Bezig...</h3><p id="pl-status-msg"></p></div></div><div id="pl-success" style="display:none;" class="banner banner-info"><div><h3 id="pl-success-title">&#10003; Product aangemaakt!</h3><p id="pl-success-msg"></p></div></div></div>';
+  document.getElementById('content').innerHTML = '<div style="max-width:800px;"><div class="settings-card"><h2>Product Lister</h2><p class="desc">Plak een productlink en wij genereren automatisch de beschrijving, tags en foto\'s voor de gekozen winkel.</p><div style="margin-bottom:14px;">' + storeRowHtml('pl') + '</div><div class="field" style="margin-bottom:14px;"><label>Product URL</label><input id="pl-url" type="text" placeholder="https://www.example.com/products/dress" style="padding:10px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:13px;font-family:var(--font);outline:none;width:100%;"></div><button class="btn btn-primary" onclick="scrapeProduct()"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="8" r="6"/><path d="M8 4v4l3 3"/></svg>Product ophalen</button></div><div class="settings-card"><h2>Of: meerdere tegelijk (batch)</h2><p class="desc">Plak meerdere productlinks (&eacute;&eacute;n per regel). We halen ze stuk voor stuk op en maken ze direct aan met de instellingen hieronder &mdash; z&oacute;nder handmatige controle per product. De winkel bovenaan geldt voor de hele batch.</p><div class="field-grid" style="margin-bottom:14px;"><div class="field"><label>Taal listing</label><select id="plb-lang" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"><option value="english" selected>Engels</option><option value="polish">Pools</option></select></div><div class="field"><label>Land</label><select id="plb-market" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"><option value="uk" selected>Verenigd Koninkrijk</option><option value="canada">Canada</option></select></div><div class="field"><label>Valuta bron</label><select id="plb-currency" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"><option value="EUR">EUR (&euro;)</option><option value="GBP">GBP (&pound;)</option><option value="USD">USD ($)</option></select></div><div class="field"><label>Seizoen</label><select id="plb-season" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"><option value="ALL YEAR">ALL YEAR</option><option value="SUMMER">SUMMER</option><option value="WINTER">WINTER</option></select></div></div><div class="field" style="margin-bottom:14px;"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:normal;"><input id="plb-nametitle" type="checkbox" style="width:auto;margin:0;"> Unieke voornaam vooraan de titel</label></div><div class="field" style="margin-bottom:14px;"><label>Productlinks (&eacute;&eacute;n per regel)</label><textarea id="plb-urls" rows="6" placeholder="https://...&#10;https://...&#10;https://..." style="padding:10px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;font-family:var(--font);outline:none;width:100%;resize:vertical;box-sizing:border-box;"></textarea></div><button class="btn btn-primary" id="plb-btn" onclick="startBatch()">Alles aanmaken</button><div id="plb-summary" style="margin-top:12px;font-size:13px;font-weight:600;"></div><div id="plb-results" style="margin-top:8px;"></div></div><div id="pl-result" style="display:none;"><div class="settings-card"><h2>Productinfo</h2><div class="field-grid" style="margin-bottom:16px;"><div class="field"><label>Productnaam</label><input id="pl-name" type="text" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"></div><div class="field"><label>Type product</label><input id="pl-type" type="text" placeholder="Dress, Maxi Dress, Top..." style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"></div><div class="field"><label>Originele prijs</label><input id="pl-price" type="number" step="0.01" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"></div><div class="field"><label>Valuta</label><select id="pl-currency" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"><option value="EUR">EUR (&euro;)</option><option value="GBP">GBP (&pound;)</option><option value="USD">USD ($)</option></select></div><div class="field"><label>Prijs in GBP (automatisch)</label><input id="pl-gbp" type="text" readonly style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;opacity:0.7;"></div><div class="field"><label>Taal listing</label><select id="pl-lang" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"><option value="english" selected>Engels</option><option value="polish">Pools</option></select></div><div class="field"><label>Land</label><select id="pl-market" onchange="onMarketChange()" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"><option value="uk" selected>Verenigd Koninkrijk</option><option value="canada">Canada</option></select></div><div class="field"><label>Seizoen</label><select id="pl-season" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"><option value="ALL YEAR">ALL YEAR</option><option value="SUMMER">SUMMER</option><option value="WINTER">WINTER</option></select></div></div><div class="field" style="margin-bottom:14px;"><label>Kleuren (komma gescheiden)</label><input id="pl-colors" type="text" placeholder="White, Black, Pink..." style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"></div><div class="field" style="margin-bottom:14px;"><label>Maten (komma gescheiden)</label><input id="pl-sizes" type="text" value="XS (UK6), S (UK8), M (UK10), L (UK12), XL (UK14), XXL (UK16)" style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"></div><div class="field" style="margin-bottom:14px;"><label>Extra tags (optioneel)</label><input id="pl-tags" type="text" placeholder="midi dress, occasion wear..." style="padding:9px 12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-size:12px;outline:none;"></div><div class="field" style="margin-bottom:14px;"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:normal;"><input id="pl-nametitle" type="checkbox" style="width:auto;margin:0;"> Unieke voornaam vooraan de titel (bijv. &quot;Mila &#8211; mini sukienka...&quot;)</label></div><div id="pl-images-preview" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;"></div><div style="display:flex;gap:10px;flex-wrap:wrap;"><button class="btn btn-primary" id="pl-submit-btn" onclick="submitProduct()">Product aanmaken in Shopify</button><button class="btn" onclick="navigate(\'producten\')">Annuleren</button></div></div></div><div id="pl-status" style="display:none;" class="banner banner-info"><div><h3 id="pl-status-title">Bezig...</h3><p id="pl-status-msg"></p></div></div><div id="pl-success" style="display:none;" class="banner banner-info"><div><h3 id="pl-success-title">&#10003; Product aangemaakt!</h3><p id="pl-success-msg"></p></div></div></div>';
   document.getElementById('pl-price').addEventListener('input', updateGbpPrice);
   document.getElementById('pl-currency').addEventListener('change', updateGbpPrice);
 }
@@ -868,6 +868,103 @@ async function submitProduct() {
     btn.disabled = false;
     btn.textContent = 'Product aanmaken in Shopify';
   }
+}
+
+function setBatchRow(idx, state, msg) {
+  var st = document.getElementById('plb-st-' + idx);
+  if (!st) return;
+  var colors = { wachtrij: 'var(--muted)', bezig: 'var(--text)', klaar: '#3a9d5d', fout: '#c0392b' };
+  st.style.color = colors[state] || 'var(--muted)';
+  st.textContent = msg;
+}
+
+async function startBatch() {
+  var raw = document.getElementById('plb-urls').value || '';
+  var urls = raw.split(/\r?\n/).map(function(s) { return s.trim(); }).filter(Boolean);
+  if (!urls.length) return alert('Plak minstens \u00e9\u00e9n link (\u00e9\u00e9n per regel).');
+
+  var settings = {
+    storeId: document.getElementById('pl-store') ? document.getElementById('pl-store').value : 'store1',
+    language: document.getElementById('plb-lang').value,
+    market: document.getElementById('plb-market').value,
+    currency: document.getElementById('plb-currency').value,
+    season: document.getElementById('plb-season').value,
+    useNameTitle: document.getElementById('plb-nametitle').checked
+  };
+  var _store = findStore(settings.storeId);
+
+  var btn = document.getElementById('plb-btn');
+  btn.disabled = true;
+  btn.textContent = 'Bezig... (' + urls.length + ')';
+  document.getElementById('plb-summary').textContent = '';
+  document.getElementById('plb-results').innerHTML = urls.map(function(u, idx) {
+    return '<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border);font-size:12px;">' +
+      '<span style="flex:1;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + (idx + 1) + '. ' + u + '</span>' +
+      '<span id="plb-st-' + idx + '" style="color:var(--muted);white-space:nowrap;">wachtrij</span></div>';
+  }).join('');
+
+  var ok = 0, fail = 0;
+  for (var i = 0; i < urls.length; i++) {
+    var url = urls[i];
+    try {
+      setBatchRow(i, 'bezig', 'ophalen...');
+      var sr = await fetch('/api/scrape', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: url }) });
+      var sdata = await sr.json();
+      if (sdata.error) throw new Error(sdata.error);
+
+      var priceNum = parseFloat(sdata.price);
+      if (!priceNum || isNaN(priceNum)) throw new Error('geen prijs gevonden');
+
+      var smap = settings.market === 'canada' ? SIZE_MAP_CA : SIZE_MAP;
+      var sizes = (sdata.sizes && sdata.sizes.length)
+        ? sdata.sizes.map(function(s) { return smap[s.toUpperCase().trim()] || s; })
+        : (DEFAULT_SIZES[settings.market] || DEFAULT_SIZES.uk).split(',').map(function(s) { return s.trim(); });
+      var colors = (sdata.colors || []).map(function(c) { return translateColor(c); });
+      var imagesByColor = {};
+      if (sdata.imagesByColor) {
+        Object.keys(sdata.imagesByColor).forEach(function(c) {
+          var k = translateColor(c);
+          imagesByColor[k] = (imagesByColor[k] || []).concat(sdata.imagesByColor[c] || []);
+        });
+      }
+
+      var productInfo = {
+        title: sdata.title || '',
+        type: sdata.productType || 'Dress',
+        originalPrice: priceNum,
+        currency: settings.currency,
+        language: settings.language,
+        market: settings.market,
+        useNameTitle: settings.useNameTitle,
+        season: settings.season,
+        colors: colors,
+        sizes: sizes,
+        extraTags: [],
+        originalImages: (sdata.images || []).filter(function(src) { return src && src.indexOf('http') === 0; }),
+        imagesByColor: imagesByColor,
+        storeId: settings.storeId
+      };
+      if (_store && !_store.builtin) {
+        productInfo.shopifyToken = _store.token;
+        productInfo.shopifyStore = _store.domain;
+        productInfo.storeName = _store.name;
+      }
+
+      setBatchRow(i, 'bezig', 'aanmaken...');
+      var gr = await fetch('/api/generate-product', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ productInfo: productInfo, generatePhotos: false }) });
+      var gdata = await gr.json();
+      if (gdata.error) throw new Error(gdata.error);
+      ok++;
+      setBatchRow(i, 'klaar', '\u2713 ' + ((gdata.product && gdata.product.title) || 'aangemaakt'));
+    } catch (e) {
+      fail++;
+      setBatchRow(i, 'fout', '\u2717 ' + e.message);
+    }
+    document.getElementById('plb-summary').textContent = (ok + fail) + '/' + urls.length + ' verwerkt \u2014 ' + ok + ' gelukt, ' + fail + ' mislukt';
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Alles aanmaken';
 }
 
 function setPlStatus(show, title, msg) {
