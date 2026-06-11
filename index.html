@@ -1029,7 +1029,12 @@ async function startFotoGenerator() {
     var fgStore = findStore(fgStoreId);
     var fgPayload = { adminUrl: url, storeId: fgStoreId };
     if (fgStore && !fgStore.builtin) { fgPayload.shopifyToken = fgStore.token; fgPayload.shopifyStore = fgStore.domain; }
-    var fgFace = faceForStore(fgStoreId); if (fgFace) fgPayload.faceImageUrl = fgFace;
+    var fgFaceField = document.getElementById('fg-face');
+    var fgFace = (fgFaceField && fgFaceField.value.trim()) ? fgFaceField.value.trim() : faceForStore(fgStoreId);
+    if (fgFace) {
+      fgPayload.faceImageUrl = fgFace;
+      var _fm = getStoreFaces(); _fm[fgStoreId] = fgFace; saveStoreFaces(_fm);
+    }
     var r = await fetch('/api/photo-generator', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1090,7 +1095,9 @@ async function startFotoBatch() {
       setFotoBatchRow(i, 'bezig', 'bezig met face-swap...');
       var payload = { adminUrl: urls[i], storeId: storeId };
       if (_store && !_store.builtin) { payload.shopifyToken = _store.token; payload.shopifyStore = _store.domain; }
-      var bFace = faceForStore(storeId); if (bFace) payload.faceImageUrl = bFace;
+      var _ff = document.getElementById('fg-face');
+      var bFace = (_ff && _ff.value.trim()) ? _ff.value.trim() : faceForStore(storeId);
+      if (bFace) payload.faceImageUrl = bFace;
       var r = await fetch('/api/photo-generator', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       var data = await r.json();
       if (data.error) throw new Error(data.error);
