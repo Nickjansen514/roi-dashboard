@@ -307,6 +307,30 @@ async function createShopifyProduct(productData, token, storeDomain) {
   return r.json();
 }
 
+// SEO page title (en meta description) HARD zetten via het aparte metafields-endpoint.
+// Inline meefsturen bij het aanmaken laat de page title in Shopify op "pending"/grijs staan;
+// een losse POST naar /products/{id}/metafields.json vult 'm wel zwart in.
+async function setSeoMetafields(productId, token, storeDomain, seoTitle, metaDescription) {
+  const t = token || SHOPIFY_TOKEN;
+  const store = (storeDomain || SHOPIFY_STORE).replace(/^https?:\/\//, '').replace(/\/$/, '');
+  const fields = [];
+  if (seoTitle) fields.push({ namespace: 'global', key: 'title_tag', type: 'single_line_text_field', value: String(seoTitle) });
+  if (metaDescription) fields.push({ namespace: 'global', key: 'description_tag', type: 'single_line_text_field', value: String(metaDescription) });
+  for (const mf of fields) {
+    try {
+      const r = await fetch('https://' + store + '/admin/api/2024-01/products/' + productId + '/metafields.json', {
+        method: 'POST',
+        headers: { 'X-Shopify-Access-Token': t, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ metafield: mf })
+      });
+      if (!r.ok) { const e = await r.text(); console.error('[setSeoMetafields] ' + mf.key + ' fout:', r.status, e); }
+      else console.log('[setSeoMetafields] ' + mf.key + ' gezet voor product', productId);
+    } catch (e) {
+      console.error('[setSeoMetafields] ' + mf.key + ' exception:', e.message);
+    }
+  }
+}
+
 async function addExtraImages(productId, imageUrls, token, storeDomain) {
   const t = token || SHOPIFY_TOKEN;
   const store = (storeDomain || SHOPIFY_STORE).replace(/^https?:\/\//, '').replace(/\/$/, '');
@@ -561,7 +585,6 @@ export default async function handler(req, res) {
         if (inList) html += '</ul>';
         return html;
       })(description) : '',
-      metafields: metafields,
       vendor: storeName,
       product_type: displayProductType,
       tags: tags,
@@ -573,6 +596,11 @@ export default async function handler(req, res) {
 
     const result = await createShopifyProduct(shopifyProduct, reqToken, reqStore);
     const productId = result.product && result.product.id;
+
+    // SEO page title (en meta description) zwart/ingevuld zetten via het metafields-endpoint.
+    if (productId) {
+      await setSeoMetafields(productId, reqToken, reqStore, seoTitle, metaDescription);
+    }
 
     // ── Foto's koppelen ───────────────────────────────────────────────
     // Bij AI-foto's: gewoon uploaden (geen kleurkoppeling).
