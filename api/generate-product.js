@@ -51,19 +51,84 @@ const shoeSizeMap = {
   '8': '41', '8.5': '41', '9': '42'
 };
 
-// Zet een ruwe maat om naar het juiste label.
-// Schoen (UK-getal zoals 3 of 5.5) -> "UK 3 (EU 36)" (Engels) of "EU 36" (Pools).
-// Kleding -> bestaande kledingmaat-omzetting.
 // Herkent of een producttype schoeisel is.
 function isFootwearType(type) {
   var t = String(type || '').toLowerCase();
-  return /espadrille|slingback|kitten|heel|stiletto|pump|sandal|ballet|ballerina|loafer|moccasin|sneaker|trainer|boot|mule|wedge|brogue|oxford|derby|slipper|flat|shoe|footwear|schoen|laars|sandaal|hak|pantoffel|instapper|sleehak/.test(t);
+  return /espadrille|slingback|kitten|heel|stiletto|pump|sandal|ballet|ballerina|loafer|moccasin|sneaker|trainer|boot|mule|wedge|brogue|oxford|derby|slipper|flat|clog|flip|shoe|footwear|schoen|laars|sandaal|hak|pantoffel|instapper|sleehak/.test(t);
+}
+
+// Herkent of een producttype een one-size accessoire is (tas, sieraad, sjaal, riem, pet, zonnebril).
+// Wordt toegepast op het GECLASSIFICEERDE type, dus 'riem' triggert alleen bij echte riemen, niet bij een jurk "met riem".
+function isOneSizeType(type) {
+  var t = String(type || '').toLowerCase();
+  return /\bbag\b|\btas\b|tote|clutch|backpack|rugzak|handbag|handtas|schoudertas|crossbody|torebka|torba|jewell|jewel|necklace|earring|bracelet|sieraad|ketting|scarf|sjaal|\bhat\b|\bcap\b|\bpet\b|muts|\bbelt\b|\briem\b|sunglass|zonnebril/.test(t);
+}
+
+// Vangnet-classificatie op basis van tekst, als de AI om wat voor reden dan ook geen type teruggeeft.
+function inferTypeFromText(text) {
+  var t = String(text || '').toLowerCase();
+  if (/tote|shopper/.test(t)) return 'Tote Bag';
+  if (/crossbody|cross-body/.test(t)) return 'Crossbody Bag';
+  if (/handbag|handtas/.test(t)) return 'Handbag';
+  if (/shoulder bag|schoudertas/.test(t)) return 'Shoulder Bag';
+  if (/\bbag\b|\btas\b|torebka|torba/.test(t)) return 'Bag';
+  if (/loafer|mocassin|moccasin|mokasyn/.test(t)) return 'Loafers';
+  if (/ballet|ballerina|baleriny/.test(t)) return 'Ballet Flats';
+  if (/slingback/.test(t)) return 'Slingback Flats';
+  if (/clog|klomp/.test(t)) return 'Clogs';
+  if (/flip.?flop|teenslipper/.test(t)) return 'Flip Flops';
+  if (/slide|slipper|klapki/.test(t)) return 'Slides';
+  if (/sandal|sandaal|sandały/.test(t)) return 'Sandals';
+  if (/pump|court shoe|czółenka/.test(t)) return 'Heels';
+  if (/mule|muiltje/.test(t)) return 'Mules';
+  if (/heel|\bhak\b|stiletto|sleehak/.test(t)) return 'Heels';
+  if (/ankle boot|enkellaars|botki/.test(t)) return 'Ankle Boots';
+  if (/knee.?high|kniehoog|kozaki/.test(t)) return 'Knee High Boots';
+  if (/cowboy|western/.test(t)) return 'Cowboy Boots';
+  if (/boot|laars/.test(t)) return 'Ankle Boots';
+  if (/sneaker|trainer/.test(t)) return 'Sneakers';
+  if (/cargo/.test(t)) return 'Cargo Trousers';
+  if (/wide.?leg|palazzo|wijde broek|luchtige broek/.test(t)) return 'Wide Leg Trousers';
+  if (/linen (trouser|pant)|linnen broek/.test(t)) return 'Linen Trousers';
+  if (/jeans|denim broek/.test(t)) return 'Jeans';
+  if (/trouser|broek|pants|spodnie/.test(t)) return 'Trousers';
+  if (/denim skirt|jeans ?rok|spódnica jeansowa/.test(t)) return 'Denim Skirt';
+  if (/midi skirt|midi ?rok/.test(t)) return 'Midi Skirt';
+  if (/maxi skirt|maxi ?rok/.test(t)) return 'Maxi Skirt';
+  if (/skirt|\brok\b|spódnica/.test(t)) return 'Skirt';
+  if (/blouse|bluzka/.test(t)) return 'Blouse';
+  if (/\btop\b/.test(t)) return 'Top';
+  if (/jumpsuit|kombinezon/.test(t)) return 'Jumpsuit';
+  if (/playsuit|romper/.test(t)) return 'Playsuit';
+  if (/blazer|marynarka/.test(t)) return 'Blazer';
+  if (/trench/.test(t)) return 'Trench Coat';
+  if (/jacket|\bjas\b|kurtka/.test(t)) return 'Jacket';
+  if (/coat|płaszcz/.test(t)) return 'Coat';
+  if (/co-?ord|two.?piece|komplet|\bset\b/.test(t)) return 'Co-ord Set';
+  if (/maxi dress|maxi jurk/.test(t)) return 'Maxi Dress';
+  if (/midi dress|midi jurk/.test(t)) return 'Midi Dress';
+  if (/mini dress|mini jurk/.test(t)) return 'Mini Dress';
+  if (/dress|jurk|sukienka/.test(t)) return 'Dress';
+  return 'Dress';
+}
+
+// Hoofdcategorie (voor tags) op basis van het geclassificeerde type.
+function mainCategoryFor(productType, lang) {
+  var t = String(productType || '').toLowerCase();
+  var pl = lang === 'polish';
+  if (/dress|jurk|sukienka/.test(t)) return pl ? 'Sukienki' : 'Dresses';
+  if (/skirt|\brok\b|spódnica/.test(t)) return pl ? 'Spódnice' : 'Bottoms';
+  if (/trouser|jeans|pants|broek|spodnie|cargo|palazzo|legging/.test(t)) return pl ? 'Spodnie' : 'Bottoms';
+  if (/jacket|coat|blazer|trench|\bjas\b|kurtka|płaszcz|okrycie/.test(t)) return pl ? 'Okrycia' : 'Outerwear';
+  if (/top|blouse|shirt|bluzka/.test(t)) return pl ? 'Bluzki' : 'Tops';
+  if (/bag|\btas\b|tote|clutch|backpack|handbag|handtas|schoudertas|crossbody|torebka|torba/.test(t)) return pl ? 'Torebki' : 'Bags';
+  if (/loafer|flat|ballet|slingback|sandal|slide|heel|pump|mule|clog|boot|sneaker|shoe|laars|schoen|\bhak\b|botki|kozaki|mokasyn|baleriny/.test(t)) return pl ? 'Buty' : 'Shoes';
+  if (/jumpsuit|playsuit|romper|kombinezon/.test(t)) return pl ? 'Kombinezony' : 'Jumpsuits';
+  if (/co-?ord|two.?piece|komplet|\bset\b/.test(t)) return pl ? 'Komplety' : 'Co-ords';
+  return null;
 }
 
 // Zet een ruwe maat om naar het juiste label.
-// - UK-schoenmaat (klein getal zoals 3 of 5.5): altijd "UK 3 (EU 36)".
-// - EU-schoenmaat (34-48): alleen bij schoeisel -> "UK 3 (EU 36)" (anders is het een kledingmaat).
-// - Kleding: bestaande kledingmaat-omzetting.
 function mapSizeLabel(s, lang, isFootwear, market) {
   market = (market || 'uk').toLowerCase();
   var key = String(s).toUpperCase().trim();
@@ -116,12 +181,24 @@ const colorMap = {
 const polishTypeMap = {
   'Dress': 'Sukienka', 'Maxi Dress': 'Sukienka Maxi', 'Mini Dress': 'Sukienka Mini',
   'Midi Dress': 'Sukienka Midi', 'Bodycon Dress': 'Sukienka Dopasowana',
-  'Wrap Dress': 'Sukienka Kopertowa', 'Skirt': 'Spódnica', 'Midi Skirt': 'Spódnica Midi',
-  'Maxi Skirt': 'Spódnica Maxi', 'Mini Skirt': 'Spódnica Mini', 'Blouse': 'Bluzka',
-  'Top': 'Top', 'Jacket': 'Kurtka', 'Blazer': 'Marynarka', 'Coat': 'Płaszcz',
-  'Jumpsuit': 'Kombinezon', 'Trousers': 'Spodnie', 'Pants': 'Spodnie',
+  'Wrap Dress': 'Sukienka Kopertowa', 'Shirt Dress': 'Sukienka Koszulowa',
+  'Denim Dress': 'Sukienka Jeansowa', 'Skirt': 'Spódnica', 'Midi Skirt': 'Spódnica Midi',
+  'Maxi Skirt': 'Spódnica Maxi', 'Mini Skirt': 'Spódnica Mini', 'Denim Skirt': 'Spódnica Jeansowa',
+  'Blouse': 'Bluzka', 'Top': 'Top', 'Jacket': 'Kurtka', 'Blazer': 'Marynarka',
+  'Coat': 'Płaszcz', 'Trench Coat': 'Trencz', 'Denim Jacket': 'Kurtka Jeansowa',
+  'Jumpsuit': 'Kombinezon', 'Playsuit': 'Kombinezon', 'Trousers': 'Spodnie', 'Pants': 'Spodnie',
+  'Wide Leg Trousers': 'Spodnie Szerokie', 'Linen Trousers': 'Spodnie Lniane',
+  'Cargo Trousers': 'Spodnie Cargo', 'Palazzo Trousers': 'Spodnie Palazzo',
+  'Flared Trousers': 'Spodnie Dzwony', 'Jeans': 'Jeansy', 'Wide Leg Jeans': 'Szerokie Jeansy',
   'Cardigan': 'Kardigan', 'Sweater': 'Sweter', 'Co-ord Set': 'Komplet',
-  'Two Piece Set': 'Komplet'
+  'Two Piece Set': 'Komplet', 'Tote Bag': 'Torba Shopper', 'Shoulder Bag': 'Torba na Ramię',
+  'Crossbody Bag': 'Torebka Crossbody', 'Handbag': 'Torebka', 'Woven Bag': 'Torebka Pleciona',
+  'Bag': 'Torebka', 'Loafers': 'Mokasyny', 'Ballet Flats': 'Baleriny',
+  'Mary Jane Shoes': 'Buty Mary Jane', 'Slingback Flats': 'Baleriny Slingback',
+  'Sandals': 'Sandały', 'Slides': 'Klapki', 'Flip Flops': 'Japonki', 'Cork Sandals': 'Sandały Korkowe',
+  'Heels': 'Czółenka', 'Court Shoes': 'Czółenka', 'Mules': 'Klapki na Obcasie',
+  'Clogs': 'Chodaki', 'Ankle Boots': 'Botki', 'Knee High Boots': 'Kozaki',
+  'Cowboy Boots': 'Kowbojki', 'Boots': 'Kozaki', 'Sneakers': 'Sneakersy'
 };
 
 function translateColor(color) {
@@ -182,27 +259,59 @@ async function generateDescription(productInfo) {
       max_tokens: 2000,
       system: `You are the dedicated product listing assistant for ${storeName}, a women's fashion webshop. Create fully compliant Shopify-ready product listings. Follow every rule exactly.
 
-LANGUAGE: The "Language" field decides the language of ALL output (title, description, meta description).
-- english: Write everything in natural UK English. Title MUST end with "for women". Translate any non-English product name to English.
-- polish: Write everything in natural Polish. Title MUST end with "dla kobiet". Translate any non-Polish product name to Polish. Use Polish fashion SEO keywords (sukienka, sukienki damskie, sukienka maxi, sukienka midi, sukienka na wesele, spódnica, spódnica midi, bluzka, komplet, żakiet).
+LANGUAGE: The "Language" field decides the language of the title, description and meta description.
+- english: Write the title, description and meta description in natural UK English. Title MUST end with "for women". Translate any non-English product name to English.
+- polish: Write the title, description and meta description in natural Polish. Title MUST end with "dla kobiet". Translate any non-Polish product name to Polish. Use Polish fashion SEO keywords (sukienka, sukienki damskie, sukienka maxi, sukienka midi, sukienka na wesele, spódnica, spódnica midi, bluzka, komplet, żakiet).
 Never mix languages. No Dutch or French words in either case.
+NOTE: the "productType", "material", "occasion" and "style" fields are ALWAYS returned in English, regardless of the listing language.
 
 BRAND CONTEXT:
 Store: ${storeName}. Tone: clean, neutral, refined, factual. Never write hype, never exaggerate.
 
+PRODUCT CLASSIFICATION (do this yourself — never rely on the hint):
+- Determine the exact productType from the product name and description. NEVER default to "Dress" — classify what the item actually is.
+- Return productType in ENGLISH, specific and canonical. Choose the closest of: Maxi Dress, Midi Dress, Mini Dress, Shirt Dress, Denim Dress, Wrap Dress, Bodycon Dress, Linen Top, Satin Blouse, Corset Top, Halter Top, Top, Blouse, Wide Leg Trousers, Linen Trousers, Palazzo Trousers, Cargo Trousers, Flared Trousers, Wide Leg Jeans, Jeans, Trousers, Denim Skirt, Midi Skirt, Maxi Skirt, Mini Skirt, Skirt, Tote Bag, Shoulder Bag, Crossbody Bag, Handbag, Woven Bag, Bag, Loafers, Ballet Flats, Mary Jane Shoes, Slingback Flats, Sandals, Slides, Flip Flops, Cork Sandals, Heels, Court Shoes, Mules, Clogs, Ankle Boots, Knee High Boots, Cowboy Boots, Boots, Sneakers, Trench Coat, Blazer, Denim Jacket, Quilted Jacket, Coat, Jacket, Co-ord Set, Two Piece Set, Jumpsuit, Playsuit.
+- Also extract these attributes ONLY when clearly evident or reasonably inferable (NEVER invent a fabric that isn't indicated):
+  • material: e.g. Linen, Cotton, Denim, Satin, Knit, Leather, Faux Leather, Suede, Crochet. Leave empty if not indicated.
+  • occasion: e.g. Summer, Holiday, Wedding Guest, Evening, Workwear, Casual, Festival. May be inferred from the style. Leave empty if unclear.
+  • style: one or two descriptive words (e.g. "Boho", "Minimalist", "Western", "Y2K"). Leave empty if unclear.
+
 SEO TITLE RULES:
-- Descriptive, specific, keyword rich, using high-volume fashion search keywords for the chosen language.
-  English examples: dresses for women, summer dresses, maxi dress, midi dress, black dress, party dresses, wedding guest dresses, bodycon dress, wrap dress, jumpsuits, womens coats, trench coat, blazer, co-ord set, two piece set, midi skirt, maxi skirt.
-  Polish examples: sukienka, sukienki damskie, sukienka maxi, sukienka midi, sukienka na wesele, spódnica, spódnica midi, bluzka, komplet, żakiet.
-- English title MUST end with "for women". Polish title MUST end with "dla kobiet".
-- NEVER use (in any language): luxury, elegant, perfect, flattering, shaping, slimming, premium quality, comfort fit.
-- Structure: Primary keyword + secondary keyword + descriptive detail + ending phrase.
+- The SEO title is the single most important field: it is pushed straight into Google Shopping. It MUST be keyword-led, specific and accurate.
+- NO colours and NO sizes in the title. The product has multiple colour/size variants, so the title targets the CATEGORY search term, never one variant.
+- ACCURACY: only use attributes that are genuinely true for this product. NEVER invent material, occasion, fabric or features.
+- First identify the product's category (see classification above), then lead with the matching high-volume keyword and add ONE distinctive detail of this item. Keyword banks:
+
+  ENGLISH (title MUST end with "for women"):
+  • Dresses: summer dress, maxi dress, midi dress, mini dress, floral dress, linen dress, wedding guest dress, graduation dress, cocktail dress, bodycon dress, wrap dress, shirt dress, denim dress
+  • Tops & blouses: linen top, satin blouse, going out top, corset top, halter top
+  • Trousers: wide leg trousers, linen trousers, palazzo trousers, cargo trousers, wide leg jeans, high waisted trousers, flared trousers
+  • Skirts: denim skirt, midi skirt, maxi skirt, mini skirt
+  • Bags: tote bag, shoulder bag, crossbody bag, handbag, woven bag, straw bag, beach bag, raffia bag
+  • Loafers & flats: loafers, ballet flats, mary jane shoes, slingback flats, woven flats, flat shoes
+  • Sandals & slides: sandals, slides, flip flops, cork sandals, footbed sandals
+  • Heels: heels, block heel sandals, kitten heels, court shoes, pumps, mule heels, slingback heels
+  • Boots: ankle boots, knee high boots, cowboy boots, western boots, chunky boots, heeled boots
+  • Clogs: clogs, clog mules
+  • Outerwear: trench coat, blazer, denim jacket, quilted jacket
+  • Co-ords: co-ord set, two piece set
+
+  POLISH (title MUST end with "dla kobiet"):
+  • Sukienki: sukienka letnia, sukienka maxi, sukienka midi, sukienka na wesele, sukienka koktajlowa, sukienka lniana
+  • Spodnie: spodnie szerokie, spodnie lniane, spodnie palazzo, szerokie jeansy, spodnie z wysokim stanem
+  • Spódnice: spódnica jeansowa, spódnica midi, spódnica maxi
+  • Torebki: torebka shopper, torba na ramię, torebka crossbody, torba plażowa, torebka pleciona
+  • Buty: mokasyny, baleriny, klapki, sandały, czółenka, kozaki, botki, kowbojki
+  • Okrycia: trencz, marynarka, kurtka jeansowa
+  • Komplety: komplet dwuczęściowy
+- NEVER use (any language): luxury, elegant, perfect, flattering, shaping, slimming, premium quality, comfort fit.
+- Structure: Primary category keyword + secondary keyword + one distinctive detail + ending phrase. Keep under ~70 characters where possible.
 - UNIQUENESS (critical): The title MUST be unique and specific to THIS exact product. NEVER produce a generic title that could fit other products, and NEVER reuse a product name. Always weave in at least one distinctive detail of THIS item (e.g. print, neckline, sleeve, hem, length, heel type, fabric, closure) so that no two products ever end up with the same title.
 
 PRODUCT DESCRIPTION RULES:
 - Structure EXACTLY: Intro paragraph (2 sentences) + 5 bullet points + Closing sentence (1 sentence).
 - Intro: Hook the reader with the key design feature + styling versatility. Be specific and vivid.
-- Bullets: Each bullet describes ONE specific, visible feature — cut, silhouette, hem detail, length, material finish, closure.
+- Bullets: Each bullet describes ONE specific, visible feature — cut, silhouette, hem detail, length, material finish, closure (for bags/shoes: strap, sole, fastening, compartments, heel height).
 - Closing: One punchy styling suggestion sentence.
 - Use only visible product features — never invent.
 - NEVER mention: comfort, support, posture, pain relief, healing, anti-slip, breathable, slimming, shaping, luxury, elegant, perfect, flattering.
@@ -215,11 +324,11 @@ META DESCRIPTION RULES:
 - Max 160 characters STRICTLY.
 - Direct, punchy, benefit-driven, in the chosen language.
 
-OUTPUT FORMAT — output ONLY this JSON, no other text, no markdown, no code blocks:
-{"seoTitle":"...","description":"...","metaDescription":"..."}`,
+OUTPUT FORMAT — output ONLY this JSON, no other text, no markdown, no code blocks. material/occasion/style are empty strings if unknown:
+{"productType":"...","material":"...","occasion":"...","style":"...","seoTitle":"...","description":"...","metaDescription":"..."}`,
       messages: [{
         role: 'user',
-        content: 'Create a listing for:\nName: ' + cleanedTitle + '\nType: ' + productInfo.type + '\nColors: ' + (productInfo.colors || []).join(', ') + '\nMaterial: ' + (productInfo.material || 'not specified') + '\nSeason: ' + (productInfo.season || 'not specified') + '\nOriginal description: ' + (productInfo.originalDescription || 'none') + '\nLanguage: ' + (productInfo.language || 'english') + '\n\nIMPORTANT: If language is "polish" — write EVERYTHING in Polish, translate the product name to Polish, use Polish fashion SEO keywords, title must end with "dla kobiet". If language is "english" — translate everything to natural UK English, title must end with "for women". No Dutch or French words in either case.'
+        content: 'Classify and create a listing for:\nName: ' + cleanedTitle + '\nType hint (may be empty or wrong — classify yourself): ' + (productInfo.type || 'unknown') + '\nColors: ' + (productInfo.colors || []).join(', ') + '\nMaterial hint: ' + (productInfo.material || 'unknown') + '\nSeason: ' + (productInfo.season || 'not specified') + '\nOriginal description: ' + (productInfo.originalDescription || 'none') + '\nLanguage: ' + (productInfo.language || 'english') + '\n\nIMPORTANT: Determine productType yourself from the name and description — NEVER default to Dress. If language is "polish" — write the title/description/meta in Polish, translate the product name to Polish, use Polish fashion SEO keywords, title must end with "dla kobiet". If language is "english" — write them in natural UK English, title must end with "for women". The productType/material/occasion/style fields stay in English. No Dutch or French words in the customer-facing text.'
       }]
     })
   });
@@ -238,7 +347,7 @@ OUTPUT FORMAT — output ONLY this JSON, no other text, no markdown, no code blo
     return JSON.parse(clean);
   } catch (e) {
     console.error('[generateDescription] Parse failed:', e.message);
-    return { seoTitle: cleanedTitle, description: text, metaDescription: '' };
+    return { productType: '', material: '', occasion: '', style: '', seoTitle: cleanedTitle, description: text, metaDescription: '' };
   }
 }
 
@@ -307,15 +416,21 @@ async function createShopifyProduct(productData, token, storeDomain) {
   return r.json();
 }
 
-// SEO page title (en meta description) HARD zetten via het aparte metafields-endpoint.
-// Inline meefsturen bij het aanmaken laat de page title in Shopify op "pending"/grijs staan;
-// een losse POST naar /products/{id}/metafields.json vult 'm wel zwart in.
-async function setSeoMetafields(productId, token, storeDomain, seoTitle, metaDescription) {
+// Zet SEO page title + meta description EN extra metafields (materiaal, gelegenheid, stijl, gender, leeftijd)
+// via het aparte metafields-endpoint. Inline meesturen laat de page title op "pending" staan;
+// een losse POST naar /products/{id}/metafields.json vult 'm zwart in.
+// meta = { seoTitle, metaDescription, material, occasion, style, gender, ageGroup }
+async function setProductMetafields(productId, token, storeDomain, meta) {
   const t = token || SHOPIFY_TOKEN;
   const store = (storeDomain || SHOPIFY_STORE).replace(/^https?:\/\//, '').replace(/\/$/, '');
   const fields = [];
-  if (seoTitle) fields.push({ namespace: 'global', key: 'title_tag', type: 'single_line_text_field', value: String(seoTitle) });
-  if (metaDescription) fields.push({ namespace: 'global', key: 'description_tag', type: 'single_line_text_field', value: String(metaDescription) });
+  if (meta.seoTitle)        fields.push({ namespace: 'global', key: 'title_tag',       type: 'single_line_text_field', value: String(meta.seoTitle) });
+  if (meta.metaDescription) fields.push({ namespace: 'global', key: 'description_tag', type: 'single_line_text_field', value: String(meta.metaDescription) });
+  if (meta.material)        fields.push({ namespace: 'custom', key: 'material',        type: 'single_line_text_field', value: String(meta.material) });
+  if (meta.occasion)        fields.push({ namespace: 'custom', key: 'occasion',        type: 'single_line_text_field', value: String(meta.occasion) });
+  if (meta.style)           fields.push({ namespace: 'custom', key: 'style',           type: 'single_line_text_field', value: String(meta.style) });
+  if (meta.gender)          fields.push({ namespace: 'custom', key: 'gender',          type: 'single_line_text_field', value: String(meta.gender) });
+  if (meta.ageGroup)        fields.push({ namespace: 'custom', key: 'age_group',       type: 'single_line_text_field', value: String(meta.ageGroup) });
   for (const mf of fields) {
     try {
       const r = await fetch('https://' + store + '/admin/api/2024-01/products/' + productId + '/metafields.json', {
@@ -323,10 +438,10 @@ async function setSeoMetafields(productId, token, storeDomain, seoTitle, metaDes
         headers: { 'X-Shopify-Access-Token': t, 'Content-Type': 'application/json' },
         body: JSON.stringify({ metafield: mf })
       });
-      if (!r.ok) { const e = await r.text(); console.error('[setSeoMetafields] ' + mf.key + ' fout:', r.status, e); }
-      else console.log('[setSeoMetafields] ' + mf.key + ' gezet voor product', productId);
+      if (!r.ok) { const e = await r.text(); console.error('[setProductMetafields] ' + mf.namespace + '.' + mf.key + ' fout:', r.status, e); }
+      else console.log('[setProductMetafields] ' + mf.namespace + '.' + mf.key + ' gezet voor product', productId);
     } catch (e) {
-      console.error('[setSeoMetafields] ' + mf.key + ' exception:', e.message);
+      console.error('[setProductMetafields] ' + mf.namespace + '.' + mf.key + ' exception:', e.message);
     }
   }
 }
@@ -486,6 +601,17 @@ export default async function handler(req, res) {
     const description = generated.description || '';
     const seoTitle = generated.seoTitle || productInfo.title;
     const metaDescription = generated.metaDescription || '';
+
+    // ── Auto-classificatie: AI bepaalt zelf het type, anders vangnet op tekst. Nooit blind "Dress". ──
+    const detectedType = (generated.productType && String(generated.productType).trim()) || '';
+    const productType = detectedType
+      || (productInfo.type && String(productInfo.type).trim())
+      || inferTypeFromText(cleanedTitleSafe(productInfo.title) + ' ' + (productInfo.originalDescription || ''));
+
+    const material = (generated.material && String(generated.material).trim()) || (productInfo.material ? String(productInfo.material).trim() : '');
+    const occasion = (generated.occasion && String(generated.occasion).trim()) || '';
+    const style = (generated.style && String(generated.style).trim()) || '';
+
     let displayTitle = seoTitle;
     if (productInfo.useNameTitle) {
       const uniqueName = await pickUniqueName(reqToken, reqStore);
@@ -503,29 +629,42 @@ export default async function handler(req, res) {
       ? (lang === 'polish' ? rawColors : rawColors.map(translateColor))
       : [lang === 'polish' ? 'Jeden kolor' : 'One Colour'];
 
-    const productType = productInfo.type || 'Dress';
     const displayProductType = lang === 'polish' ? (polishTypeMap[productType] || productType) : productType;
     const season = productInfo.season || 'ALL YEAR';
+    const footwear = isFootwearType(productType);
+    const oneSize = isOneSizeType(productType);
+    const market = (productInfo.market || 'uk').toLowerCase();
 
-    const tagSet = [season, displayProductType];
-    const mainCategory = productType.includes('Dress') ? (lang === 'polish' ? 'Sukienka' : 'Dress') :
-                         productType.includes('Skirt') ? (lang === 'polish' ? 'Spódnica' : 'Bottoms') :
-                         (productType.includes('Jacket') || productType.includes('Coat') || productType.includes('Blazer')) ? (lang === 'polish' ? 'Okrycia' : 'Outerwear') :
-                         (productType.includes('Top') || productType.includes('Blouse')) ? (lang === 'polish' ? 'Bluzki' : 'Tops') :
-                         (productType.includes('Trouser') || productType.includes('Pants')) ? (lang === 'polish' ? 'Spodnie' : 'Bottoms') : null;
-    if (mainCategory && mainCategory !== displayProductType) tagSet.push(mainCategory);
-    const tags = tagSet.filter(Boolean).join(', ');
+    // ── Maten: kleding = XS–XXL, schoenen = EU-maten, tassen/accessoires = One Size. ──
+    const defaultSizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
+    const defaultShoeSizes = ['36', '37', '38', '39', '40', '41'];
+    let sizes;
+    if (productInfo.sizes && productInfo.sizes.length) {
+      sizes = productInfo.sizes.map(function(s) { return mapSizeLabel(s, lang, footwear, market); });
+    } else if (oneSize) {
+      sizes = [lang === 'polish' ? 'Uniwersalny' : 'One Size'];
+    } else if (footwear) {
+      sizes = defaultShoeSizes.map(function(s) { return mapSizeLabel(s, lang, true, market); });
+    } else {
+      sizes = defaultSizes.map(function(s) { return mapSizeLabel(s, lang, false, market); });
+    }
+
+    // ── Tags: seizoen, type, hoofdcategorie, gelegenheid, materiaal, stijl, doelgroep. ──
+    const mainCategory = mainCategoryFor(productType, lang);
+    const genderTag = lang === 'polish' ? 'Kobiety' : 'Women';
+    const tagSet = [season, displayProductType, mainCategory, occasion, material, style, genderTag];
+    const seen = {};
+    const tags = tagSet.filter(function(x) {
+      if (!x) return false;
+      var k = String(x).toLowerCase().trim();
+      if (seen[k]) return false;
+      seen[k] = true;
+      return true;
+    }).join(', ');
 
     const price = productInfo.convertedPrice
       ? parseFloat(productInfo.convertedPrice)
       : convertPrice(productInfo.originalPrice, productInfo.currency || 'EUR');
-
-    const defaultSizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
-    const footwear = isFootwearType(productType);
-    const market = (productInfo.market || 'uk').toLowerCase();
-    const sizes = (productInfo.sizes || defaultSizes).map(function(s) {
-      return mapSizeLabel(s, lang, footwear, market);
-    });
 
     const variants = [];
     if (colors.length > 0 && sizes.length > 0) {
@@ -538,13 +677,6 @@ export default async function handler(req, res) {
       for (const size of sizes) {
         variants.push({ option1: size, price: price.toString(), compare_at_price: null, taxable: false });
       }
-    }
-
-    const metafields = [
-      { namespace: 'global', key: 'title_tag', value: seoTitle, type: 'single_line_text_field' }
-    ];
-    if (metaDescription) {
-      metafields.push({ namespace: 'global', key: 'description_tag', value: metaDescription, type: 'single_line_text_field' });
     }
 
     let generatedImages = [];
@@ -597,9 +729,17 @@ export default async function handler(req, res) {
     const result = await createShopifyProduct(shopifyProduct, reqToken, reqStore);
     const productId = result.product && result.product.id;
 
-    // SEO page title (en meta description) zwart/ingevuld zetten via het metafields-endpoint.
+    // SEO page title + meta description + extra metafields (materiaal, gelegenheid, stijl, gender, leeftijd).
     if (productId) {
-      await setSeoMetafields(productId, reqToken, reqStore, seoTitle, metaDescription);
+      await setProductMetafields(productId, reqToken, reqStore, {
+        seoTitle: seoTitle,
+        metaDescription: metaDescription,
+        material: material,
+        occasion: occasion,
+        style: style,
+        gender: 'Female',
+        ageGroup: 'Adult'
+      });
     }
 
     // ── Foto's koppelen ───────────────────────────────────────────────
@@ -661,11 +801,15 @@ export default async function handler(req, res) {
       product: result.product,
       productTitle: displayTitle,
       seoTitle: seoTitle,
+      productType: productType,
       urlHandle: urlHandle,
       description: description,
       metaDescription: metaDescription,
       price: price,
       tags: tags,
+      material: material,
+      occasion: occasion,
+      style: style,
       colorsUsed: colors,
       imagesGenerated: generatedImages.length
     });
@@ -674,4 +818,9 @@ export default async function handler(req, res) {
     console.error('[handler] Fatal error:', err.message);
     return res.status(500).json({ error: err.message });
   }
+}
+
+// Veilige titel-helper voor het vangnet (zelfde logica als cleanTitle, maar nooit een throw).
+function cleanTitleSafe(title) {
+  try { return cleanTitle(title || ''); } catch (e) { return String(title || ''); }
 }
