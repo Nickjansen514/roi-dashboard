@@ -6,20 +6,22 @@ const MODEL = 'a confident professional fashion model, early 30s, light medium s
 const CROP = 'mid-thigh up';
 const STYLING = 'minimal delicate jewellery, nude heels';
 
-function convertPrice(originalPrice, currency = 'EUR') {
-  const rates = { EUR: 0.86, USD: 0.79, GBP: 1 };
-  const gbp = originalPrice * (rates[currency] || 0.86);
+function convertPrice(originalPrice, currency = 'EUR', target = 'GBP') {
+  const toGbp = { EUR: 0.86, USD: 0.79, GBP: 1, PLN: 0.20 };          // bron -> GBP
+  const gbpPerTarget = { GBP: 1, PLN: 0.20, EUR: 0.86, USD: 0.79 };   // 1 doel-eenheid in GBP
+  const gbp = originalPrice * (toGbp[currency] || 0.86);
+  const amount = gbp / (gbpPerTarget[target] || 1);                   // GBP -> doelvaluta (PLN ~ x5)
   const candidates = [];
-  const base = Math.floor(gbp);
+  const base = Math.floor(amount);
   for (let i = base - 10; i <= base + 10; i++) {
     candidates.push(parseFloat((Math.floor(i / 10) * 10 + 4.99).toFixed(2)));
     candidates.push(parseFloat((Math.floor(i / 10) * 10 + 9.99).toFixed(2)));
   }
   const valid = candidates.filter(function(c) { return c > 0; });
   let closest = valid[0];
-  let minDiff = Math.abs(gbp - closest);
+  let minDiff = Math.abs(amount - closest);
   for (let j = 1; j < valid.length; j++) {
-    const diff = Math.abs(gbp - valid[j]);
+    const diff = Math.abs(amount - valid[j]);
     if (diff < minDiff) { minDiff = diff; closest = valid[j]; }
   }
   return parseFloat(closest.toFixed(2));
@@ -662,9 +664,10 @@ export default async function handler(req, res) {
       return true;
     }).join(', ');
 
+    const targetCurrency = (market === 'polen' || lang === 'polish') ? 'PLN' : 'GBP';
     const price = productInfo.convertedPrice
       ? parseFloat(productInfo.convertedPrice)
-      : convertPrice(productInfo.originalPrice, productInfo.currency || 'EUR');
+      : convertPrice(productInfo.originalPrice, productInfo.currency || 'EUR', targetCurrency);
 
     const variants = [];
     if (colors.length > 0 && sizes.length > 0) {
