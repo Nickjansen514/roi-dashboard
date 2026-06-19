@@ -675,9 +675,20 @@ export default async function handler(req, res) {
       return !sizeKeywords.includes(c.toLowerCase().trim());
     });
     // Kleuren omzetten: Pools -> Poolse kleurnaam, anders Engelse kleurnaam.
-    const colors = rawColors.length > 0
+    // ONTDUBBELEN (case-insensitief): meerdere bronkleuren kunnen op dezelfde
+    // (Poolse) naam vallen, bv. "Red" + "Rood" -> "Czerwony". Zonder dedupe
+    // ontstaan dubbele kleur+maat-varianten en weigert Shopify met 422
+    // ("The variant 'X / S' already exists.").
+    const mappedColors = rawColors.length > 0
       ? (lang === 'polish' ? rawColors.map(translateColorPolish) : rawColors.map(translateColor))
       : [lang === 'polish' ? 'Jeden kolor' : 'One Colour'];
+    const seenColors = {};
+    const colors = mappedColors.filter(function(c) {
+      var k = String(c).toLowerCase().trim();
+      if (!k || seenColors[k]) return false;
+      seenColors[k] = true;
+      return true;
+    });
 
     const displayProductType = lang === 'polish' ? (polishTypeMap[productType] || productType) : productType;
     const season = productInfo.season || 'ALL YEAR';
