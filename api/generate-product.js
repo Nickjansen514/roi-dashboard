@@ -177,7 +177,36 @@ const colorMap = {
   'burgundy': 'Burgundy', 'lilac': 'Lilac', 'cream': 'Cream',
   'dark red': 'Dark Red', 'camel': 'Camel', 'tan': 'Tan', 'coral': 'Coral',
   'mint': 'Mint', 'olive': 'Olive', 'gold': 'Gold', 'silver': 'Silver',
-  'teal': 'Teal', 'mustard': 'Mustard', 'rust': 'Rust'
+  'teal': 'Teal', 'mustard': 'Mustard', 'rust': 'Rust',
+  // extra ankerwoorden zodat samengestelde/genuanceerde kleuren herkend blijven
+  'aqua': 'Aqua', 'aqua green': 'Aqua Green', 'mint green': 'Mint Green',
+  'royal blue': 'Royal Blue', 'sky blue': 'Sky Blue', 'light blue': 'Light Blue',
+  'dark blue': 'Dark Blue', 'dark green': 'Dark Green', 'light green': 'Light Green',
+  'bronze': 'Bronze', 'turquoise': 'Turquoise', 'ivory': 'Ivory', 'nude': 'Nude',
+  'lavender': 'Lavender', 'peach': 'Peach', 'wine': 'Wine', 'emerald': 'Emerald',
+  'cobalt': 'Cobalt', 'fuchsia': 'Fuchsia', 'magenta': 'Magenta', 'apricot': 'Apricot',
+  'charcoal': 'Charcoal', 'sand': 'Sand', 'maroon': 'Maroon', 'off white': 'Off White',
+  'forest green': 'Forest Green'
+};
+
+// Pools kleurenwoordenboek. Sleutels = Engelse (genormaliseerde) kleurnaam, lowercase.
+// translateColorPolish() normaliseert eerst naar Engels (vangt NL/FR/ES af) en mapt dan hierheen.
+const polishColorMap = {
+  'black': 'Czarny', 'white': 'Biały', 'red': 'Czerwony', 'blue': 'Niebieski',
+  'green': 'Zielony', 'pink': 'Różowy', 'beige': 'Beżowy', 'cream': 'Kremowy',
+  'grey': 'Szary', 'gray': 'Szary', 'brown': 'Brązowy', 'orange': 'Pomarańczowy',
+  'purple': 'Fioletowy', 'yellow': 'Żółty', 'navy': 'Granatowy', 'burgundy': 'Bordowy',
+  'dark red': 'Ciemnoczerwony', 'khaki': 'Khaki', 'lilac': 'Liliowy', 'camel': 'Camelowy',
+  'tan': 'Jasnobrązowy', 'coral': 'Koralowy', 'mint': 'Miętowy', 'olive': 'Oliwkowy',
+  'gold': 'Złoty', 'silver': 'Srebrny', 'teal': 'Morski', 'mustard': 'Musztardowy',
+  'rust': 'Rdzawy', 'ivory': 'Kość słoniowa', 'nude': 'Cielisty', 'turquoise': 'Turkusowy',
+  'aqua': 'Morski', 'aqua green': 'Morski', 'mint green': 'Miętowy', 'maroon': 'Bordowy',
+  'charcoal': 'Grafitowy', 'sand': 'Piaskowy', 'lavender': 'Lawendowy', 'peach': 'Brzoskwiniowy',
+  'wine': 'Bordowy', 'emerald': 'Szmaragdowy', 'cobalt': 'Kobaltowy', 'royal blue': 'Kobaltowy',
+  'sky blue': 'Błękitny', 'light blue': 'Błękitny', 'dark blue': 'Granatowy',
+  'dark green': 'Ciemnozielony', 'forest green': 'Ciemnozielony', 'light green': 'Jasnozielony',
+  'bronze': 'Brązowy', 'fuchsia': 'Fuksja', 'magenta': 'Magenta', 'apricot': 'Morelowy',
+  'off white': 'Złamana Biel', 'dark grey': 'Grafitowy', 'light grey': 'Jasnoszary'
 };
 
 const polishTypeMap = {
@@ -206,6 +235,24 @@ const polishTypeMap = {
 function translateColor(color) {
   const lower = color.toLowerCase().trim();
   return colorMap[lower] || (color.charAt(0).toUpperCase() + color.slice(1).toLowerCase());
+}
+
+// Vertaalt een (NL/FR/ES/EN) kleurnaam naar het Pools.
+// Stap 1: directe match op de ruwe invoer (vangt Engelse + samengestelde namen).
+// Stap 2: normaliseer eerst naar Engels via translateColor, dan Engels -> Pools.
+// Stap 3: samengesteld -> pak het laatste kleurwoord dat we kennen ("aqua green" -> "green").
+// Stap 4: niets gevonden -> nette kapitalisatie van het origineel (blijft dan onvertaald staan).
+function translateColorPolish(color) {
+  const raw = String(color || '').toLowerCase().trim();
+  if (!raw) return 'Jeden kolor';
+  if (polishColorMap[raw]) return polishColorMap[raw];
+  const en = translateColor(color).toLowerCase().trim();
+  if (polishColorMap[en]) return polishColorMap[en];
+  const tokens = en.split(/[\s/\-]+/).filter(Boolean);
+  for (let i = tokens.length - 1; i >= 0; i--) {
+    if (polishColorMap[tokens[i]]) return polishColorMap[tokens[i]];
+  }
+  return color.charAt(0).toUpperCase() + color.slice(1).toLowerCase();
 }
 
 function colorPromptDescription(color) {
@@ -608,7 +655,7 @@ export default async function handler(req, res) {
     const detectedType = (generated.productType && String(generated.productType).trim()) || '';
     const productType = detectedType
       || (productInfo.type && String(productInfo.type).trim())
-      || inferTypeFromText(cleanedTitleSafe(productInfo.title) + ' ' + (productInfo.originalDescription || ''));
+      || inferTypeFromText(cleanTitleSafe(productInfo.title) + ' ' + (productInfo.originalDescription || ''));
 
     const material = (generated.material && String(generated.material).trim()) || (productInfo.material ? String(productInfo.material).trim() : '');
     const occasion = (generated.occasion && String(generated.occasion).trim()) || '';
@@ -627,8 +674,9 @@ export default async function handler(req, res) {
     const rawColors = (productInfo.colors || []).filter(function(c) {
       return !sizeKeywords.includes(c.toLowerCase().trim());
     });
+    // Kleuren omzetten: Pools -> Poolse kleurnaam, anders Engelse kleurnaam.
     const colors = rawColors.length > 0
-      ? (lang === 'polish' ? rawColors : rawColors.map(translateColor))
+      ? (lang === 'polish' ? rawColors.map(translateColorPolish) : rawColors.map(translateColor))
       : [lang === 'polish' ? 'Jeden kolor' : 'One Colour'];
 
     const displayProductType = lang === 'polish' ? (polishTypeMap[productType] || productType) : productType;
@@ -684,7 +732,9 @@ export default async function handler(req, res) {
 
     let generatedImages = [];
     if (generatePhotos) {
-      const primaryColor = colors[0] || 'the garment colour';
+      // Fotoprompts blijven in het Engels: gebruik de Engels-genormaliseerde primaire kleur,
+      // ook bij een Poolse listing (anders lekt "Różowy" in een Engelse image-prompt).
+      const primaryColor = rawColors.length > 0 ? translateColor(rawColors[0]) : 'the garment colour';
       const prompts = buildPhotoPrompts(seoTitle, primaryColor);
       const taskIds = [];
       for (let i = 0; i < prompts.length; i++) {
@@ -771,9 +821,14 @@ export default async function handler(req, res) {
     const ibc = (!generatePhotos && productInfo.imagesByColor) ? productInfo.imagesByColor : null;
 
     // 1) Foto's met een kleurkoppeling -> aan de juiste kleur-variant.
+    //    De scraper levert imagesByColor met de BRONkleur; map die naar dezelfde
+    //    Poolse/Engelse kleurnaam als de varianten, zodat de koppeling klopt.
     if (ibc && hasColorOption) {
       Object.keys(ibc).forEach(function(color) {
-        const vids = colorToVariantIds[String(color).toLowerCase().trim()] || [];
+        const mappedColor = lang === 'polish' ? translateColorPolish(color) : translateColor(color);
+        const vids = colorToVariantIds[String(mappedColor).toLowerCase().trim()]
+          || colorToVariantIds[String(color).toLowerCase().trim()]
+          || [];
         (ibc[color] || []).forEach(function(src) {
           const norm = String(src).split('?')[0];
           if (!isKept(src) || usedSrc.has(norm)) return;
