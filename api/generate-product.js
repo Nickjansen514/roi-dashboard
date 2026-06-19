@@ -148,13 +148,13 @@ function mapSizeLabel(s, lang, isFootwear, market) {
     if (uk !== null && eu === null) eu = shoeSizeMap[String(uk)] ? parseInt(shoeSizeMap[String(uk)], 10) : (Math.round(uk) + 33);
     if (eu !== null && uk === null) uk = eu - 33;
     if (eu === null && uk === null) return s; // bv. "One Size"
-    if (lang === 'polish') return 'EU ' + eu;
+    if (lang === 'polish' || market === 'polen') return 'EU ' + eu;
     if (market === 'canada') return 'US ' + (eu - 31) + ' (EU ' + eu + ')';
     return 'UK ' + uk + ' (EU ' + eu + ')';
   }
 
   // KLEDING.
-  if (lang === 'polish') return s;
+  if (lang === 'polish' || market === 'polen') return String(s).replace(/\s*\([^)]*\)\s*$/, '').trim(); // Polen/Pools: kale maat (XS, S, M...) zonder UK/US-label
   var cmap = market === 'canada' ? caSizeMap : sizeMap;
   return cmap[base] || s;
 }
