@@ -6,11 +6,47 @@ const MODEL = 'a confident professional fashion model, early 30s, light medium s
 const CROP = 'mid-thigh up';
 const STYLING = 'minimal delicate jewellery, nude heels';
 
+// ── Anthropic-call met auto-retry bij tijdelijke fouten (429/500/502/503/529 overloaded) ──
+function backoffMs(attempt) {
+  const base = Math.min(1000 * Math.pow(2, attempt), 16000); // 1s,2s,4s,8s,16s
+  return base + Math.floor(Math.random() * 500);
+}
+async function callAnthropic(requestBody, maxRetries = 5) {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    let response;
+    try {
+      response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': process.env.ANTHROPIC_API_KEY,
+          'anthropic-version': '2023-06-01'
+        },
+        body: JSON.stringify(requestBody)
+      });
+    } catch (e) {
+      if (attempt === maxRetries) throw e;
+      await new Promise(function (r) { setTimeout(r, backoffMs(attempt)); });
+      continue;
+    }
+    if (response.ok) return response;
+    if ([429, 500, 502, 503, 529].includes(response.status) && attempt < maxRetries) {
+      const retryAfter = parseInt(response.headers.get('retry-after') || '0', 10);
+      const waitMs = retryAfter > 0 ? retryAfter * 1000 : backoffMs(attempt);
+      console.log('[callAnthropic] ' + response.status + ' - retry ' + (attempt + 1) + '/' + maxRetries + ' over ' + waitMs + 'ms');
+      await new Promise(function (r) { setTimeout(r, waitMs); });
+      continue;
+    }
+    const errText = await response.text();
+    throw new Error('Claude API error: ' + response.status + ' ' + errText);
+  }
+}
+
 function convertPrice(originalPrice, currency = 'EUR', target = 'GBP') {
-  const toGbp = { EUR: 0.86, USD: 0.79, GBP: 1, PLN: 0.20 };          // bron -> GBP
-  const gbpPerTarget = { GBP: 1, PLN: 0.20, EUR: 0.86, USD: 0.79 };   // 1 doel-eenheid in GBP
+  const toGbp = { EUR: 0.86, USD: 0.79, GBP: 1, PLN: 0.20 };
+  const gbpPerTarget = { GBP: 1, PLN: 0.20, EUR: 0.86, USD: 0.79 };
   const gbp = originalPrice * (toGbp[currency] || 0.86);
-  const amount = gbp / (gbpPerTarget[target] || 1);                   // GBP -> doelvaluta (PLN ~ x5)
+  const amount = gbp / (gbpPerTarget[target] || 1);
   const candidates = [];
   const base = Math.floor(amount);
   for (let i = base - 10; i <= base + 10; i++) {
@@ -35,7 +71,6 @@ const sizeMap = {
   '40': 'L (UK12)', '42': 'XL (UK14)', '44': 'XXL (UK16)'
 };
 
-// Canadese (US) kledingmaten. US = UK - 4.
 const caSizeMap = {
   'XS': 'XS (US 2)', 'S': 'S (US 4)', 'M': 'M (US 6)',
   'L': 'L (US 8)', 'XL': 'XL (US 10)', 'XXL': 'XXL (US 12)',
@@ -44,8 +79,6 @@ const caSizeMap = {
   '40': 'L (US 8)', '42': 'XL (US 10)', '44': 'XXL (US 12)'
 };
 
-// Schoenmaten: UK -> EU (damesmaten, anker UK 3 = EU 36).
-// Halve UK-maten ronden af naar de EU-maat van de hele UK-maat eronder (EU kent minder maten).
 const shoeSizeMap = {
   '2': '35', '2.5': '35', '3': '36', '3.5': '36',
   '4': '37', '4.5': '37', '5': '38', '5.5': '38',
@@ -53,20 +86,39 @@ const shoeSizeMap = {
   '8': '41', '8.5': '41', '9': '42'
 };
 
-// Herkent of een producttype schoeisel is.
 function isFootwearType(type) {
   var t = String(type || '').toLowerCase();
   return /espadrille|slingback|kitten|heel|stiletto|pump|sandal|ballet|ballerina|loafer|moccasin|sneaker|trainer|boot|mule|wedge|brogue|oxford|derby|slipper|flat|clog|flip|shoe|footwear|schoen|laars|sandaal|hak|pantoffel|instapper|sleehak/.test(t);
 }
 
-// Herkent of een producttype een one-size accessoire is (tas, sieraad, sjaal, riem, pet, zonnebril).
-// Wordt toegepast op het GECLASSIFICEERDE type, dus 'riem' triggert alleen bij echte riemen, niet bij een jurk "met riem".
 function isOneSizeType(type) {
   var t = String(type || '').toLowerCase();
   return /\bbag\b|\btas\b|tote|clutch|backpack|rugzak|handbag|handtas|schoudertas|crossbody|torebka|torba|jewell|jewel|necklace|earring|bracelet|sieraad|ketting|scarf|sjaal|\bhat\b|\bcap\b|\bpet\b|muts|\bbelt\b|\briem\b|sunglass|zonnebril/.test(t);
 }
 
-// Vangnet-classificatie op basis van tekst, als de AI om wat voor reden dan ook geen type teruggeeft.
+// ── NIEUW: maat-detectie, zodat maten niet in de kleur-as belanden en schoenen geen kledingmaten krijgen ──
+// Herkent een kleding- OF schoenmaat (kale getallen, XS-XXL, of met EU/UK/US-prefix).
+function looksLikeSize(token) {
+  var t = String(token || '').toLowerCase().trim();
+  if (!t) return false;
+  if (/^(xxs|xs|s|m|l|xl|xxl|xxxl|2xl|3xl|4xl)$/.test(t)) return true;
+  if (/^(eu|uk|us)\s*\d{1,2}([.,]5)?$/.test(t)) return true;
+  if (/^\d{2}([.,]5)?$/.test(t)) { var n = parseFloat(t.replace(',', '.')); if (n >= 30 && n <= 48) return true; }
+  return false;
+}
+// Specifiek een schoenmaat (kaal getal 33-48 of met EU/UK/US-prefix).
+function looksLikeShoeSize(token) {
+  var t = String(token || '').toLowerCase().trim();
+  if (/^(eu|uk|us)\s*\d{1,2}([.,]5)?$/.test(t)) return true;
+  if (/^\d{2}([.,]5)?$/.test(t)) { var n = parseFloat(t.replace(',', '.')); return n >= 33 && n <= 48; }
+  return false;
+}
+
+// ── NIEUW: "Faux Leather" -> "Vegan Leather" overal (GMC-vriendelijker, store-standaard) ──
+function veganLeather(s) {
+  return String(s == null ? '' : s).replace(/faux[\s-]*leather/gi, 'Vegan Leather');
+}
+
 function inferTypeFromText(text) {
   var t = String(text || '').toLowerCase();
   if (/tote|shopper/.test(t)) return 'Tote Bag';
@@ -114,7 +166,6 @@ function inferTypeFromText(text) {
   return 'Dress';
 }
 
-// Hoofdcategorie (voor tags) op basis van het geclassificeerde type.
 function mainCategoryFor(productType, lang) {
   var t = String(productType || '').toLowerCase();
   var pl = lang === 'polish';
@@ -130,33 +181,30 @@ function mainCategoryFor(productType, lang) {
   return null;
 }
 
-// Zet een ruwe maat om naar het juiste label.
 function mapSizeLabel(s, lang, isFootwear, market) {
   market = (market || 'uk').toLowerCase();
   var key = String(s).toUpperCase().trim();
-  var base = key.replace(/\s*\([^)]*\)\s*$/, '').trim(); // "XS (UK6)" -> "XS"
+  var base = key.replace(/\s*\([^)]*\)\s*$/, '').trim();
   var euInLabel = key.match(/EU\s*([\d.]+)/);
   var shoeKey = base.replace(/^UK\s*/, '').replace(/^US\s*/, '').replace(/^EU\s*/, '').replace(',', '.').replace(/\.0$/, '').trim();
   var num = parseFloat(shoeKey);
 
-  // SCHOEISEL.
   if (isFootwear) {
     var eu = null, uk = null;
     if (euInLabel) eu = Math.round(parseFloat(euInLabel[1]));
     if (/^UK/.test(base) && !isNaN(num)) uk = num;
-    else if (/^US/.test(base) && !isNaN(num)) uk = num - 2;     // US -> UK
-    else if (!isNaN(num) && num < 30) uk = num;                  // kaal klein getal = UK
-    else if (!isNaN(num) && num >= 30 && eu === null) eu = Math.round(num); // kaal getal = EU
+    else if (/^US/.test(base) && !isNaN(num)) uk = num - 2;
+    else if (!isNaN(num) && num < 30) uk = num;
+    else if (!isNaN(num) && num >= 30 && eu === null) eu = Math.round(num);
     if (uk !== null && eu === null) eu = shoeSizeMap[String(uk)] ? parseInt(shoeSizeMap[String(uk)], 10) : (Math.round(uk) + 33);
     if (eu !== null && uk === null) uk = eu - 33;
-    if (eu === null && uk === null) return s; // bv. "One Size"
+    if (eu === null && uk === null) return s;
     if (lang === 'polish' || market === 'polen') return 'EU ' + eu;
     if (market === 'canada') return 'US ' + (eu - 31) + ' (EU ' + eu + ')';
     return 'UK ' + uk + ' (EU ' + eu + ')';
   }
 
-  // KLEDING.
-  if (lang === 'polish' || market === 'polen') return String(s).replace(/\s*\([^)]*\)\s*$/, '').trim(); // Polen/Pools: kale maat (XS, S, M...) zonder UK/US-label
+  if (lang === 'polish' || market === 'polen') return String(s).replace(/\s*\([^)]*\)\s*$/, '').trim();
   var cmap = market === 'canada' ? caSizeMap : sizeMap;
   return cmap[base] || s;
 }
@@ -178,7 +226,6 @@ const colorMap = {
   'dark red': 'Dark Red', 'camel': 'Camel', 'tan': 'Tan', 'coral': 'Coral',
   'mint': 'Mint', 'olive': 'Olive', 'gold': 'Gold', 'silver': 'Silver',
   'teal': 'Teal', 'mustard': 'Mustard', 'rust': 'Rust',
-  // extra ankerwoorden zodat samengestelde/genuanceerde kleuren herkend blijven
   'aqua': 'Aqua', 'aqua green': 'Aqua Green', 'mint green': 'Mint Green',
   'royal blue': 'Royal Blue', 'sky blue': 'Sky Blue', 'light blue': 'Light Blue',
   'dark blue': 'Dark Blue', 'dark green': 'Dark Green', 'light green': 'Light Green',
@@ -186,11 +233,30 @@ const colorMap = {
   'lavender': 'Lavender', 'peach': 'Peach', 'wine': 'Wine', 'emerald': 'Emerald',
   'cobalt': 'Cobalt', 'fuchsia': 'Fuchsia', 'magenta': 'Magenta', 'apricot': 'Apricot',
   'charcoal': 'Charcoal', 'sand': 'Sand', 'maroon': 'Maroon', 'off white': 'Off White',
-  'forest green': 'Forest Green'
+  'forest green': 'Forest Green', 'caramel': 'Caramel', 'salmon': 'Salmon',
+  // ── Duits ──
+  'schwarz': 'Black', 'weiss': 'White', 'weiß': 'White', 'rot': 'Red',
+  'blau': 'Blue', 'grün': 'Green', 'gruen': 'Green', 'gelb': 'Yellow',
+  'grau': 'Grey', 'braun': 'Brown', 'türkis': 'Turquoise', 'tuerkis': 'Turquoise',
+  'silber': 'Silver', 'hellblau': 'Light Blue', 'dunkelblau': 'Navy',
+  'hellbraun': 'Light Brown', 'dunkelbraun': 'Dark Brown', 'hellgrün': 'Light Green',
+  'dunkelgrün': 'Dark Green', 'hellgrau': 'Light Grey', 'dunkelgrau': 'Dark Grey',
+  'karamell': 'Caramel', 'karamellbraun': 'Caramel', 'marineblau': 'Navy',
+  'weinrot': 'Burgundy', 'bordeauxrot': 'Burgundy', 'oliv': 'Olive', 'olivgrün': 'Olive',
+  // ── Nederlands (samengesteld) ──
+  'navy blauw': 'Navy', 'bordeaux rood': 'Burgundy', 'bordeauxrood': 'Burgundy',
+  'wijnrood': 'Burgundy', 'olijf groen': 'Olive', 'olijfgroen': 'Olive',
+  'licht bruin': 'Light Brown', 'lichtbruin': 'Light Brown', 'donker bruin': 'Dark Brown',
+  'donkerbruin': 'Dark Brown', 'licht blauw': 'Light Blue', 'lichtblauw': 'Light Blue',
+  'donker blauw': 'Navy', 'donkerblauw': 'Navy', 'hemelsblauw': 'Sky Blue',
+  'legergroen': 'Army Green', 'limoengroen': 'Lime Green', 'bourgondië': 'Burgundy',
+  'bourgondie': 'Burgundy', 'oranje': 'Orange', 'lichtgroen': 'Light Green',
+  'donkergroen': 'Dark Green', 'lichtgrijs': 'Light Grey', 'donkergrijs': 'Dark Grey',
+  'antraciet': 'Charcoal', 'zalm': 'Salmon', 'mosterd': 'Mustard', 'koraal': 'Coral',
+  'lavendel': 'Lavender', 'turkoois': 'Turquoise', 'goud': 'Gold', 'zilver': 'Silver',
+  'kaki': 'Khaki'
 };
 
-// Pools kleurenwoordenboek. Sleutels = Engelse (genormaliseerde) kleurnaam, lowercase.
-// translateColorPolish() normaliseert eerst naar Engels (vangt NL/FR/ES af) en mapt dan hierheen.
 const polishColorMap = {
   'black': 'Czarny', 'white': 'Biały', 'red': 'Czerwony', 'blue': 'Niebieski',
   'green': 'Zielony', 'pink': 'Różowy', 'beige': 'Beżowy', 'cream': 'Kremowy',
@@ -206,7 +272,9 @@ const polishColorMap = {
   'sky blue': 'Błękitny', 'light blue': 'Błękitny', 'dark blue': 'Granatowy',
   'dark green': 'Ciemnozielony', 'forest green': 'Ciemnozielony', 'light green': 'Jasnozielony',
   'bronze': 'Brązowy', 'fuchsia': 'Fuksja', 'magenta': 'Magenta', 'apricot': 'Morelowy',
-  'off white': 'Złamana Biel', 'dark grey': 'Grafitowy', 'light grey': 'Jasnoszary'
+  'off white': 'Złamana Biel', 'dark grey': 'Grafitowy', 'light grey': 'Jasnoszary',
+  'caramel': 'Karmelowy', 'salmon': 'Łososiowy', 'light brown': 'Jasnobrązowy',
+  'dark brown': 'Ciemnobrązowy', 'lime green': 'Limonkowy', 'army green': 'Khaki'
 };
 
 const polishTypeMap = {
@@ -232,16 +300,26 @@ const polishTypeMap = {
   'Cowboy Boots': 'Kowbojki', 'Boots': 'Kozaki', 'Sneakers': 'Sneakersy'
 };
 
+// Vertaalt een (NL/DE/FR/ES/EN) kleurnaam naar nette Engelse kleur.
+// 1) directe match  2) strip intensiteits-prefix (licht/donker/hell/dunkel/dark/light) en map de basis
+// 3) samengesteld -> laatste bekende kleurwoord  4) anders nette kapitalisatie.
 function translateColor(color) {
-  const lower = color.toLowerCase().trim();
-  return colorMap[lower] || (color.charAt(0).toUpperCase() + color.slice(1).toLowerCase());
+  var raw = String(color || '').toLowerCase().trim();
+  if (!raw) return 'One Colour';
+  if (colorMap[raw]) return colorMap[raw];
+  var m = raw.match(/^(licht|donker|dark|light|hell|dunkel)[\s-]*(.+)$/);
+  if (m && colorMap[m[2]]) {
+    var base = colorMap[m[2]];
+    if (/^(licht|light|hell)$/.test(m[1])) return 'Light ' + base;
+    return 'Dark ' + base;
+  }
+  var tokens = raw.split(/[\s/\-]+/).filter(Boolean);
+  for (var i = tokens.length - 1; i >= 0; i--) {
+    if (colorMap[tokens[i]]) return colorMap[tokens[i]];
+  }
+  return color.charAt(0).toUpperCase() + color.slice(1).toLowerCase();
 }
 
-// Vertaalt een (NL/FR/ES/EN) kleurnaam naar het Pools.
-// Stap 1: directe match op de ruwe invoer (vangt Engelse + samengestelde namen).
-// Stap 2: normaliseer eerst naar Engels via translateColor, dan Engels -> Pools.
-// Stap 3: samengesteld -> pak het laatste kleurwoord dat we kennen ("aqua green" -> "green").
-// Stap 4: niets gevonden -> nette kapitalisatie van het origineel (blijft dan onvertaald staan).
 function translateColorPolish(color) {
   const raw = String(color || '').toLowerCase().trim();
   if (!raw) return 'Jeden kolor';
@@ -290,28 +368,24 @@ function titleToUrlHandle(title) {
 function cleanTitle(title) {
   return title.replace(/^[^|–\-]+[|–\-]\s*/, '').trim() || title.trim();
 }
+function cleanTitleSafe(title) {
+  try { return cleanTitle(title || ''); } catch (e) { return String(title || ''); }
+}
 
 async function generateDescription(productInfo) {
   const cleanedTitle = cleanTitle(productInfo.title);
   const storeName = productInfo.storeId === 'store2' ? 'Lorenzari' : (productInfo.storeName || 'Yamira London');
   console.log('[generateDescription] Starting for:', cleanedTitle, 'store:', storeName);
 
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': process.env.ANTHROPIC_API_KEY,
-      'anthropic-version': '2023-06-01'
-    },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 2000,
-      system: `You are the dedicated product listing assistant for ${storeName}, a women's fashion webshop. Create fully compliant Shopify-ready product listings. Follow every rule exactly.
+  const response = await callAnthropic({
+    model: 'claude-sonnet-4-6',
+    max_tokens: 2000,
+    system: `You are the dedicated product listing assistant for ${storeName}, a women's fashion webshop. Create fully compliant Shopify-ready product listings. Follow every rule exactly.
 
 LANGUAGE: The "Language" field decides the language of the title, description and meta description.
 - english: Write the title, description and meta description in natural UK English. Title MUST end with "for women". Translate any non-English product name to English.
 - polish: Write the title, description and meta description in natural Polish. Title MUST end with "dla kobiet". Translate any non-Polish product name to Polish. Use Polish fashion SEO keywords (sukienka, sukienki damskie, sukienka maxi, sukienka midi, sukienka na wesele, spódnica, spódnica midi, bluzka, komplet, żakiet).
-Never mix languages. No Dutch or French words in either case.
+Never mix languages. No Dutch, German or French words in either case.
 NOTE: the "productType", "material", "occasion" and "style" fields are ALWAYS returned in English, regardless of the listing language.
 
 BRAND CONTEXT:
@@ -321,23 +395,23 @@ PRODUCT CLASSIFICATION (do this yourself — never rely on the hint):
 - Determine the exact productType from the product name and description. NEVER default to "Dress" — classify what the item actually is.
 - Return productType in ENGLISH, specific and canonical. Choose the closest of: Maxi Dress, Midi Dress, Mini Dress, Shirt Dress, Denim Dress, Wrap Dress, Bodycon Dress, Linen Top, Satin Blouse, Corset Top, Halter Top, Top, Blouse, Wide Leg Trousers, Linen Trousers, Palazzo Trousers, Cargo Trousers, Flared Trousers, Wide Leg Jeans, Jeans, Trousers, Denim Skirt, Midi Skirt, Maxi Skirt, Mini Skirt, Skirt, Tote Bag, Shoulder Bag, Crossbody Bag, Handbag, Woven Bag, Bag, Loafers, Ballet Flats, Mary Jane Shoes, Slingback Flats, Sandals, Slides, Flip Flops, Cork Sandals, Heels, Court Shoes, Mules, Clogs, Ankle Boots, Knee High Boots, Cowboy Boots, Boots, Sneakers, Trench Coat, Blazer, Denim Jacket, Quilted Jacket, Coat, Jacket, Co-ord Set, Two Piece Set, Jumpsuit, Playsuit.
 - Also extract these attributes ONLY when clearly evident or reasonably inferable (NEVER invent a fabric that isn't indicated):
-  • material: e.g. Linen, Cotton, Denim, Satin, Knit, Leather, Faux Leather, Suede, Crochet. Leave empty if not indicated.
+  • material: e.g. Linen, Cotton, Denim, Satin, Knit, Leather, Vegan Leather, Suede, Crochet. ALWAYS use "Vegan Leather" — NEVER write "Faux Leather". Leave empty if not indicated.
   • occasion: e.g. Summer, Holiday, Wedding Guest, Evening, Workwear, Casual, Festival. May be inferred from the style. Leave empty if unclear.
   • style: one or two descriptive words (e.g. "Boho", "Minimalist", "Western", "Y2K"). Leave empty if unclear.
 
 SEO TITLE RULES:
 - The SEO title is the single most important field: it is pushed straight into Google Shopping. It MUST be keyword-led, specific and accurate.
 - NO colours and NO sizes in the title. The product has multiple colour/size variants, so the title targets the CATEGORY search term, never one variant.
-- ACCURACY: only use attributes that are genuinely true for this product. NEVER invent material, occasion, fabric or features.
-- First identify the product's category (see classification above), then lead with the matching high-volume keyword and add ONE distinctive detail of this item. Keyword banks:
+- ACCURACY: only use attributes that are genuinely true for this product. NEVER invent material, occasion, fabric or features. NEVER write "faux leather" — if the upper is synthetic leather, call it "vegan leather". NEVER use promotional words (sale, % off, free shipping, best) or ALL CAPS.
+- Lead with the matching high-volume category keyword, then use as the SECOND term the highest-search modifier that fits (e.g. tassel, penny, chunky, platform, woven, vegan leather, wide leg, linen, large) — NOT a niche construction detail. Add ONE distinctive detail only if it doesn't push out a more-searched term. Keyword banks:
 
   ENGLISH (title MUST end with "for women"):
-  • Dresses: summer dress, maxi dress, midi dress, mini dress, floral dress, linen dress, wedding guest dress, graduation dress, cocktail dress, bodycon dress, wrap dress, shirt dress, denim dress
+  • Dresses: summer dress, maxi dress, midi dress, mini dress, floral dress, linen dress, wedding guest dress, cocktail dress, bodycon dress, wrap dress, shirt dress, denim dress
   • Tops & blouses: linen top, satin blouse, going out top, corset top, halter top
   • Trousers: wide leg trousers, linen trousers, palazzo trousers, cargo trousers, wide leg jeans, high waisted trousers, flared trousers
   • Skirts: denim skirt, midi skirt, maxi skirt, mini skirt
   • Bags: tote bag, shoulder bag, crossbody bag, handbag, woven bag, straw bag, beach bag, raffia bag
-  • Loafers & flats: loafers, ballet flats, mary jane shoes, slingback flats, woven flats, flat shoes
+  • Loafers & flats: loafers, tassel loafers, penny loafers, chunky loafers, ballet flats, mary jane shoes, slingback flats, woven flats, flat shoes
   • Sandals & slides: sandals, slides, flip flops, cork sandals, footbed sandals
   • Heels: heels, block heel sandals, kitten heels, court shoes, pumps, mule heels, slingback heels
   • Boots: ankle boots, knee high boots, cowboy boots, western boots, chunky boots, heeled boots
@@ -354,7 +428,7 @@ SEO TITLE RULES:
   • Okrycia: trencz, marynarka, kurtka jeansowa
   • Komplety: komplet dwuczęściowy
 - NEVER use (any language): luxury, elegant, perfect, flattering, shaping, slimming, premium quality, comfort fit.
-- Structure: Primary category keyword + secondary keyword + one distinctive detail + ending phrase. Keep under ~70 characters where possible.
+- Structure: Primary category keyword + high-search secondary keyword + one distinctive detail + ending phrase. Keep under ~70 characters where possible.
 - UNIQUENESS (critical): The title MUST be unique and specific to THIS exact product. NEVER produce a generic title that could fit other products, and NEVER reuse a product name. Always weave in at least one distinctive detail of THIS item (e.g. print, neckline, sleeve, hem, length, heel type, fabric, closure) so that no two products ever end up with the same title.
 
 PRODUCT DESCRIPTION RULES:
@@ -363,10 +437,10 @@ PRODUCT DESCRIPTION RULES:
 - Bullets: Each bullet describes ONE specific, visible feature — cut, silhouette, hem detail, length, material finish, closure (for bags/shoes: strap, sole, fastening, compartments, heel height).
 - Closing: One punchy styling suggestion sentence.
 - Use only visible product features — never invent.
-- NEVER mention: comfort, support, posture, pain relief, healing, anti-slip, breathable, slimming, shaping, luxury, elegant, perfect, flattering.
+- NEVER mention: comfort, support, posture, pain relief, healing, anti-slip, breathable, slimming, shaping, luxury, elegant, perfect, flattering. NEVER write "faux leather" — use "vegan leather".
 - Refer to the product by its type in the chosen language (English type if english, Polish type if polish).
 - Write like ASOS product copy: confident, specific, direct — not generic.
-- UNIQUENESS (critical): The description MUST be unique to THIS product. NEVER reuse sentences, phrasing, or bullet wording that could apply to another product — build every sentence on this item's own specific visible features so no two listings read the same.
+- UNIQUENESS (critical): The description MUST be unique to THIS product. NEVER reuse sentences, phrasing, or bullet wording that could apply to another product.
 
 META DESCRIPTION RULES:
 - Format: [Product type] + [key design feature] + [occasion/style context] + [call to action] ending with "– ${storeName}".
@@ -375,17 +449,11 @@ META DESCRIPTION RULES:
 
 OUTPUT FORMAT — output ONLY this JSON, no other text, no markdown, no code blocks. material/occasion/style are empty strings if unknown:
 {"productType":"...","material":"...","occasion":"...","style":"...","seoTitle":"...","description":"...","metaDescription":"..."}`,
-      messages: [{
-        role: 'user',
-        content: 'Classify and create a listing for:\nName: ' + cleanedTitle + '\nType hint (may be empty or wrong — classify yourself): ' + (productInfo.type || 'unknown') + '\nColors: ' + (productInfo.colors || []).join(', ') + '\nMaterial hint: ' + (productInfo.material || 'unknown') + '\nSeason: ' + (productInfo.season || 'not specified') + '\nOriginal description: ' + (productInfo.originalDescription || 'none') + '\nLanguage: ' + (productInfo.language || 'english') + '\n\nIMPORTANT: Determine productType yourself from the name and description — NEVER default to Dress. If language is "polish" — write the title/description/meta in Polish, translate the product name to Polish, use Polish fashion SEO keywords, title must end with "dla kobiet". If language is "english" — write them in natural UK English, title must end with "for women". The productType/material/occasion/style fields stay in English. No Dutch or French words in the customer-facing text.'
-      }]
-    })
+    messages: [{
+      role: 'user',
+      content: 'Classify and create a listing for:\nName: ' + cleanedTitle + '\nType hint (may be empty or wrong — classify yourself): ' + (productInfo.type || 'unknown') + '\nColors: ' + (productInfo.colors || []).join(', ') + '\nMaterial hint: ' + (productInfo.material || 'unknown') + '\nSeason: ' + (productInfo.season || 'not specified') + '\nOriginal description: ' + (productInfo.originalDescription || 'none') + '\nLanguage: ' + (productInfo.language || 'english') + '\n\nIMPORTANT: Determine productType yourself from the name and description — NEVER default to Dress. If language is "polish" — write the title/description/meta in Polish, translate the product name to Polish, use Polish fashion SEO keywords, title must end with "dla kobiet". If language is "english" — write them in natural UK English, title must end with "for women". The productType/material/occasion/style fields stay in English. No Dutch, German or French words in the customer-facing text. Use "vegan leather", never "faux leather".'
+    }]
   });
-
-  if (!response.ok) {
-    const errText = await response.text();
-    throw new Error('Claude API error: ' + response.status + ' ' + errText);
-  }
 
   const data = await response.json();
   const text = (data.content && data.content[0] && data.content[0].text) || '{}';
@@ -465,10 +533,9 @@ async function createShopifyProduct(productData, token, storeDomain) {
   return r.json();
 }
 
-// Zet SEO page title + meta description EN extra metafields (materiaal, gelegenheid, stijl, gender, leeftijd)
-// via het aparte metafields-endpoint. Inline meesturen laat de page title op "pending" staan;
-// een losse POST naar /products/{id}/metafields.json vult 'm zwart in.
-// meta = { seoTitle, metaDescription, material, occasion, style, gender, ageGroup }
+// Zet SEO page title + meta description EN extra metafields via het APARTE metafields-endpoint.
+// BELANGRIJK: title_tag altijd zo wegschrijven (los metafield) en NOOIT via het product-seo-veld,
+// anders zet Shopify 'm op "default" en loopt het veld leeg zodra titel == SEO-titel.
 async function setProductMetafields(productId, token, storeDomain, meta) {
   const t = token || SHOPIFY_TOKEN;
   const store = (storeDomain || SHOPIFY_STORE).replace(/^https?:\/\//, '').replace(/\/$/, '');
@@ -480,6 +547,7 @@ async function setProductMetafields(productId, token, storeDomain, meta) {
   if (meta.style)           fields.push({ namespace: 'custom', key: 'style',           type: 'single_line_text_field', value: String(meta.style) });
   if (meta.gender)          fields.push({ namespace: 'custom', key: 'gender',          type: 'single_line_text_field', value: String(meta.gender) });
   if (meta.ageGroup)        fields.push({ namespace: 'custom', key: 'age_group',       type: 'single_line_text_field', value: String(meta.ageGroup) });
+  if (meta.googleCategory)  fields.push({ namespace: 'mm-google-shopping', key: 'google_product_category', type: 'string', value: String(meta.googleCategory) });
   for (const mf of fields) {
     try {
       const r = await fetch('https://' + store + '/admin/api/2024-01/products/' + productId + '/metafields.json', {
@@ -495,44 +563,6 @@ async function setProductMetafields(productId, token, storeDomain, meta) {
   }
 }
 
-async function addExtraImages(productId, imageUrls, token, storeDomain) {
-  const t = token || SHOPIFY_TOKEN;
-  const store = (storeDomain || SHOPIFY_STORE).replace(/^https?:\/\//, '').replace(/\/$/, '');
-  console.log('[addExtraImages] Uploading', imageUrls.length, 'images to product', productId);
-  let success = 0;
-  for (let i = 0; i < imageUrls.length; i++) {
-    for (let attempt = 0; attempt < 3; attempt++) {
-      try {
-        const r = await fetch('https://' + store + '/admin/api/2024-01/products/' + productId + '/images.json', {
-          method: 'POST',
-          headers: { 'X-Shopify-Access-Token': t, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ image: { src: imageUrls[i] } })
-        });
-        if (r.status === 429) {
-          await new Promise(function(r) { setTimeout(r, 2000); });
-          continue;
-        }
-        if (r.ok) {
-          success++;
-          console.log('[addExtraImages] Image ' + (i+1) + '/' + imageUrls.length + ' uploaded');
-          break;
-        } else {
-          const err = await r.text();
-          console.error('[addExtraImages] Image ' + (i+1) + ' failed:', r.status, err.substring(0, 100));
-          break;
-        }
-      } catch(e) {
-        console.error('[addExtraImages] Image ' + (i+1) + ' error:', e.message);
-        break;
-      }
-    }
-    await new Promise(function(r) { setTimeout(r, 500); });
-  }
-  console.log('[addExtraImages] Done:', success, '/', imageUrls.length, 'uploaded');
-}
-
-// Upload foto's, en koppel ze aan variant-id's als die meegegeven zijn.
-// items = [{ src, variant_ids: [..] }]  (variant_ids leeg = algemene productfoto)
 async function addImagesWithVariants(productId, items, token, storeDomain) {
   const t = token || SHOPIFY_TOKEN;
   const store = (storeDomain || SHOPIFY_STORE).replace(/^https?:\/\//, '').replace(/\/$/, '');
@@ -568,7 +598,6 @@ async function addImagesWithVariants(productId, items, token, storeDomain) {
   console.log('[addImagesWithVariants] Done:', success, '/', items.length, 'uploaded');
 }
 
-// --- Optie: unieke voornaam vooraan de titel (stijl: "Mila – mini sukienka z warstwowymi falbanami") ---
 const TITLE_NAMES = [
   'Mila','Lena','Maja','Nina','Lara','Nora','Zoe','Luna','Iris','Alma',
   'Vera','Emma','Olivia','Sofia','Hania','Zofia','Liwia','Pola','Gaja','Kaja',
@@ -584,10 +613,10 @@ const TITLE_NAMES = [
 
 function styledPhrase(seoTitle) {
   var p = String(seoTitle || '').trim();
-  p = p.replace(/\s*,?\s*(dla kobiet|for women)\s*$/i, '').trim();      // taal-suffix weg
-  p = p.replace(/^[^–\-|]{1,20}\s*[–\-|]\s*/, '').trim();               // eventuele bestaande "Naam – " weg
+  p = p.replace(/\s*,?\s*(dla kobiet|for women)\s*$/i, '').trim();
+  p = p.replace(/^[^–\-|]{1,20}\s*[–\-|]\s*/, '').trim();
   p = p.replace(/\s{2,}/g, ' ').trim();
-  if (p) p = p.charAt(0).toLowerCase() + p.slice(1);                    // beginhoofdletter klein (stijl)
+  if (p) p = p.charAt(0).toLowerCase() + p.slice(1);
   return p;
 }
 
@@ -623,7 +652,7 @@ async function pickUniqueName(token, storeDomain) {
   for (var k = 0; k < pool.length; k++) {
     if (!used[pool[k].toLowerCase()]) return pool[k];
   }
-  return pool[0]; // namenlijst uitgeput (zeldzaam)
+  return pool[0];
 }
 
 export default async function handler(req, res) {
@@ -647,17 +676,18 @@ export default async function handler(req, res) {
     const lang = (productInfo.language || 'english').toLowerCase();
     const storeName = productInfo.storeId === 'store2' ? 'Lorenzari' : (productInfo.storeName || 'Yamira London');
     const generated = await generateDescription(productInfo);
-    const description = generated.description || '';
-    const seoTitle = generated.seoTitle || productInfo.title;
-    const metaDescription = generated.metaDescription || '';
 
-    // ── Auto-classificatie: AI bepaalt zelf het type, anders vangnet op tekst. Nooit blind "Dress". ──
+    // Faux Leather -> Vegan Leather overal afdwingen (backstop bovenop de prompt).
+    const description = veganLeather(generated.description || '');
+    const seoTitle = veganLeather(generated.seoTitle || productInfo.title);
+    const metaDescription = veganLeather(generated.metaDescription || '');
+
     const detectedType = (generated.productType && String(generated.productType).trim()) || '';
     const productType = detectedType
       || (productInfo.type && String(productInfo.type).trim())
       || inferTypeFromText(cleanTitleSafe(productInfo.title) + ' ' + (productInfo.originalDescription || ''));
 
-    const material = (generated.material && String(generated.material).trim()) || (productInfo.material ? String(productInfo.material).trim() : '');
+    const material = veganLeather((generated.material && String(generated.material).trim()) || (productInfo.material ? String(productInfo.material).trim() : ''));
     const occasion = (generated.occasion && String(generated.occasion).trim()) || '';
     const style = (generated.style && String(generated.style).trim()) || '';
 
@@ -670,15 +700,15 @@ export default async function handler(req, res) {
     }
     const urlHandle = titleToUrlHandle(displayTitle);
 
-    const sizeKeywords = ['xs','s','m','l','xl','xxl','xxxl','xs (uk6)','s (uk8)','m (uk10)','l (uk12)','xl (uk14)','xxl (uk16)'];
-    const rawColors = (productInfo.colors || []).filter(function(c) {
-      return !sizeKeywords.includes(c.toLowerCase().trim());
-    });
-    // Kleuren omzetten: Pools -> Poolse kleurnaam, anders Engelse kleurnaam.
-    // ONTDUBBELEN (case-insensitief): meerdere bronkleuren kunnen op dezelfde
-    // (Poolse) naam vallen, bv. "Red" + "Rood" -> "Czerwony". Zonder dedupe
-    // ontstaan dubbele kleur+maat-varianten en weigert Shopify met 422
-    // ("The variant 'X / S' already exists.").
+    const footwear = isFootwearType(productType);
+    const oneSize = isOneSizeType(productType);
+    const market = (productInfo.market || 'uk').toLowerCase();
+
+    // ── Kleuren: gooi alles eruit dat een MAAT is (maten lekken soms in de kleur-as) ──
+    const rawColors = (productInfo.colors || []).filter(function(c) { return c && !looksLikeSize(c); });
+    // Schoenmaten die per ongeluk in de kleur-as zaten -> bewaren als mogelijke schoenmaten.
+    const shoeSizesFromColors = (productInfo.colors || []).filter(looksLikeShoeSize);
+
     const mappedColors = rawColors.length > 0
       ? (lang === 'polish' ? rawColors.map(translateColorPolish) : rawColors.map(translateColor))
       : [lang === 'polish' ? 'Jeden kolor' : 'One Colour'];
@@ -692,25 +722,34 @@ export default async function handler(req, res) {
 
     const displayProductType = lang === 'polish' ? (polishTypeMap[productType] || productType) : productType;
     const season = productInfo.season || 'ALL YEAR';
-    const footwear = isFootwearType(productType);
-    const oneSize = isOneSizeType(productType);
-    const market = (productInfo.market || 'uk').toLowerCase();
 
-    // ── Maten: kleding = XS–XXL, schoenen = EU-maten, tassen/accessoires = One Size. ──
+    // ── Maten: tassen/accessoires = ALTIJD One Size · schoenen = ALLEEN schoenmaten · kleding = XS–XXL ──
     const defaultSizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
     const defaultShoeSizes = ['36', '37', '38', '39', '40', '41'];
     let sizes;
-    if (productInfo.sizes && productInfo.sizes.length) {
-      sizes = productInfo.sizes.map(function(s) { return mapSizeLabel(s, lang, footwear, market); });
-    } else if (oneSize) {
+    if (oneSize) {
       sizes = [lang === 'polish' ? 'Uniwersalny' : 'One Size'];
     } else if (footwear) {
-      sizes = defaultShoeSizes.map(function(s) { return mapSizeLabel(s, lang, true, market); });
+      // Schoenen krijgen NOOIT kledingmaten. Pak echte schoenmaten (meegegeven + uit kleur-as gelekt), anders default.
+      var passedShoe = (productInfo.sizes || []).filter(looksLikeShoeSize);
+      var allShoe = passedShoe.concat(shoeSizesFromColors);
+      var seenShoe = {};
+      allShoe = allShoe.filter(function(s) { var k = String(s).toLowerCase().trim(); if (!k || seenShoe[k]) return false; seenShoe[k] = true; return true; });
+      var shoeSrc = allShoe.length ? allShoe : defaultShoeSizes;
+      sizes = shoeSrc.map(function(s) { return mapSizeLabel(s, lang, true, market); });
+    } else if (productInfo.sizes && productInfo.sizes.length) {
+      // Kleding: meegegeven maten, maar schoen-getallen eruit.
+      var clothing = productInfo.sizes.filter(function(s) { return !looksLikeShoeSize(s); });
+      var clSrc = clothing.length ? clothing : defaultSizes;
+      sizes = clSrc.map(function(s) { return mapSizeLabel(s, lang, false, market); });
     } else {
       sizes = defaultSizes.map(function(s) { return mapSizeLabel(s, lang, false, market); });
     }
+    // Ontdubbel maten zodat geen dubbele kleur+maat-varianten ontstaan (Shopify 422).
+    var seenSize = {};
+    sizes = sizes.filter(function(s) { var k = String(s).toLowerCase().trim(); if (!k || seenSize[k]) return false; seenSize[k] = true; return true; });
 
-    // ── Tags: seizoen, type, hoofdcategorie, gelegenheid, materiaal, stijl, doelgroep. ──
+    // ── Tags ──
     const mainCategory = mainCategoryFor(productType, lang);
     const genderTag = lang === 'polish' ? 'Kobiety' : 'Women';
     const tagSet = [season, displayProductType, mainCategory, occasion, material, style, genderTag];
@@ -743,8 +782,6 @@ export default async function handler(req, res) {
 
     let generatedImages = [];
     if (generatePhotos) {
-      // Fotoprompts blijven in het Engels: gebruik de Engels-genormaliseerde primaire kleur,
-      // ook bij een Poolse listing (anders lekt "Różowy" in een Engelse image-prompt).
       const primaryColor = rawColors.length > 0 ? translateColor(rawColors[0]) : 'the garment colour';
       const prompts = buildPhotoPrompts(seoTitle, primaryColor);
       const taskIds = [];
@@ -793,7 +830,16 @@ export default async function handler(req, res) {
     const result = await createShopifyProduct(shopifyProduct, reqToken, reqStore);
     const productId = result.product && result.product.id;
 
-    // SEO page title + meta description + extra metafields (materiaal, gelegenheid, stijl, gender, leeftijd).
+    // Google-categorie: schoenen 187, tassen 3032, rokken 1581, broeken 204, jurken 2271, tops 212.
+    var gType = String(productType).toLowerCase();
+    var googleCategory =
+      /bag|tas|tote|clutch|handbag|crossbody|torebka|torba/.test(gType) ? '3032' :
+      /loafer|flat|ballet|slingback|sandal|slide|heel|pump|mule|clog|boot|sneaker|shoe|laars|schoen|hak/.test(gType) ? '187' :
+      /skirt|rok|spódnica/.test(gType) ? '1581' :
+      /trouser|jeans|pant|broek|spodnie|cargo|palazzo|legging/.test(gType) ? '204' :
+      /dress|jurk|sukienka/.test(gType) ? '2271' :
+      /top|blouse|shirt|bluzka/.test(gType) ? '212' : '';
+
     if (productId) {
       await setProductMetafields(productId, reqToken, reqStore, {
         seoTitle: seoTitle,
@@ -802,18 +848,15 @@ export default async function handler(req, res) {
         occasion: occasion,
         style: style,
         gender: 'Female',
-        ageGroup: 'Adult'
+        ageGroup: 'Adult',
+        googleCategory: googleCategory
       });
     }
 
-    // ── Foto's koppelen ───────────────────────────────────────────────
-    // Bij AI-foto's: gewoon uploaden (geen kleurkoppeling).
-    // Bij concurrent-foto's: koppel elke foto aan de juiste kleur-variant
-    // op basis van imagesByColor uit de scraper.
+    // ── Foto's koppelen ──
     const createdVariants = (result.product && result.product.variants) || [];
-    const hasColorOption = !!(variants[0] && variants[0].option2); // option1 = kleur, option2 = maat
+    const hasColorOption = !!(variants[0] && variants[0].option2);
 
-    // kleur (lowercase) -> [variantId] in ONS net aangemaakte product
     const colorToVariantIds = {};
     if (hasColorOption) {
       createdVariants.forEach(function(v) {
@@ -823,7 +866,6 @@ export default async function handler(req, res) {
       });
     }
 
-    // Welke foto's heeft de gebruiker behouden (preview)? Alleen die uploaden.
     const keptSet = new Set((productInfo.originalImages || []).map(function(s) { return String(s).split('?')[0]; }));
     function isKept(src) { return keptSet.size === 0 ? true : keptSet.has(String(src).split('?')[0]); }
 
@@ -831,9 +873,6 @@ export default async function handler(req, res) {
     const usedSrc = new Set();
     const ibc = (!generatePhotos && productInfo.imagesByColor) ? productInfo.imagesByColor : null;
 
-    // 1) Foto's met een kleurkoppeling -> aan de juiste kleur-variant.
-    //    De scraper levert imagesByColor met de BRONkleur; map die naar dezelfde
-    //    Poolse/Engelse kleurnaam als de varianten, zodat de koppeling klopt.
     if (ibc && hasColorOption) {
       Object.keys(ibc).forEach(function(color) {
         const mappedColor = lang === 'polish' ? translateColorPolish(color) : translateColor(color);
@@ -849,7 +888,6 @@ export default async function handler(req, res) {
       });
     }
 
-    // 2) Overige foto's (AI-foto's, of foto's zonder kleurkoppeling) -> algemeen.
     const restSrc = generatedImages.length > 0
       ? generatedImages.map(function(i) { return i.src; })
       : (productInfo.originalImages || []);
@@ -880,6 +918,7 @@ export default async function handler(req, res) {
       occasion: occasion,
       style: style,
       colorsUsed: colors,
+      googleCategory: googleCategory,
       imagesGenerated: generatedImages.length
     });
 
@@ -887,9 +926,4 @@ export default async function handler(req, res) {
     console.error('[handler] Fatal error:', err.message);
     return res.status(500).json({ error: err.message });
   }
-}
-
-// Veilige titel-helper voor het vangnet (zelfde logica als cleanTitle, maar nooit een throw).
-function cleanTitleSafe(title) {
-  try { return cleanTitle(title || ''); } catch (e) { return String(title || ''); }
 }
