@@ -79,6 +79,15 @@ const caSizeMap = {
   '40': 'L (US 8)', '42': 'XL (US 10)', '44': 'XXL (US 12)'
 };
 
+// ── Italiaanse confectiematen (IT-nummers, zoals Italiaanse damesmode toont) ──
+const itSizeMap = {
+  'XS': 'XS (IT 38)', 'S': 'S (IT 40)', 'M': 'M (IT 42)',
+  'L': 'L (IT 44)', 'XL': 'XL (IT 46)', 'XXL': 'XXL (IT 48)',
+  '2XL': 'XXL (IT 48)', '3XL': 'XXXL (IT 50)', 'XXXL': 'XXXL (IT 50)',
+  '34': 'XS (IT 38)', '36': 'S (IT 40)', '38': 'M (IT 42)',
+  '40': 'L (IT 44)', '42': 'XL (IT 46)', '44': 'XXL (IT 48)'
+};
+
 const shoeSizeMap = {
   '2': '35', '2.5': '35', '3': '36', '3.5': '36',
   '4': '37', '4.5': '37', '5': '38', '5.5': '38',
@@ -97,13 +106,13 @@ function isOneSizeType(type) {
 }
 
 // ── NIEUW: maat-detectie, zodat maten niet in de kleur-as belanden en schoenen geen kledingmaten krijgen ──
-// Herkent een kleding- OF schoenmaat (kale getallen, XS-XXL, of met EU/UK/US-prefix).
+// Herkent een kleding- OF schoenmaat (kale getallen, XS-XXL, of met EU/UK/US/IT-prefix).
 function looksLikeSize(token) {
   var t = String(token || '').toLowerCase().trim();
   if (!t) return false;
   if (/^(xxs|xs|s|m|l|xl|xxl|xxxl|2xl|3xl|4xl)$/.test(t)) return true;
-  if (/^(eu|uk|us)\s*\d{1,2}([.,]5)?$/.test(t)) return true;
-  if (/^\d{2}([.,]5)?$/.test(t)) { var n = parseFloat(t.replace(',', '.')); if (n >= 30 && n <= 48) return true; }
+  if (/^(eu|uk|us|it)\s*\d{1,2}([.,]5)?$/.test(t)) return true;
+  if (/^\d{2}([.,]5)?$/.test(t)) { var n = parseFloat(t.replace(',', '.')); if (n >= 30 && n <= 50) return true; }
   return false;
 }
 // Specifiek een schoenmaat (kaal getal 33-48 of met EU/UK/US-prefix).
@@ -114,9 +123,15 @@ function looksLikeShoeSize(token) {
   return false;
 }
 
-// ── NIEUW: "Faux Leather" -> "Vegan Leather" overal (GMC-vriendelijker, store-standaard) ──
+// ── "Faux Leather" -> "Vegan Leather" overal (GMC-vriendelijker, store-standaard) ──
 function veganLeather(s) {
   return String(s == null ? '' : s).replace(/faux[\s-]*leather/gi, 'Vegan Leather');
+}
+
+// ── Italiaans: "Vegan/Faux Leather" -> "Ecopelle" in de KLANTTEKST (titel/omschrijving/meta).
+//    Het material-metaveld blijft Engels ("Vegan Leather") voor feed-consistentie. ──
+function italianLeather(s) {
+  return String(s == null ? '' : s).replace(/vegan[\s-]*leather|faux[\s-]*leather|ecopelle/gi, 'Ecopelle');
 }
 
 function inferTypeFromText(text) {
@@ -169,15 +184,17 @@ function inferTypeFromText(text) {
 function mainCategoryFor(productType, lang) {
   var t = String(productType || '').toLowerCase();
   var pl = lang === 'polish';
-  if (/dress|jurk|sukienka/.test(t)) return pl ? 'Sukienki' : 'Dresses';
-  if (/skirt|\brok\b|spódnica/.test(t)) return pl ? 'Spódnice' : 'Bottoms';
-  if (/trouser|jeans|pants|broek|spodnie|cargo|palazzo|legging/.test(t)) return pl ? 'Spodnie' : 'Bottoms';
-  if (/jacket|coat|blazer|trench|\bjas\b|kurtka|płaszcz|okrycie/.test(t)) return pl ? 'Okrycia' : 'Outerwear';
-  if (/top|blouse|shirt|bluzka/.test(t)) return pl ? 'Bluzki' : 'Tops';
-  if (/bag|\btas\b|tote|clutch|backpack|handbag|handtas|schoudertas|crossbody|torebka|torba/.test(t)) return pl ? 'Torebki' : 'Bags';
-  if (/loafer|flat|ballet|slingback|sandal|slide|heel|pump|mule|clog|boot|sneaker|shoe|laars|schoen|\bhak\b|botki|kozaki|mokasyn|baleriny/.test(t)) return pl ? 'Buty' : 'Shoes';
-  if (/jumpsuit|playsuit|romper|kombinezon/.test(t)) return pl ? 'Kombinezony' : 'Jumpsuits';
-  if (/co-?ord|two.?piece|komplet|\bset\b/.test(t)) return pl ? 'Komplety' : 'Co-ords';
+  var it = lang === 'italian';
+  function pick(en, plv, itv) { return it ? itv : (pl ? plv : en); }
+  if (/dress|jurk|sukienka/.test(t)) return pick('Dresses', 'Sukienki', 'Vestiti');
+  if (/skirt|\brok\b|spódnica/.test(t)) return pick('Bottoms', 'Spódnice', 'Gonne');
+  if (/trouser|jeans|pants|broek|spodnie|cargo|palazzo|legging/.test(t)) return pick('Bottoms', 'Spodnie', 'Pantaloni');
+  if (/jacket|coat|blazer|trench|\bjas\b|kurtka|płaszcz|okrycie/.test(t)) return pick('Outerwear', 'Okrycia', 'Giacche');
+  if (/top|blouse|shirt|bluzka/.test(t)) return pick('Tops', 'Bluzki', 'Camicette');
+  if (/bag|\btas\b|tote|clutch|backpack|handbag|handtas|schoudertas|crossbody|torebka|torba/.test(t)) return pick('Bags', 'Torebki', 'Borse');
+  if (/loafer|flat|ballet|slingback|sandal|slide|heel|pump|mule|clog|boot|sneaker|shoe|laars|schoen|\bhak\b|botki|kozaki|mokasyn|baleriny/.test(t)) return pick('Shoes', 'Buty', 'Scarpe');
+  if (/jumpsuit|playsuit|romper|kombinezon/.test(t)) return pick('Jumpsuits', 'Kombinezony', 'Tute');
+  if (/co-?ord|two.?piece|komplet|\bset\b/.test(t)) return pick('Co-ords', 'Komplety', 'Coordinati');
   return null;
 }
 
@@ -186,7 +203,7 @@ function mapSizeLabel(s, lang, isFootwear, market) {
   var key = String(s).toUpperCase().trim();
   var base = key.replace(/\s*\([^)]*\)\s*$/, '').trim();
   var euInLabel = key.match(/EU\s*([\d.]+)/);
-  var shoeKey = base.replace(/^UK\s*/, '').replace(/^US\s*/, '').replace(/^EU\s*/, '').replace(',', '.').replace(/\.0$/, '').trim();
+  var shoeKey = base.replace(/^UK\s*/, '').replace(/^US\s*/, '').replace(/^EU\s*/, '').replace(/^IT\s*/, '').replace(',', '.').replace(/\.0$/, '').trim();
   var num = parseFloat(shoeKey);
 
   if (isFootwear) {
@@ -199,12 +216,15 @@ function mapSizeLabel(s, lang, isFootwear, market) {
     if (uk !== null && eu === null) eu = shoeSizeMap[String(uk)] ? parseInt(shoeSizeMap[String(uk)], 10) : (Math.round(uk) + 33);
     if (eu !== null && uk === null) uk = eu - 33;
     if (eu === null && uk === null) return s;
+    // Polen én Italië: schoenmaten als kale EU-maat (geen UK/US).
     if (lang === 'polish' || market === 'polen') return 'EU ' + eu;
+    if (lang === 'italian' || market === 'italie') return 'EU ' + eu;
     if (market === 'canada') return 'US ' + (eu - 31) + ' (EU ' + eu + ')';
     return 'UK ' + uk + ' (EU ' + eu + ')';
   }
 
   if (lang === 'polish' || market === 'polen') return String(s).replace(/\s*\([^)]*\)\s*$/, '').trim();
+  if (lang === 'italian' || market === 'italie') return itSizeMap[base] || s;
   var cmap = market === 'canada' ? caSizeMap : sizeMap;
   return cmap[base] || s;
 }
@@ -277,6 +297,33 @@ const polishColorMap = {
   'dark brown': 'Ciemnobrązowy', 'lime green': 'Limonkowy', 'army green': 'Khaki'
 };
 
+// ── Italiaanse kleuren (Engelse basis -> Italiaans), plus enkele directe NL/DE-treffers ──
+const italianColorMap = {
+  'black': 'Nero', 'white': 'Bianco', 'red': 'Rosso', 'blue': 'Blu',
+  'green': 'Verde', 'pink': 'Rosa', 'beige': 'Beige', 'cream': 'Crema',
+  'grey': 'Grigio', 'gray': 'Grigio', 'brown': 'Marrone', 'orange': 'Arancione',
+  'purple': 'Viola', 'yellow': 'Giallo', 'navy': 'Blu navy', 'burgundy': 'Bordeaux',
+  'dark red': 'Rosso scuro', 'khaki': 'Kaki', 'lilac': 'Lilla', 'camel': 'Cammello',
+  'tan': 'Cuoio', 'coral': 'Corallo', 'mint': 'Menta', 'olive': 'Oliva',
+  'gold': 'Oro', 'silver': 'Argento', 'teal': 'Petrolio', 'mustard': 'Senape',
+  'rust': 'Ruggine', 'ivory': 'Avorio', 'nude': 'Nudo', 'turquoise': 'Turchese',
+  'aqua': 'Acqua', 'aqua green': 'Acqua', 'mint green': 'Menta', 'maroon': 'Bordeaux',
+  'charcoal': 'Antracite', 'sand': 'Sabbia', 'lavender': 'Lavanda', 'peach': 'Pesca',
+  'wine': 'Bordeaux', 'emerald': 'Smeraldo', 'cobalt': 'Cobalto', 'royal blue': 'Blu royal',
+  'sky blue': 'Celeste', 'light blue': 'Azzurro', 'dark blue': 'Blu navy',
+  'dark green': 'Verde scuro', 'forest green': 'Verde scuro', 'light green': 'Verde chiaro',
+  'bronze': 'Bronzo', 'fuchsia': 'Fucsia', 'magenta': 'Magenta', 'apricot': 'Albicocca',
+  'off white': 'Bianco panna', 'dark grey': 'Grigio scuro', 'light grey': 'Grigio chiaro',
+  'caramel': 'Caramello', 'salmon': 'Salmone', 'light brown': 'Marrone chiaro',
+  'dark brown': 'Marrone scuro', 'lime green': 'Verde lime', 'army green': 'Verde militare',
+  'stone': 'Pietra', 'taupe': 'Tortora', 'mauve': 'Malva', 'blush': 'Cipria',
+  'plum': 'Prugna', 'sage': 'Salvia', 'denim': 'Denim', 'gold': 'Oro',
+  // directe NL/DE die vaak voorkomen
+  'zwart': 'Nero', 'wit': 'Bianco', 'rood': 'Rosso', 'blauw': 'Blu', 'groen': 'Verde',
+  'roze': 'Rosa', 'grijs': 'Grigio', 'bruin': 'Marrone', 'geel': 'Giallo',
+  'schwarz': 'Nero', 'weiss': 'Bianco', 'weiß': 'Bianco'
+};
+
 const polishTypeMap = {
   'Dress': 'Sukienka', 'Maxi Dress': 'Sukienka Maxi', 'Mini Dress': 'Sukienka Mini',
   'Midi Dress': 'Sukienka Midi', 'Bodycon Dress': 'Sukienka Dopasowana',
@@ -298,6 +345,30 @@ const polishTypeMap = {
   'Heels': 'Czółenka', 'Court Shoes': 'Czółenka', 'Mules': 'Klapki na Obcasie',
   'Clogs': 'Chodaki', 'Ankle Boots': 'Botki', 'Knee High Boots': 'Kozaki',
   'Cowboy Boots': 'Kowbojki', 'Boots': 'Kozaki', 'Sneakers': 'Sneakersy'
+};
+
+// ── Italiaanse producttypes (Engels -> Italiaans, voor de variant-/producttype-weergave) ──
+const italianTypeMap = {
+  'Dress': 'Vestito', 'Maxi Dress': 'Vestito Lungo', 'Mini Dress': 'Vestito Corto',
+  'Midi Dress': 'Vestito Midi', 'Bodycon Dress': 'Vestito Aderente',
+  'Wrap Dress': 'Vestito a Portafoglio', 'Shirt Dress': 'Vestito Chemisier',
+  'Denim Dress': 'Vestito di Jeans', 'Skirt': 'Gonna', 'Midi Skirt': 'Gonna Midi',
+  'Maxi Skirt': 'Gonna Lunga', 'Mini Skirt': 'Minigonna', 'Denim Skirt': 'Gonna di Jeans',
+  'Blouse': 'Camicetta', 'Top': 'Top', 'Jacket': 'Giacca', 'Blazer': 'Blazer',
+  'Coat': 'Cappotto', 'Trench Coat': 'Trench', 'Denim Jacket': 'Giacca di Jeans',
+  'Jumpsuit': 'Tuta', 'Playsuit': 'Tuta Corta', 'Trousers': 'Pantaloni', 'Pants': 'Pantaloni',
+  'Wide Leg Trousers': 'Pantaloni a Gamba Larga', 'Linen Trousers': 'Pantaloni di Lino',
+  'Cargo Trousers': 'Pantaloni Cargo', 'Palazzo Trousers': 'Pantaloni Palazzo',
+  'Flared Trousers': 'Pantaloni a Zampa', 'Jeans': 'Jeans', 'Wide Leg Jeans': 'Jeans a Gamba Larga',
+  'Cardigan': 'Cardigan', 'Sweater': 'Maglione', 'Co-ord Set': 'Coordinato',
+  'Two Piece Set': 'Completo Due Pezzi', 'Tote Bag': 'Borsa Shopper', 'Shoulder Bag': 'Borsa a Spalla',
+  'Crossbody Bag': 'Borsa a Tracolla', 'Handbag': 'Borsa', 'Woven Bag': 'Borsa Intrecciata',
+  'Bag': 'Borsa', 'Loafers': 'Mocassini', 'Ballet Flats': 'Ballerine',
+  'Mary Jane Shoes': 'Scarpe Mary Jane', 'Slingback Flats': 'Ballerine Slingback',
+  'Sandals': 'Sandali', 'Slides': 'Ciabatte', 'Flip Flops': 'Infradito', 'Cork Sandals': 'Sandali in Sughero',
+  'Heels': 'Décolleté', 'Court Shoes': 'Décolleté', 'Mules': 'Mules',
+  'Clogs': 'Zoccoli', 'Ankle Boots': 'Stivaletti', 'Knee High Boots': 'Stivali Alti',
+  'Cowboy Boots': 'Stivali Texani', 'Boots': 'Stivali', 'Sneakers': 'Sneakers'
 };
 
 // Vertaalt een (NL/DE/FR/ES/EN) kleurnaam naar nette Engelse kleur.
@@ -329,6 +400,19 @@ function translateColorPolish(color) {
   const tokens = en.split(/[\s/\-]+/).filter(Boolean);
   for (let i = tokens.length - 1; i >= 0; i--) {
     if (polishColorMap[tokens[i]]) return polishColorMap[tokens[i]];
+  }
+  return color.charAt(0).toUpperCase() + color.slice(1).toLowerCase();
+}
+
+function translateColorItalian(color) {
+  const raw = String(color || '').toLowerCase().trim();
+  if (!raw) return 'Tinta unita';
+  if (italianColorMap[raw]) return italianColorMap[raw];
+  const en = translateColor(color).toLowerCase().trim();
+  if (italianColorMap[en]) return italianColorMap[en];
+  const tokens = en.split(/[\s/\-]+/).filter(Boolean);
+  for (let i = tokens.length - 1; i >= 0; i--) {
+    if (italianColorMap[tokens[i]]) return italianColorMap[tokens[i]];
   }
   return color.charAt(0).toUpperCase() + color.slice(1).toLowerCase();
 }
@@ -385,7 +469,8 @@ async function generateDescription(productInfo) {
 LANGUAGE: The "Language" field decides the language of the title, description and meta description.
 - english: Write the title, description and meta description in natural UK English. Title MUST end with "for women". Translate any non-English product name to English.
 - polish: Write the title, description and meta description in natural Polish. Title MUST end with "dla kobiet". Translate any non-Polish product name to Polish. Use Polish fashion SEO keywords (sukienka, sukienki damskie, sukienka maxi, sukienka midi, sukienka na wesele, spódnica, spódnica midi, bluzka, komplet, żakiet).
-Never mix languages. No Dutch, German or French words in either case.
+- italian: Write the title, description and meta description in natural Italian. Title MUST end with "da donna". Translate any non-Italian product name to Italian. Use Italian fashion SEO keywords (vestito, vestito lungo, vestito midi, abito da cerimonia, gonna, gonna midi, camicetta, pantaloni a gamba larga, sandali, mocassini, borsa a tracolla, stivali). For synthetic leather use "Ecopelle" — NEVER "Vegan Leather" or "Faux Leather".
+Never mix languages. No Dutch, German or French words in any case.
 NOTE: the "productType", "material", "occasion" and "style" fields are ALWAYS returned in English, regardless of the listing language.
 
 BRAND CONTEXT:
@@ -402,7 +487,7 @@ PRODUCT CLASSIFICATION (do this yourself — never rely on the hint):
 SEO TITLE RULES:
 - The SEO title is the single most important field: it is pushed straight into Google Shopping. It MUST be keyword-led, specific and accurate.
 - NO colours and NO sizes in the title. The product has multiple colour/size variants, so the title targets the CATEGORY search term, never one variant.
-- ACCURACY: only use attributes that are genuinely true for this product. NEVER invent material, occasion, fabric or features. NEVER write "faux leather" — if the upper is synthetic leather, call it "vegan leather". NEVER use promotional words (sale, % off, free shipping, best) or ALL CAPS.
+- ACCURACY: only use attributes that are genuinely true for this product. NEVER invent material, occasion, fabric or features. NEVER write "faux leather" — if the upper is synthetic leather, call it "vegan leather" (english/polish) or "Ecopelle" (italian). NEVER use promotional words (sale, % off, free shipping, best) or ALL CAPS.
 - Lead with the matching high-volume category keyword, then use as the SECOND term the highest-search modifier that fits (e.g. tassel, penny, chunky, platform, woven, vegan leather, wide leg, linen, large) — NOT a niche construction detail. Add ONE distinctive detail only if it doesn't push out a more-searched term. Keyword banks:
 
   ENGLISH (title MUST end with "for women"):
@@ -427,6 +512,15 @@ SEO TITLE RULES:
   • Buty: mokasyny, baleriny, klapki, sandały, czółenka, kozaki, botki, kowbojki
   • Okrycia: trencz, marynarka, kurtka jeansowa
   • Komplety: komplet dwuczęściowy
+
+  ITALIAN (title MUST end with "da donna"):
+  • Vestiti: vestito estivo, vestito lungo, vestito midi, vestito corto, abito da cerimonia, vestito floreale, vestito di lino
+  • Pantaloni: pantaloni a gamba larga, pantaloni di lino, pantaloni palazzo, pantaloni cargo, jeans a gamba larga, pantaloni a vita alta
+  • Gonne: gonna di jeans, gonna midi, gonna lunga
+  • Borse: borsa shopper, borsa a spalla, borsa a tracolla, borsa di paglia, borsa intrecciata
+  • Scarpe: mocassini, ballerine, ciabatte, sandali, décolleté, stivali, stivaletti
+  • Capispalla: trench, blazer, giacca di jeans
+  • Coordinati: completo due pezzi
 - NEVER use (any language): luxury, elegant, perfect, flattering, shaping, slimming, premium quality, comfort fit.
 - Structure: Primary category keyword + high-search secondary keyword + one distinctive detail + ending phrase. Keep under ~70 characters where possible.
 - UNIQUENESS (critical): The title MUST be unique and specific to THIS exact product. NEVER produce a generic title that could fit other products, and NEVER reuse a product name. Always weave in at least one distinctive detail of THIS item (e.g. print, neckline, sleeve, hem, length, heel type, fabric, closure) so that no two products ever end up with the same title.
@@ -437,8 +531,9 @@ PRODUCT DESCRIPTION RULES:
 - Bullets: Each bullet describes ONE specific, visible feature — cut, silhouette, hem detail, length, material finish, closure (for bags/shoes: strap, sole, fastening, compartments, heel height).
 - Closing: One punchy styling suggestion sentence.
 - Use only visible product features — never invent.
-- NEVER mention: comfort, support, posture, pain relief, healing, anti-slip, breathable, slimming, shaping, luxury, elegant, perfect, flattering. NEVER write "faux leather" — use "vegan leather".
-- Refer to the product by its type in the chosen language (English type if english, Polish type if polish).
+- NEVER mention: comfort, support, posture, pain relief, healing, anti-slip, breathable, slimming, shaping, luxury, elegant, perfect, flattering. NEVER write "faux leather" — use "vegan leather" (english/polish) or "Ecopelle" (italian).
+- FORBIDDEN health/medical claims in ITALIAN (never use): ortopedico, plantare ortopedico, anatomico, antiscivolo, traspirante, dimagrante, snellente.
+- Refer to the product by its type in the chosen language (English type if english, Polish type if polish, Italian type if italian).
 - Write like ASOS product copy: confident, specific, direct — not generic.
 - UNIQUENESS (critical): The description MUST be unique to THIS product. NEVER reuse sentences, phrasing, or bullet wording that could apply to another product.
 
@@ -451,7 +546,7 @@ OUTPUT FORMAT — output ONLY this JSON, no other text, no markdown, no code blo
 {"productType":"...","material":"...","occasion":"...","style":"...","seoTitle":"...","description":"...","metaDescription":"..."}`,
     messages: [{
       role: 'user',
-      content: 'Classify and create a listing for:\nName: ' + cleanedTitle + '\nType hint (may be empty or wrong — classify yourself): ' + (productInfo.type || 'unknown') + '\nColors: ' + (productInfo.colors || []).join(', ') + '\nMaterial hint: ' + (productInfo.material || 'unknown') + '\nSeason: ' + (productInfo.season || 'not specified') + '\nOriginal description: ' + (productInfo.originalDescription || 'none') + '\nLanguage: ' + (productInfo.language || 'english') + '\n\nIMPORTANT: Determine productType yourself from the name and description — NEVER default to Dress. If language is "polish" — write the title/description/meta in Polish, translate the product name to Polish, use Polish fashion SEO keywords, title must end with "dla kobiet". If language is "english" — write them in natural UK English, title must end with "for women". The productType/material/occasion/style fields stay in English. No Dutch, German or French words in the customer-facing text. Use "vegan leather", never "faux leather".'
+      content: 'Classify and create a listing for:\nName: ' + cleanedTitle + '\nType hint (may be empty or wrong — classify yourself): ' + (productInfo.type || 'unknown') + '\nColors: ' + (productInfo.colors || []).join(', ') + '\nMaterial hint: ' + (productInfo.material || 'unknown') + '\nSeason: ' + (productInfo.season || 'not specified') + '\nOriginal description: ' + (productInfo.originalDescription || 'none') + '\nLanguage: ' + (productInfo.language || 'english') + '\n\nIMPORTANT: Determine productType yourself from the name and description — NEVER default to Dress. If language is "polish" — write the title/description/meta in Polish, translate the product name to Polish, use Polish fashion SEO keywords, title must end with "dla kobiet". If language is "italian" — write the title/description/meta in Italian, translate the product name to Italian, use Italian fashion SEO keywords, title must end with "da donna", and use "Ecopelle" instead of "Vegan Leather"/"Faux Leather". If language is "english" — write them in natural UK English, title must end with "for women". The productType/material/occasion/style fields stay in English. No Dutch, German or French words in the customer-facing text.'
     }]
   });
 
@@ -613,7 +708,7 @@ const TITLE_NAMES = [
 
 function styledPhrase(seoTitle) {
   var p = String(seoTitle || '').trim();
-  p = p.replace(/\s*,?\s*(dla kobiet|for women)\s*$/i, '').trim();
+  p = p.replace(/\s*,?\s*(dla kobiet|for women|da donna)\s*$/i, '').trim();
   p = p.replace(/^[^–\-|]{1,20}\s*[–\-|]\s*/, '').trim();
   p = p.replace(/\s{2,}/g, ' ').trim();
   if (p) p = p.charAt(0).toLowerCase() + p.slice(1);
@@ -673,14 +768,28 @@ export default async function handler(req, res) {
   console.log('[handler] Product:', productInfo.title);
 
   try {
-    const lang = (productInfo.language || 'english').toLowerCase();
+    // ── Markt-gestuurde taal: het gekozen Land bepaalt de listing-taal. ──
+    // Italië -> Italiaans, Polen -> Pools, anders de meegegeven taal (default Engels).
+    const market = (productInfo.market || 'uk').toLowerCase();
+    let lang = (productInfo.language || 'english').toLowerCase();
+    if (market === 'italie') lang = 'italian';
+    if (market === 'polen')  lang = 'polish';
+    productInfo.language = lang; // zodat de AI-prompt de juiste taal pakt
+
     const storeName = productInfo.storeId === 'store2' ? 'Lorenzari' : (productInfo.storeName || 'Yamira London');
     const generated = await generateDescription(productInfo);
 
     // Faux Leather -> Vegan Leather overal afdwingen (backstop bovenop de prompt).
-    const description = veganLeather(generated.description || '');
-    const seoTitle = veganLeather(generated.seoTitle || productInfo.title);
-    const metaDescription = veganLeather(generated.metaDescription || '');
+    let description = veganLeather(generated.description || '');
+    let seoTitle = veganLeather(generated.seoTitle || productInfo.title);
+    let metaDescription = veganLeather(generated.metaDescription || '');
+
+    // Italiaans: in de KLANTTEKST "Vegan/Faux Leather" -> "Ecopelle" (material-metaveld blijft Engels).
+    if (lang === 'italian') {
+      description = italianLeather(description);
+      seoTitle = italianLeather(seoTitle);
+      metaDescription = italianLeather(metaDescription);
+    }
 
     const detectedType = (generated.productType && String(generated.productType).trim()) || '';
     const productType = detectedType
@@ -702,7 +811,6 @@ export default async function handler(req, res) {
 
     const footwear = isFootwearType(productType);
     const oneSize = isOneSizeType(productType);
-    const market = (productInfo.market || 'uk').toLowerCase();
 
     // ── Kleuren: gooi alles eruit dat een MAAT is (maten lekken soms in de kleur-as) ──
     const rawColors = (productInfo.colors || []).filter(function(c) { return c && !looksLikeSize(c); });
@@ -710,8 +818,10 @@ export default async function handler(req, res) {
     const shoeSizesFromColors = (productInfo.colors || []).filter(looksLikeShoeSize);
 
     const mappedColors = rawColors.length > 0
-      ? (lang === 'polish' ? rawColors.map(translateColorPolish) : rawColors.map(translateColor))
-      : [lang === 'polish' ? 'Jeden kolor' : 'One Colour'];
+      ? (lang === 'polish' ? rawColors.map(translateColorPolish)
+         : lang === 'italian' ? rawColors.map(translateColorItalian)
+         : rawColors.map(translateColor))
+      : [lang === 'polish' ? 'Jeden kolor' : (lang === 'italian' ? 'Tinta unita' : 'One Colour')];
     const seenColors = {};
     const colors = mappedColors.filter(function(c) {
       var k = String(c).toLowerCase().trim();
@@ -720,7 +830,9 @@ export default async function handler(req, res) {
       return true;
     });
 
-    const displayProductType = lang === 'polish' ? (polishTypeMap[productType] || productType) : productType;
+    const displayProductType = lang === 'polish' ? (polishTypeMap[productType] || productType)
+      : lang === 'italian' ? (italianTypeMap[productType] || productType)
+      : productType;
     const season = productInfo.season || 'ALL YEAR';
 
     // ── Maten: tassen/accessoires = ALTIJD One Size · schoenen = ALLEEN schoenmaten · kleding = XS–XXL ──
@@ -728,7 +840,7 @@ export default async function handler(req, res) {
     const defaultShoeSizes = ['36', '37', '38', '39', '40', '41'];
     let sizes;
     if (oneSize) {
-      sizes = [lang === 'polish' ? 'Uniwersalny' : 'One Size'];
+      sizes = [lang === 'polish' ? 'Uniwersalny' : (lang === 'italian' ? 'Taglia unica' : 'One Size')];
     } else if (footwear) {
       // Schoenen krijgen NOOIT kledingmaten. Pak echte schoenmaten (meegegeven + uit kleur-as gelekt), anders default.
       var passedShoe = (productInfo.sizes || []).filter(looksLikeShoeSize);
@@ -751,7 +863,7 @@ export default async function handler(req, res) {
 
     // ── Tags ──
     const mainCategory = mainCategoryFor(productType, lang);
-    const genderTag = lang === 'polish' ? 'Kobiety' : 'Women';
+    const genderTag = lang === 'polish' ? 'Kobiety' : (lang === 'italian' ? 'Donna' : 'Women');
     const tagSet = [season, displayProductType, mainCategory, occasion, material, style, genderTag];
     const seen = {};
     const tags = tagSet.filter(function(x) {
@@ -762,7 +874,10 @@ export default async function handler(req, res) {
       return true;
     }).join(', ');
 
-    const targetCurrency = (market === 'polen' || lang === 'polish') ? 'PLN' : 'GBP';
+    // ── Valuta per markt: Polen = PLN, Italië = EUR, anders GBP ──
+    const targetCurrency = (market === 'polen' || lang === 'polish') ? 'PLN'
+      : (market === 'italie' || lang === 'italian') ? 'EUR'
+      : 'GBP';
     const price = productInfo.convertedPrice
       ? parseFloat(productInfo.convertedPrice)
       : convertPrice(productInfo.originalPrice, productInfo.currency || 'EUR', targetCurrency);
@@ -794,8 +909,8 @@ export default async function handler(req, res) {
       }
     }
 
-    const colourLabel = lang === 'polish' ? 'Kolor' : 'Colour';
-    const sizeLabel = lang === 'polish' ? 'Rozmiar' : 'Size';
+    const colourLabel = lang === 'polish' ? 'Kolor' : (lang === 'italian' ? 'Colore' : 'Colour');
+    const sizeLabel = lang === 'polish' ? 'Rozmiar' : (lang === 'italian' ? 'Taglia' : 'Size');
 
     const shopifyProduct = {
       title: displayTitle,
@@ -875,7 +990,9 @@ export default async function handler(req, res) {
 
     if (ibc && hasColorOption) {
       Object.keys(ibc).forEach(function(color) {
-        const mappedColor = lang === 'polish' ? translateColorPolish(color) : translateColor(color);
+        const mappedColor = lang === 'polish' ? translateColorPolish(color)
+          : lang === 'italian' ? translateColorItalian(color)
+          : translateColor(color);
         const vids = colorToVariantIds[String(mappedColor).toLowerCase().trim()]
           || colorToVariantIds[String(color).toLowerCase().trim()]
           || [];
@@ -913,6 +1030,7 @@ export default async function handler(req, res) {
       description: description,
       metaDescription: metaDescription,
       price: price,
+      currency: targetCurrency,
       tags: tags,
       material: material,
       occasion: occasion,
