@@ -219,13 +219,13 @@ function mapSizeLabel(s, lang, isFootwear, market) {
     // Polen én Italië: schoenmaten als kale EU-maat (geen UK/US).
     if (lang === 'polish' || market === 'polen') return 'EU ' + eu;
     if (lang === 'italian' || market === 'italie') return 'EU ' + eu;
-    if (market === 'canada') return 'US ' + (eu - 31) + ' (EU ' + eu + ')';
+    if (market === 'canada' || market === 'usa') return 'US ' + (eu - 31) + ' (EU ' + eu + ')';
     return 'UK ' + uk + ' (EU ' + eu + ')';
   }
 
   if (lang === 'polish' || market === 'polen') return String(s).replace(/\s*\([^)]*\)\s*$/, '').trim();
   if (lang === 'italian' || market === 'italie') return itSizeMap[base] || s;
-  var cmap = market === 'canada' ? caSizeMap : sizeMap;
+  var cmap = (market === 'canada' || market === 'usa') ? caSizeMap : sizeMap;
   return cmap[base] || s;
 }
 
@@ -546,7 +546,7 @@ OUTPUT FORMAT — output ONLY this JSON, no other text, no markdown, no code blo
 {"productType":"...","material":"...","occasion":"...","style":"...","seoTitle":"...","description":"...","metaDescription":"..."}`,
     messages: [{
       role: 'user',
-      content: 'Classify and create a listing for:\nName: ' + cleanedTitle + '\nType hint (may be empty or wrong — classify yourself): ' + (productInfo.type || 'unknown') + '\nColors: ' + (productInfo.colors || []).join(', ') + '\nMaterial hint: ' + (productInfo.material || 'unknown') + '\nSeason: ' + (productInfo.season || 'not specified') + '\nOriginal description: ' + (productInfo.originalDescription || 'none') + '\nLanguage: ' + (productInfo.language || 'english') + '\n\nIMPORTANT: Determine productType yourself from the name and description — NEVER default to Dress. If language is "polish" — write the title/description/meta in Polish, translate the product name to Polish, use Polish fashion SEO keywords, title must end with "dla kobiet". If language is "italian" — write the title/description/meta in Italian, translate the product name to Italian, use Italian fashion SEO keywords, title must end with "da donna", and use "Ecopelle" instead of "Vegan Leather"/"Faux Leather". If language is "english" — write them in natural UK English, title must end with "for women". The productType/material/occasion/style fields stay in English. No Dutch, German or French words in the customer-facing text.'
+      content: 'Classify and create a listing for:\nName: ' + cleanedTitle + '\nType hint (may be empty or wrong — classify yourself): ' + (productInfo.type || 'unknown') + '\nColors: ' + (productInfo.colors || []).join(', ') + '\nMaterial hint: ' + (productInfo.material || 'unknown') + '\nSeason: ' + (productInfo.season || 'not specified') + '\nOriginal description: ' + (productInfo.originalDescription || 'none') + '\nLanguage: ' + (productInfo.language || 'english') + '\n\nIMPORTANT: Determine productType yourself from the name and description — NEVER default to Dress. If language is "polish" — write the title/description/meta in Polish, translate the product name to Polish, use Polish fashion SEO keywords, title must end with "dla kobiet". If language is "italian" — write the title/description/meta in Italian, translate the product name to Italian, use Italian fashion SEO keywords, title must end with "da donna", and use "Ecopelle" instead of "Vegan Leather"/"Faux Leather". If language is "english" — write them in natural UK English, title must end with "for women". The productType/material/occasion/style fields stay in English. No Dutch, German or French words in the customer-facing text.' + (String(productInfo.market || '').toLowerCase() === 'usa' ? '\n\nMARKET = USA: Write in natural AMERICAN English. Use US spelling (color, favorite, gray, jewelry) and US retail vocabulary (pants not trousers, sneakers not trainers, purse/handbag, fall not autumn, vacation not holiday). Title still ends with "for women". Use US-oriented fashion search keywords.' : '')
     }]
   });
 
@@ -877,6 +877,7 @@ export default async function handler(req, res) {
     // ── Valuta per markt: Polen = PLN, Italië = EUR, anders GBP ──
     const targetCurrency = (market === 'polen' || lang === 'polish') ? 'PLN'
       : (market === 'italie' || lang === 'italian') ? 'EUR'
+      : (market === 'usa') ? 'USD'
       : 'GBP';
     const price = productInfo.convertedPrice
       ? parseFloat(productInfo.convertedPrice)
