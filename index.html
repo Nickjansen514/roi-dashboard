@@ -552,29 +552,81 @@ function translateColor(color) {
   return COLOR_MAP[key] || (color.trim().charAt(0).toUpperCase() + color.trim().slice(1).toLowerCase());
 }
 
-// ✅ Prijs: dichtstbijzijnde x4.99 of x9.99 — ook naar beneden
-function convertToGbp(price, currency, target) {
-  target = target || 'GBP';
-  var toGbp = { EUR: 0.86, USD: 0.79, GBP: 1, PLN: 0.20 };
-  var gbpPerTarget = { GBP: 1, PLN: 0.20, EUR: 0.86, USD: 0.79 };
-  var gbp = price * (toGbp[currency] || 0.86);
-  var amount = gbp / (gbpPerTarget[target] || 1);
+// ============================================================================
+//  PRIJSBEPALING (preview) — MOET gelijk blijven aan generate-product.js
+// ----------------------------------------------------------------------------
+//  Flow: COG (originele prijs) -> markup -> + EU-heffing (3% van COG) als de
+//  bron NIET uit de EU komt en de doelmarkt WEL in de EU zit -> omrekenen
+//  naar doelvaluta -> charm-afronding NAAR BOVEN.
+//  Let op: dit is alleen de PREVIEW op het scherm. De echte prijs wordt
+//  server-side bepaald in generate-product.js met dezelfde constanten.
+//  Wijzig je hier iets (markup/koers), pas het dan OOK aan in generate-product.js.
+// ============================================================================
+var PRICE_MARKET_CURRENCY = { uk: 'GBP', usa: 'USD', polen: 'PLN', italie: 'EUR', nederland: 'EUR' };
+var PRICE_TO_GBP = { GBP: 1, EUR: 0.86, USD: 0.79, PLN: 0.20, CNY: 0.11 };
+var PRICE_GBP_TO = { GBP: 1, EUR: 1 / 0.86, USD: 1 / 0.79, PLN: 1 / 0.20 };
 
+// ⭐ DE BELANGRIJKSTE KNOP — markup op de COG per markt (verkoopprijs = COG × markup).
+var PRICE_MARKUP = { uk: 3.0, usa: 3.0, polen: 3.0, italie: 3.0, nederland: 3.0 };
+
+var PRICE_EU_MARKETS = ['polen', 'italie', 'nederland'];
+var PRICE_EU_IMPORT_TAX = 0.03;
+var PRICE_CHARM_ENDINGS = [4.99, 9.99];
+
+function priceSourceIsEU(sourceCurrency, sourceUrl) {
+  var u = String(sourceUrl || '').toLowerCase();
+  if (u) {
+    var euTlds = ['.eu','.de','.nl','.be','.fr','.it','.es','.pl','.at','.ie','.pt','.fi','.se','.dk','.cz','.sk','.ro','.hu','.gr','.lt','.lv','.ee','.si','.hr','.bg','.lu','.mt','.cy'];
+    for (var i = 0; i < euTlds.length; i++) {
+      if (new RegExp('\\' + euTlds[i] + '(?:[/:?#]|$)').test(u)) return true;
+    }
+    if (/aliexpress|alibaba|amazon\.com|\.cn|\.co\.uk|\.us(?:[/:?#]|$)/.test(u)) return false;
+  }
+  var c = String(sourceCurrency || '').toUpperCase();
+  if (c === 'EUR' || c === 'PLN') return true;
+  return false;
+}
+
+function charmRoundPrice(amount) {
+  if (!(amount > 0)) return 0;
   var candidates = [];
-  var base = Math.floor(amount);
-  for (var i = base - 10; i <= base + 10; i++) {
-    candidates.push(Math.floor(i / 10) * 10 + 4.99);
-    candidates.push(Math.floor(i / 10) * 10 + 9.99);
+  var base = Math.floor(amount / 10) * 10;
+  for (var tens = base - 20; tens <= base + 30; tens += 10) {
+    for (var k = 0; k < PRICE_CHARM_ENDINGS.length; k++) {
+      var c = parseFloat((tens + PRICE_CHARM_ENDINGS[k]).toFixed(2));
+      if (c > 0) candidates.push(c);
+    }
   }
-  candidates = candidates.filter(function(c) { return c > 0; });
+  candidates.sort(function(a, b) { return a - b; });
+  for (var j = 0; j < candidates.length; j++) {
+    if (candidates[j] >= amount - 0.001) return candidates[j];
+  }
+  return candidates[candidates.length - 1];
+}
 
-  var closest = candidates[0];
-  var minDiff = Math.abs(amount - closest);
-  for (var j = 1; j < candidates.length; j++) {
-    var diff = Math.abs(amount - candidates[j]);
-    if (diff < minDiff) { minDiff = diff; closest = candidates[j]; }
+// Berekent de verkoopprijs (zelfde logica als backend computePrice).
+function computeSalePrice(cog, sourceCurrency, market, sourceUrl) {
+  market = String(market || 'uk').toLowerCase();
+  cog = parseFloat(cog) || 0;
+  var targetCurrency = PRICE_MARKET_CURRENCY[market] || 'GBP';
+  if (cog <= 0) return { value: 0, currency: targetCurrency };
+  var markup = PRICE_MARKUP[market] || 3.0;
+  var basePrice = cog * markup;
+  if (PRICE_EU_MARKETS.indexOf(market) !== -1 && !priceSourceIsEU(sourceCurrency, sourceUrl)) {
+    basePrice += cog * PRICE_EU_IMPORT_TAX;
   }
-  return parseFloat(closest.toFixed(2));
+  var inGbp = basePrice * (PRICE_TO_GBP[String(sourceCurrency || 'EUR').toUpperCase()] || PRICE_TO_GBP.EUR);
+  var amount = inGbp * (PRICE_GBP_TO[targetCurrency] || 1);
+  return { value: charmRoundPrice(amount), currency: targetCurrency };
+}
+
+// Compat-wrapper (voor het geval elders nog aangeroepen): gebruikt nu de nieuwe logica.
+function convertToGbp(price, currency, target) {
+  var market = 'uk';
+  if (target === 'PLN') market = 'polen';
+  else if (target === 'USD') market = 'usa';
+  else if (target === 'EUR') market = 'italie';
+  return computeSalePrice(price, currency, market, '').value;
 }
 
 function updateGbpPrice() {
@@ -584,8 +636,11 @@ function updateGbpPrice() {
   var price = parseFloat(pEl.value) || 0;
   var currency = document.getElementById('pl-currency').value;
   var mk = plMarket();
-  var target = (mk === 'polen') ? 'PLN' : (mk === 'italie' || mk === 'nederland') ? 'EUR' : (mk === 'usa') ? 'USD' : 'GBP';
-  var val = convertToGbp(price, currency, target);
+  var urlEl = document.getElementById('pl-url');
+  var sourceUrl = urlEl ? urlEl.value.trim() : '';
+  var res = computeSalePrice(price, currency, mk, sourceUrl);
+  var val = res.value;
+  var target = res.currency;
   if (target === 'EUR') { gEl.value = val.toFixed(2).replace('.', ',') + ' €'; return; }
   var sym = target === 'PLN' ? 'zł ' : target === 'USD' ? '$' : '£';
   gEl.value = sym + val.toFixed(2);
@@ -971,6 +1026,7 @@ async function submitProduct() {
       type: document.getElementById('pl-type').value || 'Dress',
       originalPrice: parseFloat(document.getElementById('pl-price').value),
       currency: document.getElementById('pl-currency').value,
+      sourceUrl: document.getElementById('pl-url') ? document.getElementById('pl-url').value.trim() : '',
       language: document.getElementById('pl-lang') ? document.getElementById('pl-lang').value : 'english',
       market: document.getElementById('pl-market') ? document.getElementById('pl-market').value : 'uk',
       useNameTitle: document.getElementById('pl-nametitle') ? document.getElementById('pl-nametitle').checked : false,
@@ -1072,6 +1128,7 @@ async function startBatch() {
         type: sdata.productType || 'Dress',
         originalPrice: priceNum,
         currency: settings.currency,
+        sourceUrl: url,
         language: settings.language,
         market: settings.market,
         useNameTitle: settings.useNameTitle,
