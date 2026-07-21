@@ -2,9 +2,11 @@ const KIE_API_KEY = process.env.KIE_API_KEY;
 const SHOPIFY_TOKEN = process.env.SHOPIFY_TOKEN;
 const SHOPIFY_STORE = process.env.SHOPIFY_STORE;
 
-const MODEL = 'a confident professional fashion model, early 30s, light medium skin tone, long dark brown wavy hair, slim build, UK size 10, standing upright, British fashion aesthetic';
+const MODEL_WOMEN = 'a confident professional female fashion model, early 30s, light medium skin tone, long dark brown wavy hair, slim build, UK size 10, standing upright, British fashion aesthetic';
+const MODEL_MEN = 'a confident professional male fashion model, early 30s, light medium skin tone, short dark brown hair, athletic build, standing upright, British fashion aesthetic';
 const CROP = 'mid-thigh up';
-const STYLING = 'minimal delicate jewellery, nude heels';
+const STYLING_WOMEN = 'minimal delicate jewellery, nude heels';
+const STYLING_MEN = 'a simple watch, clean white trainers';
 
 // ── Anthropic-call met auto-retry bij tijdelijke fouten (429/500/502/503/529 overloaded) ──
 function backoffMs(attempt) {
@@ -288,7 +290,7 @@ function mainCategoryFor(productType, lang) {
   return null;
 }
 
-function mapSizeLabel(s, lang, isFootwear, market) {
+function mapSizeLabel(s, lang, isFootwear, market, gender) {
   market = (market || 'uk').toLowerCase();
   var key = String(s).toUpperCase().trim();
   var base = key.replace(/\s*\([^)]*\)\s*$/, '').trim();
@@ -314,6 +316,8 @@ function mapSizeLabel(s, lang, isFootwear, market) {
     return 'UK ' + uk + ' (EU ' + eu + ')';
   }
 
+  // Mannen: geen dames-maatlabels (bijv. "M (UK10)") — gewoon de kale maat.
+  if (gender === 'men') return String(s).replace(/\s*\([^)]*\)\s*$/, '').trim();
   if (lang === 'polish' || market === 'polen') return String(s).replace(/\s*\([^)]*\)\s*$/, '').trim();
   if (lang === 'italian' || market === 'italie') return itSizeMap[base] || s;
   if (lang === 'dutch' || market === 'nederland') return nlSizeMap[base] || s;
@@ -611,18 +615,27 @@ async function generateDescription(productInfo) {
   const storeName = productInfo.storeId === 'store2' ? 'Lorenzari' : (productInfo.storeName || 'Yamira London');
   console.log('[generateDescription] Starting for:', cleanedTitle, 'store:', storeName);
 
+  // ── Doelgroep (men/women) bepaalt titel-eindes, keywords en producttypes. ──
+  const gender = (String(productInfo.gender || 'women').toLowerCase() === 'men') ? 'men' : 'women';
+  const genderWord = gender === 'men' ? "men's" : "women's";
+  const endEnglish = gender === 'men' ? 'for men' : 'for women';
+  const endPolish = gender === 'men' ? 'dla mężczyzn' : 'dla kobiet';
+  const endItalian = gender === 'men' ? 'da uomo' : 'da donna';
+  const endDutch = gender === 'men' ? 'voor heren' : 'voor dames';
+  const genderGuidance = gender === 'men' ? '\n\nMENSWEAR STORE — CRITICAL: This is a MEN\'S fashion store; every listing targets MEN. NEVER classify items as womenswear (no dress, skirt, blouse). Use canonical ENGLISH men\'s productType values such as: T-Shirt, Polo Shirt, Shirt, Oxford Shirt, Linen Shirt, Overshirt, Hoodie, Sweatshirt, Jumper, Cardigan, Chinos, Cargo Trousers, Linen Trousers, Trousers, Jeans, Shorts, Swim Shorts, Blazer, Suit, Overcoat, Trench Coat, Bomber Jacket, Denim Jacket, Gilet, Loafers, Derby Shoes, Chelsea Boots, Trainers, Sneakers, Belt, Cap, Bag. Use MEN\'S fashion SEO keywords in the listing language (english: linen shirt, oxford shirt, polo shirt, chinos, cargo trousers, swim shorts, overshirt, bomber jacket, chelsea boots, loafers, trainers; italian: camicia di lino, camicia oxford, polo, chino, pantaloni cargo, costume da bagno, overshirt, bomber, stivaletti chelsea, mocassini, sneakers; polish: koszula lniana, koszula, polo, chinosy, spodnie cargo, szorty, bomberka, mokasyny, sneakersy; dutch: linnen overhemd, overhemd, polo, chino, cargobroek, zwemshort, overshirt, bomberjack, chelsea boots, loafers, sneakers). IGNORE the womenswear keyword banks listed further below.' : '';
+
   const response = await callAnthropic({
     model: 'claude-sonnet-4-6',
     max_tokens: 2000,
-    system: `You are the dedicated product listing assistant for ${storeName}, a women's fashion webshop. Create fully compliant Shopify-ready product listings. Follow every rule exactly.
+    system: `You are the dedicated product listing assistant for ${storeName}, a ${genderWord} fashion webshop. Create fully compliant Shopify-ready product listings. Follow every rule exactly.
 
 LANGUAGE: The "Language" field decides the language of the title, description and meta description.
-- english: Write the title, description and meta description in natural UK English. Title MUST end with "for women". Translate any non-English product name to English.
-- polish: Write the title, description and meta description in natural Polish. Title MUST end with "dla kobiet". Translate any non-Polish product name to Polish. Use Polish fashion SEO keywords (sukienka, sukienki damskie, sukienka maxi, sukienka midi, sukienka na wesele, spódnica, spódnica midi, bluzka, komplet, żakiet).
-- italian: Write the title, description and meta description in natural Italian. Title MUST end with "da donna". Translate any non-Italian product name to Italian. Use Italian fashion SEO keywords (vestito, vestito lungo, vestito midi, abito da cerimonia, gonna, gonna midi, camicetta, pantaloni a gamba larga, sandali, mocassini, borsa a tracolla, stivali). For synthetic leather use "Ecopelle" — NEVER "Vegan Leather" or "Faux Leather".
-- dutch: Write the title, description and meta description in natural Dutch (Nederlands). Title MUST end with "voor dames". Translate any non-Dutch product name to Dutch. Use Dutch fashion SEO keywords (jurk, zomerjurk, maxi-jurk, midi-jurk, galajurk, bruiloftgast jurk, blouse, wijde broek, linnen broek, rok, spijkerrok, schoudertas, sandalen, hakken, laarzen, sneakers).
+- english: Write the title, description and meta description in natural UK English. Title MUST end with "${endEnglish}". Translate any non-English product name to English.
+- polish: Write the title, description and meta description in natural Polish. Title MUST end with "${endPolish}". Translate any non-Polish product name to Polish. Use Polish fashion SEO keywords (sukienka, sukienki damskie, sukienka maxi, sukienka midi, sukienka na wesele, spódnica, spódnica midi, bluzka, komplet, żakiet).
+- italian: Write the title, description and meta description in natural Italian. Title MUST end with "${endItalian}". Translate any non-Italian product name to Italian. Use Italian fashion SEO keywords (vestito, vestito lungo, vestito midi, abito da cerimonia, gonna, gonna midi, camicetta, pantaloni a gamba larga, sandali, mocassini, borsa a tracolla, stivali). For synthetic leather use "Ecopelle" — NEVER "Vegan Leather" or "Faux Leather".
+- dutch: Write the title, description and meta description in natural Dutch (Nederlands). Title MUST end with "${endDutch}". Translate any non-Dutch product name to Dutch. Use Dutch fashion SEO keywords (jurk, zomerjurk, maxi-jurk, midi-jurk, galajurk, bruiloftgast jurk, blouse, wijde broek, linnen broek, rok, spijkerrok, schoudertas, sandalen, hakken, laarzen, sneakers).
 Never mix languages within a single listing. Only use German or French words if they are the established fashion term (e.g. blazer, trench).
-NOTE: the "productType", "material", "occasion" and "style" fields are ALWAYS returned in English, regardless of the listing language.
+NOTE: the "productType", "material", "occasion" and "style" fields are ALWAYS returned in English, regardless of the listing language.${genderGuidance}
 
 BRAND CONTEXT:
 Store: ${storeName}. Tone: clean, neutral, refined, factual. Never write hype, never exaggerate.
@@ -641,7 +654,7 @@ SEO TITLE RULES:
 - ACCURACY: only use attributes that are genuinely true for this product. NEVER invent material, occasion, fabric or features. NEVER write "faux leather" — if the upper is synthetic leather, call it "vegan leather" (english/polish) or "Ecopelle" (italian). NEVER use promotional words (sale, % off, free shipping, best) or ALL CAPS.
 - Lead with the matching high-volume category keyword, then use as the SECOND term the highest-search modifier that fits (e.g. tassel, penny, chunky, platform, woven, vegan leather, wide leg, linen, large) — NOT a niche construction detail. Add ONE distinctive detail only if it doesn't push out a more-searched term. Keyword banks:
 
-  ENGLISH (title MUST end with "for women"):
+  ENGLISH (title MUST end with "${endEnglish}"):
   • Dresses: summer dress, maxi dress, midi dress, mini dress, floral dress, linen dress, wedding guest dress, cocktail dress, bodycon dress, wrap dress, shirt dress, denim dress
   • Tops & blouses: linen top, satin blouse, going out top, corset top, halter top
   • Trousers: wide leg trousers, linen trousers, palazzo trousers, cargo trousers, wide leg jeans, high waisted trousers, flared trousers
@@ -655,7 +668,7 @@ SEO TITLE RULES:
   • Outerwear: trench coat, blazer, denim jacket, quilted jacket
   • Co-ords: co-ord set, two piece set
 
-  POLISH (title MUST end with "dla kobiet"):
+  POLISH (title MUST end with "${endPolish}"):
   • Sukienki: sukienka letnia, sukienka maxi, sukienka midi, sukienka na wesele, sukienka koktajlowa, sukienka lniana
   • Spodnie: spodnie szerokie, spodnie lniane, spodnie palazzo, szerokie jeansy, spodnie z wysokim stanem
   • Spódnice: spódnica jeansowa, spódnica midi, spódnica maxi
@@ -664,7 +677,7 @@ SEO TITLE RULES:
   • Okrycia: trencz, marynarka, kurtka jeansowa
   • Komplety: komplet dwuczęściowy
 
-  ITALIAN (title MUST end with "da donna"):
+  ITALIAN (title MUST end with "${endItalian}"):
   • Vestiti: vestito estivo, vestito lungo, vestito midi, vestito corto, abito da cerimonia, vestito floreale, vestito di lino
   • Pantaloni: pantaloni a gamba larga, pantaloni di lino, pantaloni palazzo, pantaloni cargo, jeans a gamba larga, pantaloni a vita alta
   • Gonne: gonna di jeans, gonna midi, gonna lunga
@@ -673,7 +686,7 @@ SEO TITLE RULES:
   • Capispalla: trench, blazer, giacca di jeans
   • Coordinati: completo due pezzi
 
-  DUTCH (title MUST end with "voor dames"):
+  DUTCH (title MUST end with "${endDutch}"):
   • Jurken: zomerjurk, maxi-jurk, midi-jurk, mini-jurk, galajurk, bruiloftgast jurk, cocktailjurk, bloemenjurk, linnen jurk
   • Broeken: wijde broek, linnen broek, palazzo broek, cargobroek, wijde jeans, broek met hoge taille
   • Rokken: spijkerrok, midi-rok, maxi-rok, mini-rok
@@ -706,7 +719,7 @@ OUTPUT FORMAT — output ONLY this JSON, no other text, no markdown, no code blo
 {"productType":"...","material":"...","occasion":"...","style":"...","seoTitle":"...","description":"...","metaDescription":"..."}`,
     messages: [{
       role: 'user',
-      content: 'Classify and create a listing for:\nName: ' + cleanedTitle + '\nType hint (may be empty or wrong — classify yourself): ' + (productInfo.type || 'unknown') + '\nColors: ' + (productInfo.colors || []).join(', ') + '\nMaterial hint: ' + (productInfo.material || 'unknown') + '\nSeason: ' + (productInfo.season || 'not specified') + '\nOriginal description: ' + (productInfo.originalDescription || 'none') + '\nLanguage: ' + (productInfo.language || 'english') + '\n\nIMPORTANT: Determine productType yourself from the name and description — NEVER default to Dress. If language is "polish" — write the title/description/meta in Polish, translate the product name to Polish, use Polish fashion SEO keywords, title must end with "dla kobiet". If language is "italian" — write the title/description/meta in Italian, translate the product name to Italian, use Italian fashion SEO keywords, title must end with "da donna", and use "Ecopelle" instead of "Vegan Leather"/"Faux Leather". If language is "dutch" — write the title/description/meta in Dutch, translate the product name to Dutch, use Dutch fashion SEO keywords, title must end with "voor dames". If language is "english" — write them in natural UK English, title must end with "for women". The productType/material/occasion/style fields stay in English. Keep the customer-facing text in the chosen listing language only (no German or French words unless they are the standard fashion term).' + (String(productInfo.market || '').toLowerCase() === 'usa' ? '\n\nMARKET = USA: Write in natural AMERICAN English. Use US spelling (color, favorite, gray, jewelry) and US retail vocabulary (pants not trousers, sneakers not trainers, purse/handbag, fall not autumn, vacation not holiday). Title still ends with "for women". Use US-oriented fashion search keywords.' : '')
+      content: 'Classify and create a listing for:\nName: ' + cleanedTitle + '\nType hint (may be empty or wrong — classify yourself): ' + (productInfo.type || 'unknown') + '\nColors: ' + (productInfo.colors || []).join(', ') + '\nMaterial hint: ' + (productInfo.material || 'unknown') + '\nSeason: ' + (productInfo.season || 'not specified') + '\nOriginal description: ' + (productInfo.originalDescription || 'none') + '\nLanguage: ' + (productInfo.language || 'english') + '\n\nIMPORTANT: Determine productType yourself from the name and description — NEVER default to Dress. If language is "polish" — write the title/description/meta in Polish, translate the product name to Polish, use Polish fashion SEO keywords, title must end with "' + endPolish + '". If language is "italian" — write the title/description/meta in Italian, translate the product name to Italian, use Italian fashion SEO keywords, title must end with "' + endItalian + '", and use "Ecopelle" instead of "Vegan Leather"/"Faux Leather". If language is "dutch" — write the title/description/meta in Dutch, translate the product name to Dutch, use Dutch fashion SEO keywords, title must end with "' + endDutch + '". If language is "english" — write them in natural UK English, title must end with "' + endEnglish + '". The productType/material/occasion/style fields stay in English. Keep the customer-facing text in the chosen listing language only (no German or French words unless they are the standard fashion term).' + (String(productInfo.market || '').toLowerCase() === 'usa' ? '\n\nMARKET = USA: Write in natural AMERICAN English. Use US spelling (color, favorite, gray, jewelry) and US retail vocabulary (pants not trousers, sneakers not trainers, purse/handbag, fall not autumn, vacation not holiday). Title still ends with "for women". Use US-oriented fashion search keywords.' : '')
     }]
   });
 
@@ -723,7 +736,9 @@ OUTPUT FORMAT — output ONLY this JSON, no other text, no markdown, no code blo
   }
 }
 
-function buildPhotoPrompts(seoTitle, color) {
+function buildPhotoPrompts(seoTitle, color, gender) {
+  const MODEL = (gender === 'men') ? MODEL_MEN : MODEL_WOMEN;
+  const STYLING = (gender === 'men') ? STYLING_MEN : STYLING_WOMEN;
   const colorDesc = colorPromptDescription(color);
   const GARMENT = seoTitle + ' in ' + colorDesc;
   const detailKeywords = ['neckline', 'sleeve', 'collar', 'hem', 'waist', 'button', 'zip', 'ruffle', 'bow', 'tie', 'slit', 'pleat', 'gather', 'ruche', 'butterfly'];
@@ -936,6 +951,7 @@ export default async function handler(req, res) {
     if (market === 'polen')  lang = 'polish';
     if (market === 'nederland') lang = 'dutch';
     productInfo.language = lang; // zodat de AI-prompt de juiste taal pakt
+    const gender = (String(productInfo.gender || 'women').toLowerCase() === 'men') ? 'men' : 'women';
 
     const storeName = productInfo.storeId === 'store2' ? 'Lorenzari' : (productInfo.storeName || 'Yamira London');
     const generated = await generateDescription(productInfo);
@@ -1011,14 +1027,14 @@ export default async function handler(req, res) {
       var seenShoe = {};
       allShoe = allShoe.filter(function(s) { var k = String(s).toLowerCase().trim(); if (!k || seenShoe[k]) return false; seenShoe[k] = true; return true; });
       var shoeSrc = allShoe.length ? allShoe : defaultShoeSizes;
-      sizes = shoeSrc.map(function(s) { return mapSizeLabel(s, lang, true, market); });
+      sizes = shoeSrc.map(function(s) { return mapSizeLabel(s, lang, true, market, gender); });
     } else if (productInfo.sizes && productInfo.sizes.length) {
       // Kleding: meegegeven maten, maar schoen-getallen eruit.
       var clothing = productInfo.sizes.filter(function(s) { return !looksLikeShoeSize(s); });
       var clSrc = clothing.length ? clothing : defaultSizes;
-      sizes = clSrc.map(function(s) { return mapSizeLabel(s, lang, false, market); });
+      sizes = clSrc.map(function(s) { return mapSizeLabel(s, lang, false, market, gender); });
     } else {
-      sizes = defaultSizes.map(function(s) { return mapSizeLabel(s, lang, false, market); });
+      sizes = defaultSizes.map(function(s) { return mapSizeLabel(s, lang, false, market, gender); });
     }
     // Ontdubbel maten zodat geen dubbele kleur+maat-varianten ontstaan (Shopify 422).
     var seenSize = {};
@@ -1026,7 +1042,9 @@ export default async function handler(req, res) {
 
     // ── Tags ──
     const mainCategory = mainCategoryFor(productType, lang);
-    const genderTag = lang === 'polish' ? 'Kobiety' : (lang === 'italian' ? 'Donna' : (lang === 'dutch' ? 'Dames' : 'Women'));
+    const genderTag = gender === 'men'
+      ? (lang === 'polish' ? 'Mężczyźni' : (lang === 'italian' ? 'Uomo' : (lang === 'dutch' ? 'Heren' : 'Men')))
+      : (lang === 'polish' ? 'Kobiety' : (lang === 'italian' ? 'Donna' : (lang === 'dutch' ? 'Dames' : 'Women')));
     const tagSet = [season, displayProductType, mainCategory, occasion, material, style, genderTag];
     const seen = {};
     const tags = tagSet.filter(function(x) {
@@ -1059,7 +1077,7 @@ export default async function handler(req, res) {
     let generatedImages = [];
     if (generatePhotos) {
       const primaryColor = rawColors.length > 0 ? translateColor(rawColors[0]) : 'the garment colour';
-      const prompts = buildPhotoPrompts(seoTitle, primaryColor);
+      const prompts = buildPhotoPrompts(seoTitle, primaryColor, gender);
       const taskIds = [];
       for (let i = 0; i < prompts.length; i++) {
         try { const taskId = await submitKieTask(prompts[i]); taskIds.push({ taskId: taskId, index: i }); } catch(e) { console.error('Submit task ' + i + ' failed:', e.message); }
@@ -1123,7 +1141,7 @@ export default async function handler(req, res) {
         material: material,
         occasion: occasion,
         style: style,
-        gender: 'Female',
+        gender: gender === 'men' ? 'Male' : 'Female',
         ageGroup: 'Adult',
         googleCategory: googleCategory
       });
