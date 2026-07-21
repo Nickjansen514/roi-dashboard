@@ -42,25 +42,105 @@ async function callAnthropic(requestBody, maxRetries = 5) {
   }
 }
 
-function convertPrice(originalPrice, currency = 'EUR', target = 'GBP') {
-  const toGbp = { EUR: 0.86, USD: 0.79, GBP: 1, PLN: 0.20 };
-  const gbpPerTarget = { GBP: 1, PLN: 0.20, EUR: 0.86, USD: 0.79 };
-  const gbp = originalPrice * (toGbp[currency] || 0.86);
-  const amount = gbp / (gbpPerTarget[target] || 1);
+// ============================================================================
+//  PRIJSBEPALING  (vervangt de oude convertPrice)
+// ----------------------------------------------------------------------------
+//  Flow:  COG (originalPrice)
+//         -> markup per markt
+//         -> + EU-invoerheffing (3% van COG) als de bron NIET uit de EU komt
+//            en de doelmarkt WEL in de EU zit
+//         -> omrekenen naar doelvaluta
+//         -> charm-afronding NAAR BOVEN (X4.99 / X9.99)
+//
+//  BELANGRIJK: originalPrice wordt behandeld als KOSTPRIJS (COG), niet als
+//  verkoopprijs. Daarom kwam alles vroeger te laag uit: er zat geen markup op.
+// ============================================================================
+
+// Doelvaluta per markt.
+const MARKET_CURRENCY = { uk: 'GBP', usa: 'USD', polen: 'PLN', italie: 'EUR', nederland: 'EUR' };
+
+// Wisselkoersen (GBP is de tussenvaluta). Pas periodiek aan.
+const PRICE_TO_GBP = { GBP: 1, EUR: 0.86, USD: 0.79, PLN: 0.20, CNY: 0.11 }; // 1 <bron> = X GBP
+const PRICE_GBP_TO = { GBP: 1, EUR: 1 / 0.86, USD: 1 / 0.79, PLN: 1 / 0.20 }; // 1 GBP = X <doel>
+
+// ⭐ DE BELANGRIJKSTE KNOP — markup op de COG per markt.
+//    Verkoopprijs = COG × markup. Zet dit op je werkelijke marge.
+//    (Je merkregel noemt ×4.95 — pas hieronder gerust aan.)
+const PRICE_MARKUP = { uk: 3.0, usa: 3.0, polen: 3.0, italie: 3.0, nederland: 3.0 };
+
+// EU-invoerheffing: 3% van de COG erbovenop, alleen voor EU-doelmarkten
+// én wanneer de bron (competitor link) NIET uit de EU komt.
+const EU_MARKETS = ['polen', 'italie', 'nederland'];
+const EU_IMPORT_TAX = 0.03;
+
+// Charm-afronding (zet op [4.95, 9.95] als je .95-eindes wilt).
+const CHARM_ENDINGS = [4.99, 9.99];
+
+// Bepaalt of de bron in de EU zit: 1) expliciete vlag 2) URL-TLD 3) bronvaluta.
+function priceSourceIsEU(productInfo) {
+  if (typeof productInfo.sourceIsEU === 'boolean') return productInfo.sourceIsEU;
+  const url = String(productInfo.sourceUrl || productInfo.competitorUrl || '').toLowerCase();
+  if (url) {
+    const euTlds = ['.eu', '.de', '.nl', '.be', '.fr', '.it', '.es', '.pl', '.at',
+      '.ie', '.pt', '.fi', '.se', '.dk', '.cz', '.sk', '.ro', '.hu', '.gr', '.lt',
+      '.lv', '.ee', '.si', '.hr', '.bg', '.lu', '.mt', '.cy'];
+    for (const tld of euTlds) {
+      if (new RegExp('\\' + tld + '(?:[/:?#]|$)').test(url)) return true;
+    }
+    if (/aliexpress|alibaba|amazon\.com|\.cn|\.co\.uk|\.us(?:[/:?#]|$)/.test(url)) return false;
+  }
+  const cur = String(productInfo.currency || '').toUpperCase();
+  if (cur === 'EUR' || cur === 'PLN') return true;
+  return false; // onbekend => niet-EU (heffing erbij = veiliger voor je marge)
+}
+
+// Rondt af naar de dichtstbijzijnde charm-prijs, maar NOOIT naar beneden.
+function charmRound(amount) {
+  if (!(amount > 0)) return 0;
   const candidates = [];
-  const base = Math.floor(amount);
-  for (let i = base - 10; i <= base + 10; i++) {
-    candidates.push(parseFloat((Math.floor(i / 10) * 10 + 4.99).toFixed(2)));
-    candidates.push(parseFloat((Math.floor(i / 10) * 10 + 9.99).toFixed(2)));
+  const base = Math.floor(amount / 10) * 10;
+  for (let tens = base - 20; tens <= base + 30; tens += 10) {
+    for (const end of CHARM_ENDINGS) {
+      const c = parseFloat((tens + end).toFixed(2));
+      if (c > 0) candidates.push(c);
+    }
   }
-  const valid = candidates.filter(function(c) { return c > 0; });
-  let closest = valid[0];
-  let minDiff = Math.abs(amount - closest);
-  for (let j = 1; j < valid.length; j++) {
-    const diff = Math.abs(amount - valid[j]);
-    if (diff < minDiff) { minDiff = diff; closest = valid[j]; }
+  candidates.sort(function (a, b) { return a - b; });
+  for (let i = 0; i < candidates.length; i++) {
+    if (candidates[i] >= amount - 0.001) return candidates[i];
   }
-  return parseFloat(closest.toFixed(2));
+  return candidates[candidates.length - 1];
+}
+
+// Hoofdfunctie: definitieve verkoopprijs in de doelvaluta van de markt.
+function computePrice(productInfo) {
+  const market = String(productInfo.market || 'uk').toLowerCase();
+  const targetCurrency = MARKET_CURRENCY[market] || 'GBP';
+
+  // Handmatige prijs forceren (wel charm-afgerond).
+  if (productInfo.priceOverride != null && parseFloat(productInfo.priceOverride) > 0) {
+    return charmRound(parseFloat(productInfo.priceOverride));
+  }
+
+  const cog = parseFloat(productInfo.originalPrice) || 0;
+  if (cog <= 0) return 0;
+  const sourceCurrency = String(productInfo.currency || 'EUR').toUpperCase();
+
+  // 1) Markup op de COG (kern-marge)
+  const markup = PRICE_MARKUP[market] || 3.0;
+  let base = cog * markup;
+
+  // 2) EU-heffing: alleen EU-doelmarkt + niet-EU bron
+  if (EU_MARKETS.indexOf(market) !== -1 && !priceSourceIsEU(productInfo)) {
+    base += cog * EU_IMPORT_TAX;
+  }
+
+  // 3) Bronvaluta -> GBP -> doelvaluta
+  const inGbp = base * (PRICE_TO_GBP[sourceCurrency] || PRICE_TO_GBP.EUR);
+  const amount = inGbp * (PRICE_GBP_TO[targetCurrency] || 1);
+
+  // 4) Charm-afronding naar boven
+  return charmRound(amount);
 }
 
 const sizeMap = {
@@ -957,14 +1037,11 @@ export default async function handler(req, res) {
       return true;
     }).join(', ');
 
-    // ── Valuta per markt: Polen = PLN, Italië = EUR, anders GBP ──
-    const targetCurrency = (market === 'polen' || lang === 'polish') ? 'PLN'
-      : (market === 'italie' || lang === 'italian' || market === 'nederland' || lang === 'dutch') ? 'EUR'
-      : (market === 'usa') ? 'USD'
-      : 'GBP';
-    const price = productInfo.convertedPrice
-      ? parseFloat(productInfo.convertedPrice)
-      : convertPrice(productInfo.originalPrice, productInfo.currency || 'EUR', targetCurrency);
+    // ── Valuta per markt: Polen = PLN, Italië/Nederland = EUR, USA = USD, anders GBP ──
+    const targetCurrency = MARKET_CURRENCY[market]
+      || ((lang === 'polish') ? 'PLN' : (lang === 'italian' || lang === 'dutch') ? 'EUR' : 'GBP');
+    // Nieuwe prijsbepaling: COG × markup (+ EU-heffing bij niet-EU bron) -> doelvaluta -> charm.
+    const price = computePrice(productInfo);
 
     const variants = [];
     if (colors.length > 0 && sizes.length > 0) {
